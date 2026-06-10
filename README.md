@@ -81,6 +81,7 @@ the primary checkout refuses direct commits (work happens in
 
 ## Backlog
 
-This repo's initial backlog (relocated from the livespec tenant
-pending this repo's own work-item tenant provisioning) lives in
-[BACKLOG.md](BACKLOG.md).
+This repo's backlog lives in its beads tenant
+(`livespec-driver-claude` on the shared dolt-server) — query it with
+`bd list`. [BACKLOG.md](BACKLOG.md) is a pointer recording the founding
+items' migration provenance.
