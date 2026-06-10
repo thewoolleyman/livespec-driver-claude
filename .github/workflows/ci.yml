@@ -25,6 +25,7 @@ jobs:
           - check-plugin-structure
           - check-lint
           - check-format
+          - check-e2e-cli
     steps:
       - name: Checkout
         uses: actions/checkout@v4

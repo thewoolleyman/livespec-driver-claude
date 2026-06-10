@@ -70,6 +70,14 @@ ignore = [
     "ISC001",  # implicit-str-concat on one line; conflicts with the formatter
 ]
 
+# The CLI end-to-end test directory is named `tests/e2e-cli/` by
+# convention (livespec/SPECIFICATION/contracts.md §"CLI end-to-end
+# harness contract" mandates a `tests/e2e-cli/` directory). The hyphen
+# is not a valid Python module-name character, so N999 is exempted for
+# that tree (it is never imported as a package by product code).
+[tool.ruff.lint.per-file-ignores]
+"tests/e2e-cli/**.py" = ["N999"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
