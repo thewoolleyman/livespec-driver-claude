@@ -1,0 +1,39 @@
+# Per-target matrix CI for livespec-driver-claude.
+#
+# Family conventions scaled to this repo's content (thin SKILL.md
+# bindings + plugin manifests + the e2e-cli harness consumer). Every
+# step delegates to `just <target>` (direct tool invocations in
+# `run:` lines are forbidden per livespec/SPECIFICATION/
+# non-functional-requirements.md §"Toolchain pins").
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  merge_group:
+
+jobs:
+  check:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - check-plugin-structure
+          - check-lint
+          - check-format
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned binaries via mise
+        uses: jdx/mise-action@v2
+
+      - name: Install Python dev deps via uv
+        run: uv sync --all-groups
+
+      - name: just ${{ matrix.target }}
+        run: just ${{ matrix.target }}

@@ -1,0 +1,19 @@
+### Project ignores
+tmp/
+.claude/settings.local.json
+.claude/worktrees/
+.idea/
+
+### Python toolchain artifacts
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
+### UV local state
+.venv/
+
+### Beads / Dolt substrate (future tenant)
+.beads/
+*.env.local
