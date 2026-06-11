@@ -65,6 +65,7 @@ check:
         check-plugin-structure
         check-lint
         check-format
+        check-hooks
         check-e2e-cli
     )
     failed=()
@@ -92,6 +93,12 @@ check-lint:
 
 check-format:
     uv run ruff format --check .
+
+# Plugin-shipped Claude Code hook scripts (.claude-plugin/hooks/) —
+# unit-tested as subprocesses with a mocked CLAUDE_PROJECT_DIR plus
+# tmp_path fixture projects (work-item livespec-driver-claude-e1s).
+check-hooks:
+    uv run pytest tests/hooks/
 
 # CLI end-to-end harness consumer (mock tier) — relocated from
 # livespec core together with the bindings. Real structural skill
