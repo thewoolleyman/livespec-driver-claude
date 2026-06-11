@@ -25,6 +25,7 @@ jobs:
           - check-plugin-structure
           - check-lint
           - check-format
+          - check-hooks
           - check-e2e-cli
     steps:
       - name: Checkout
