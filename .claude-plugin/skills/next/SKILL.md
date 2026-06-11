@@ -89,13 +89,10 @@ python3 "$LIVESPEC_CORE_ROOT/scripts/bin/next.py" [--spec-target <path>] [--proj
   default config:
 
   ```bash
-  python3 "$LIVESPEC_CORE_ROOT/scripts/bin/next.py" [--spec-target <path>] [--project-root <path>]
+  python3 "$LIVESPEC_CORE_ROOT/scripts/bin/next.py" [--spec-target <path>] [--project-root <path>] [--limit <count>] [--offset <count>]
   ```
 
-- **"surface the nudge" / "ask the user to confirm"** —
-  conversational turns in this session.
-- **"a cross-repo loop driver"** — in the livespec core repo
-  itself this is the project-local `/livespec-orchestrate` skill
-  (non-contract working tooling carried by that repo). When such a
-  driver (or any other skill) invokes this skill, skip the prose's
-  Step 1 nudge.
+- **"surface the captured stdout to the user" / "present the JSON
+  verbatim"** (prose Step 2) — plain narration in this session: emit
+  the CLI's stdout JSON without re-interpretation, re-summarization,
+  or judgment.
