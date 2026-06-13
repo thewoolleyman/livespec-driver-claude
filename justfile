@@ -79,6 +79,11 @@ check:
         echo "FAILED targets: ${failed[*]}" >&2
         exit 1
     fi
+    # Advisory-local green token — keyed on the current HEAD tree-hash so
+    # check-pre-push can skip the full aggregate on a clean, unchanged tree.
+    # || true: a write failure must never abort a successful check aggregate.
+    # STRICTLY advisory-local; CI remains authoritative.
+    uv run python -m livespec_dev_tooling.green_token write || true
 
 # Structural gate for the plugin bundle: manifest validity, the
 # 8-skill set, frontmatter names, and the fenced-invocation rules
@@ -117,4 +122,15 @@ check-pre-commit:
     just check-format
 
 check-pre-push:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    # Advisory-local green-token short-circuit: if the current HEAD tree was
+    # already verified clean by a successful full `just check` run, skip the
+    # full aggregate. The token is invalidated by any new commit (tree-hash
+    # change) or an uncommitted worktree modification. STRICTLY advisory-local;
+    # CI is authoritative — a token match never bypasses the remote gate.
+    if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
+        echo ":: pre-push: green token matched — tree byte-identical to last green check; skipping full aggregate (CI is authoritative)"
+        exit 0
+    fi
     just check
