@@ -85,3 +85,9 @@ This repo's backlog lives in its beads tenant
 (`livespec-driver-claude` on the shared dolt-server) — query it with
 `bd list`. [BACKLOG.md](BACKLOG.md) is a pointer recording the founding
 items' migration provenance.
+
+## Observability
+
+The livespec family dogfoods its own telemetry. CI runs, Red→Green commit-gate cycles, the beads+fabro dispatcher, sandbox runs, and harness sub-agents are published to a shared Honeycomb environment:
+
+- **[livespec family — all activity](https://ui.honeycomb.io/thewoolleyweb/environments/livespec/board/krThv8DvcwS)** — the cross-repo activity board (Honeycomb, `livespec` environment).
