@@ -44,7 +44,7 @@ livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-to
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["**/__pycache__/**"]
+extend-exclude = [".claude/hooks/**", "**/__pycache__/**"]
 
 [tool.ruff.lint]
 select = [
