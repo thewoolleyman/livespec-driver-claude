@@ -8,6 +8,15 @@
 
 name: CI
 
+# uv occasionally fails when the PyPI file CDN (files.pythonhosted.org)
+# drops a wheel download mid-stream ("broken pipe"). UV_HTTP_RETRIES
+# makes uv retry the fetch in-process instead of failing the job.
+# Combined with the ~/.cache/uv actions/cache step (keyed on uv.lock)
+# the uv-sync step below uses, an unchanged lock installs from cache
+# and never contacts PyPI at all.
+env:
+  UV_HTTP_RETRIES: "5"
+
 on:
   pull_request:
   push:
@@ -33,6 +42,13 @@ jobs:
 
       - name: Install pinned binaries via mise
         uses: jdx/mise-action@v2
+
+      - name: Restore uv download cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
 
       - name: Install Python dev deps via uv
         run: uv sync --all-groups
