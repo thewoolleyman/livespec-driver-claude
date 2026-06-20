@@ -67,6 +67,7 @@ check:
         check-format
         check-hooks
         check-e2e-cli
+        check-heading-coverage
     )
     failed=()
     for target in "${targets[@]}"; do
@@ -113,6 +114,20 @@ check-hooks:
 # SPECIFICATION/contracts.md §"CLI end-to-end harness contract".
 check-e2e-cli:
     LIVESPEC_E2E_HARNESS=mock uv run pytest tests/e2e-cli/
+
+# Spec heading-coverage gate (shipped by livespec-dev-tooling): every
+# `## ` H2 in each SPECIFICATION/ NLSpec file MUST have an entry in
+# tests/heading-coverage.json. This keeps the coverage map in lockstep
+# with the spec — adding or renaming a spec H2 without updating the
+# registry fails the check. TODO entries (no per-heading test yet) warn
+# locally and fail only when LIVESPEC_FAIL_IF_HEADING_COVERAGE_TODOS_EXIST
+# is set; this binding repo leaves it UNSET (its H2s are guarded by
+# check-plugin-structure / the hook tests / the e2e-cli harness rather
+# than per-heading unit tests), so the gate enforces registration drift,
+# not test-mapping completeness. The livespec doctor static phase stays
+# on-demand via /livespec:doctor (no family repo wires it into CI).
+check-heading-coverage:
+    uv run python -m livespec_dev_tooling.checks.heading_coverage
 
 # Fast pre-commit subset (no test run; pre-push runs the full
 # aggregate).
