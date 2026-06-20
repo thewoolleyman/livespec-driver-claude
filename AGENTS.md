@@ -21,6 +21,8 @@ Claude Code runtime.
 | `dev-tooling/` | Repo-local enforcement scripts (manifest/skill structural checks) + the family commit-refuse hook scripts. |
 | `tests/e2e-cli/` | The CLI end-to-end harness consumer (relocated from livespec core with the bindings): mock-tier skill discovery + fail-closed fixture coverage gate, harness imported from livespec-dev-tooling. |
 | `tests/hooks/` | Unit tests for the plugin-shipped hook scripts (subprocess invocation, mocked `CLAUDE_PROJECT_DIR`, tmp_path fixture projects). |
+| `SPECIFICATION/` | The live, dogfooded spec for the Driver seam (binding shape, core-root resolution, manifest/marketplace invariants, hook-bundle wiring). Defers to livespec core by citation; evolves via `/livespec:*`. |
+| `.livespec.jsonc` | Project-local livespec config: `template`, `spec_root`, active impl-plugin, and the beads tenant connection block (mirrors `.beads/config.yaml`). |
 | `justfile`, `lefthook.yml`, `.mise.toml`, `.python-version`, `pyproject.toml` | Family-standard toolchain configuration, scaled to this repo's content. |
 
 ## The one design rule that matters here

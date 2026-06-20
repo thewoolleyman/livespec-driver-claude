@@ -1,0 +1,70 @@
+// Project-local livespec configuration for livespec-driver-claude.
+//
+// This repo is the reference Claude Code Driver for the livespec family.
+// It dogfoods livespec: the SPECIFICATION/ tree at the repo root is the
+// live spec for the Driver's own seam (binding shape, core-root
+// resolution, plugin/marketplace manifest, and the Driver-shipped hook
+// bundle), and it evolves through /livespec:seed / propose-change /
+// revise / doctor / prune-history / critique — exactly the lifecycle
+// every consumer project uses.
+//
+// Scope discipline: this spec governs ONLY what the Driver owns. The
+// operation prose, the reference spec-side CLIs, the JSON schemas, and
+// the built-in templates all live in livespec core; this tree defers to
+// core by citation and never restates the upstream contract. When any
+// rule here appears to conflict with livespec core's SPECIFICATION/, the
+// upstream rule wins (see SPECIFICATION/README.md §"Upstream pointers").
+//
+// Authority: livespec/SPECIFICATION/spec.md
+//   §"Contract + reference implementations architecture" (the Driver is
+//   the thin, agent-runtime-specific binding layer; core is agnostic to
+//   it) and livespec/SPECIFICATION/contracts.md §"Plugin distribution",
+//   §"Driver-shipped hooks".
+//
+// This library's own impl tracking lives in a per-repo beads/Dolt TENANT
+// database on the shared dolt-server (tenant name "livespec-driver-claude"),
+// via livespec-impl-beads. The connection block below MIRRORS the repo's
+// committed .beads/config.yaml; the tenant password is supplied via the
+// BEADS_DOLT_PASSWORD environment variable at bd-call time and is NEVER
+// committed here.
+{
+  "template": "livespec",
+  "spec_root": "SPECIFICATION",
+  "implementation": { "plugin": "livespec-impl-beads" },
+  "livespec-driver-claude": {
+    "compat": {
+      // semver range and pinned tag against livespec core. The pin is
+      // "master" during bootstrap (always-HEAD dogfooding); doctor's
+      // contract-version-compatibility invariant fires `warn` against a
+      // "master" pin, which is expected pre-1.0.
+      "livespec": ">=0.1.0,<1.0.0",
+      "pinned": "master"
+    }
+  },
+  "livespec-impl-beads": {
+    "format": "beads",
+    "compat": {
+      "livespec": ">=0.1.0,<1.0.0",
+      "pinned": "master"
+    },
+    // Per-repo beads tenant CONNECTION block, mirrored by .beads/config.yaml.
+    // `prefix` == `tenant` == `database` == `server_user` == this repo's
+    // name ("livespec-driver-claude") is the load-bearing tenant-identity
+    // rule. TCP-only: NO `socket` key — the dolt unix socket dir is
+    // 0750 dolt:dolt and inaccessible to the sandboxed caller, so the
+    // connection goes over 127.0.0.1:3307. The tenant PASSWORD is
+    // deliberately ABSENT (supplied via BEADS_DOLT_PASSWORD at call time).
+    // `fake` is false so the committed config describes the REAL
+    // connection; CI and tests set LIVESPEC_BEADS_FAKE=1 to force the
+    // hermetic in-memory backend.
+    "connection": {
+      "tenant": "livespec-driver-claude",
+      "prefix": "livespec-driver-claude",
+      "database": "livespec-driver-claude",
+      "server_user": "livespec-driver-claude",
+      "server_host": "127.0.0.1",
+      "server_port": 3307,
+      "fake": false
+    }
+  }
+}
