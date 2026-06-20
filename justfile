@@ -31,15 +31,21 @@ bootstrap:
     # primary checkout and refuse commits/pushes there, forcing every
     # edit through `git worktree add`.
     git config --file "$(git rev-parse --git-common-dir)/config" livespec.primaryPath "$(realpath "$(dirname "$(git rev-parse --git-common-dir)")")"
-    # Install the commit-refuse hook (vendored from livespec-dev-
-    # tooling — see dev-tooling/livespec-commit-refuse-hook.sh) at
-    # pre-commit AND pre-push. Refuses at the primary checkout;
-    # delegates to lefthook at secondary worktrees via mise.
-    mkdir -p .git/hooks
-    cp dev-tooling/livespec-commit-refuse-hook.sh .git/hooks/pre-commit
-    cp dev-tooling/livespec-commit-refuse-hook.sh .git/hooks/pre-push
-    cp dev-tooling/git-hook-wrapper.sh .git/hooks/commit-msg
-    chmod +x .git/hooks/pre-commit .git/hooks/pre-push .git/hooks/commit-msg
+    # Install the consolidated git-hook-wrapper.sh as the pre-commit,
+    # pre-push, AND commit-msg hooks. The single file carries BOTH the
+    # canonical commit-refuse fingerprint (refuses at the primary
+    # checkout) and the mise-managed lefthook delegation (fires the
+    # per-hook gates at secondary worktrees), so one script satisfies the
+    # refuse-at-primary contract and the gate-delegation everywhere. Uses
+    # the git-common-dir hooks dir so the install is worktree-safe: from a
+    # secondary worktree `.git` is a file and `mkdir -p .git/hooks` would
+    # fail, whereas git-common-dir resolves to the shared hooks dir from
+    # both the primary checkout and any worktree.
+    mkdir -p "$(git rev-parse --git-common-dir)/hooks"
+    cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+    cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/pre-push"
+    cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+    chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-commit" "$(git rev-parse --git-common-dir)/hooks/pre-push" "$(git rev-parse --git-common-dir)/hooks/commit-msg"
     just ensure-plugins
 
 # Idempotent: `claude plugin marketplace add` / `install` / `update`
