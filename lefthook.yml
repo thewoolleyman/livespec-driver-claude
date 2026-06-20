@@ -5,10 +5,10 @@
 # just rule from livespec/SPECIFICATION/non-functional-requirements.md
 # §"Toolchain pins").
 #
-# Activation: `just bootstrap` installs the commit-refuse hook at
-# .git/hooks/pre-commit and .git/hooks/pre-push (refuses at the
-# primary checkout; delegates to lefthook at secondary worktrees via
-# mise) and the git-hook-wrapper at .git/hooks/commit-msg.
+# Activation: `just bootstrap` installs the consolidated
+# git-hook-wrapper.sh as the .git/hooks/pre-commit, pre-push, and
+# commit-msg hooks (refuses at the primary checkout; delegates to
+# lefthook at secondary worktrees via mise).
 
 pre-commit:
   commands:
