@@ -21,7 +21,6 @@ Claude Code runtime.
 | `dev-tooling/` | Repo-local enforcement scripts (manifest/skill structural checks) + the family commit-refuse hook scripts. |
 | `tests/e2e-cli/` | The CLI end-to-end harness consumer (relocated from livespec core with the bindings): mock-tier skill discovery + fail-closed fixture coverage gate, harness imported from livespec-dev-tooling. |
 | `tests/hooks/` | Unit tests for the plugin-shipped hook scripts (subprocess invocation, mocked `CLAUDE_PROJECT_DIR`, tmp_path fixture projects). |
-| `BACKLOG.md` | Pointer to the repo's beads tenant (`livespec-driver-claude`) + migration provenance of the founding items. |
 | `justfile`, `lefthook.yml`, `.mise.toml`, `.python-version`, `pyproject.toml` | Family-standard toolchain configuration, scaled to this repo's content. |
 
 ## The one design rule that matters here

@@ -83,8 +83,8 @@ the primary checkout refuses direct commits (work happens in
 
 This repo's backlog lives in its beads tenant
 (`livespec-driver-claude` on the shared dolt-server) — query it with
-`bd list`. [BACKLOG.md](BACKLOG.md) is a pointer recording the founding
-items' migration provenance.
+`bd list`. Each item carries its own migration provenance and lineage
+in its description.
 
 ## Observability
 
