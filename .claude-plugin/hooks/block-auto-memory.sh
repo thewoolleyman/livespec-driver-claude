@@ -1,6 +1,6 @@
 #!/bin/sh
 # block-auto-memory — PreToolUse hook redirecting auto-memory writes to
-# the active impl-plugin's capture-memo skill.
+# the active impl-plugin's capture-work-item skill.
 #
 # Declared in hooks.json on the `Write` tool. The effective matcher is
 # `Write(**/memory/*.md)`: this script inspects the tool input and acts
@@ -17,7 +17,7 @@
 #    active impl-plugin (`implementation.plugin` — currently
 #    `livespec-impl-beads` family-wide, but NEVER hardcoded here), emit
 #    block-decision JSON on stdout naming the resolved
-#    `/<plugin>:capture-memo` skill, and exit 0.
+#    `/<plugin>:capture-work-item` skill, and exit 0.
 # 3. Otherwise: no-op pass-through (exit 0, no output).
 #
 # Note on the gating key: the originating item predates the beads
@@ -116,9 +116,9 @@ def _block_decision() -> str | None:
         return None
     namespace = plugin.strip()
     reason = (
-        f"This project uses livespec. Use /{namespace}:capture-memo "
-        "(the active impl-plugin's capture-memo skill) to file memos "
-        "in the durable store."
+        f"This project uses livespec. Use /{namespace}:capture-work-item "
+        "(the active impl-plugin's capture-work-item skill) to file work "
+        "items into the ledger."
     )
     return json.dumps(
         {

@@ -226,7 +226,7 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
-    "heading": "## Scenario: auto-memory write in a governed project is redirected to capture-memo",
+    "heading": "## Scenario: auto-memory write in a governed project is redirected to capture-work-item",
     "test": "TODO",
     "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; the PreToolUse redirect hook is already exercised by tests/hooks/test_block_auto_memory.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise."
   },

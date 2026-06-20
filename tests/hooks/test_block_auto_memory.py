@@ -9,7 +9,7 @@ Contract under test (work-item livespec-driver-claude-e1s):
 
 - Writes matching `**/memory/*.md` in a livespec-governed project
   (a `.livespec.jsonc` declaring `implementation.plugin`) are BLOCKED
-  with decision JSON naming the resolved `/<plugin>:capture-memo`
+  with decision JSON naming the resolved `/<plugin>:capture-work-item`
   skill — the namespace comes from config, never hardcoded.
 - Everything else — non-memory paths, non-governed projects, missing
   config keys, unset CLAUDE_PROJECT_DIR, malformed stdin — is a silent
@@ -93,7 +93,7 @@ def test_blocks_memory_write_in_governed_project(tmp_path: Path) -> None:
     assert result.returncode == 0
     decision = json.loads(result.stdout)
     assert decision["decision"] == "block"
-    assert "/livespec-impl-beads:capture-memo" in decision["reason"]
+    assert "/livespec-impl-beads:capture-work-item" in decision["reason"]
     assert decision["hookSpecificOutput"]["hookEventName"] == "PreToolUse"
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
@@ -105,7 +105,7 @@ def test_reason_names_the_configured_plugin_namespace(tmp_path: Path) -> None:
         project_dir=project,
     )
     decision = json.loads(result.stdout)
-    assert "/livespec-impl-plaintext:capture-memo" in decision["reason"]
+    assert "/livespec-impl-plaintext:capture-work-item" in decision["reason"]
     assert "/livespec-impl-beads" not in decision["reason"]
 
 
