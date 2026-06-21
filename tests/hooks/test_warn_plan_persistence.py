@@ -45,7 +45,7 @@ _TABLE_TEXT = (
     "| repo | status |\n"
     "|---|---|\n"
     "| livespec | green |\n"
-    "| livespec-impl-beads | green |\n"
+    "| livespec-orchestrator-beads-fabro | green |\n"
     "| livespec-dev-tooling | red |\n"
 )
 

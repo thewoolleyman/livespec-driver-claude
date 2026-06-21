@@ -15,7 +15,7 @@
 # 2. When the write targets `**/memory/*.md` AND the governed project
 #    (`$CLAUDE_PROJECT_DIR`) carries a `.livespec.jsonc` declaring an
 #    active impl-plugin (`implementation.plugin` — currently
-#    `livespec-impl-beads` family-wide, but NEVER hardcoded here), emit
+#    `livespec-orchestrator-beads-fabro` family-wide, but NEVER hardcoded here), emit
 #    block-decision JSON on stdout naming the resolved
 #    `/<plugin>:capture-work-item` skill, and exit 0.
 # 3. Otherwise: no-op pass-through (exit 0, no output).

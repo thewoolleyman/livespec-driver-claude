@@ -41,7 +41,7 @@ def _hook_input(*, file_path: str, tool_name: str = "Write") -> str:
     )
 
 
-def _governed_project(*, root: Path, plugin: str = "livespec-impl-beads") -> Path:
+def _governed_project(*, root: Path, plugin: str = "livespec-orchestrator-beads-fabro") -> Path:
     """Materialize a livespec-governed project with a commented JSONC config."""
     config = (
         "// Project-local livespec configuration (JSONC: comments are legal).\n"
@@ -93,7 +93,7 @@ def test_blocks_memory_write_in_governed_project(tmp_path: Path) -> None:
     assert result.returncode == 0
     decision = json.loads(result.stdout)
     assert decision["decision"] == "block"
-    assert "/livespec-impl-beads:capture-work-item" in decision["reason"]
+    assert "/livespec-orchestrator-beads-fabro:capture-work-item" in decision["reason"]
     assert decision["hookSpecificOutput"]["hookEventName"] == "PreToolUse"
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
@@ -106,7 +106,7 @@ def test_reason_names_the_configured_plugin_namespace(tmp_path: Path) -> None:
     )
     decision = json.loads(result.stdout)
     assert "/livespec-impl-plaintext:capture-work-item" in decision["reason"]
-    assert "/livespec-impl-beads" not in decision["reason"]
+    assert "/livespec-orchestrator-beads-fabro" not in decision["reason"]
 
 
 def test_passes_through_without_livespec_config(tmp_path: Path) -> None:

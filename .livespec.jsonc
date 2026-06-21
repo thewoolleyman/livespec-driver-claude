@@ -23,14 +23,14 @@
 //
 // This library's own impl tracking lives in a per-repo beads/Dolt TENANT
 // database on the shared dolt-server (tenant name "livespec-driver-claude"),
-// via livespec-impl-beads. The connection block below MIRRORS the repo's
+// via livespec-orchestrator-beads-fabro. The connection block below MIRRORS the repo's
 // committed .beads/config.yaml; the tenant password is supplied via the
 // BEADS_DOLT_PASSWORD environment variable at bd-call time and is NEVER
 // committed here.
 {
   "template": "livespec",
   "spec_root": "SPECIFICATION",
-  "implementation": { "plugin": "livespec-impl-beads" },
+  "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
   "livespec-driver-claude": {
     "compat": {
       // semver range and pinned tag against livespec core. The pin is
@@ -41,7 +41,7 @@
       "pinned": "master"
     }
   },
-  "livespec-impl-beads": {
+  "livespec-orchestrator-beads-fabro": {
     "format": "beads",
     "compat": {
       "livespec": ">=0.1.0,<1.0.0",
