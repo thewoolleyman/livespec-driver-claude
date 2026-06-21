@@ -64,7 +64,7 @@ _FIXTURES_ROOT = Path(__file__).resolve().parent / "fixtures"
 # `HarnessConfig.impl_plugin_id` so the parameter is exercised
 # end-to-end even though no impl-side skill set is discovered in this
 # repo's run.
-_KNOWN_IMPL_PLUGINS: tuple[str, ...] = ("livespec-impl-beads",)
+_KNOWN_IMPL_PLUGINS: tuple[str, ...] = ("livespec-orchestrator-beads-fabro",)
 
 
 class _FakeCliRunner:
@@ -192,7 +192,7 @@ def test_cli_e2e_coverage_gate_fails_closed_on_missing_fixture(*, tmp_path: Path
     _ = (seed_fx / "prompt.md").write_text("/livespec:seed\n", encoding="utf-8")
 
     config = HarnessConfig(
-        impl_plugin_id="livespec-impl-beads",
+        impl_plugin_id="livespec-orchestrator-beads-fabro",
         marketplace="thewoolleyman/livespec-driver-claude",
         enabled_plugins=("livespec@livespec-driver-claude",),
         plugin_install_dirs=(plugin_dir,),
