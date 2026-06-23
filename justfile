@@ -53,12 +53,12 @@ bootstrap:
 # installed alongside this Driver — the bindings resolve core's
 # prose/ and scripts/ from the installed livespec@livespec cache.
 ensure-plugins:
-    claude plugin marketplace add thewoolleyman/livespec
-    claude plugin marketplace add thewoolleyman/livespec-driver-claude
-    claude plugin install livespec@livespec
-    claude plugin install livespec@livespec-driver-claude
-    claude plugin update livespec@livespec
-    claude plugin update livespec@livespec-driver-claude
+    claude plugin marketplace add --scope project thewoolleyman/livespec
+    claude plugin marketplace add --scope project thewoolleyman/livespec-driver-claude
+    claude plugin install -s project livespec@livespec
+    claude plugin install -s project livespec@livespec-driver-claude
+    claude plugin update -s project livespec@livespec
+    claude plugin update -s project livespec@livespec-driver-claude
 
 # ---------------------------------------------------------------
 # Enforcement aggregate.
