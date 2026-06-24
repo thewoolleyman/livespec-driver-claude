@@ -133,8 +133,13 @@ stopping points.
    from the primary checkout's `master` and do all edits there:
 
    ```bash
-   mise exec -- git -C /data/projects/livespec-driver-claude worktree add -b <branch> /data/projects/<worktree> master
+   mise exec -- git -C /data/projects/livespec-driver-claude worktree add -b <branch> "$HOME/.worktrees/livespec-driver-claude/<branch>" master
    ```
+
+   `just bootstrap` registers `~/.worktrees` as one of mise's
+   `trusted_config_paths`, so a freshly created worktree's `.mise.toml`
+   is auto-trusted and the first `mise exec` inside it never stalls on a
+   "config not trusted" prompt.
 
 3. Use `mise exec -- git commit ...` and `mise exec -- git push ...` so
    the mise-managed lefthook hooks actually run. Never pass
