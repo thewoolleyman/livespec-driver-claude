@@ -1,6 +1,6 @@
 #!/bin/sh
 # block-auto-memory — PreToolUse hook redirecting auto-memory writes to
-# the active impl-plugin's capture-work-item skill.
+# the right durable destination BY INTENT.
 #
 # Declared in hooks.json on the `Write` tool. The effective matcher is
 # `Write(**/memory/*.md)`: this script inspects the tool input and acts
@@ -9,15 +9,21 @@
 # `~/.claude/projects/<slug>/memory/*.md`).
 #
 # Behavior (per work-item livespec-driver-claude-e1s, lineage
-# livespec-hookimpl / li-zmlkrl):
+# livespec-hookimpl / li-zmlkrl; reason reworded per bug livespec-co9h):
 #
 # 1. Read the PreToolUse hook input JSON from stdin.
 # 2. When the write targets `**/memory/*.md` AND the governed project
 #    (`$CLAUDE_PROJECT_DIR`) carries a `.livespec.jsonc` declaring an
 #    active impl-plugin (`implementation.plugin` — currently
 #    `livespec-orchestrator-beads-fabro` family-wide, but NEVER hardcoded here), emit
-#    block-decision JSON on stdout naming the resolved
-#    `/<plugin>:capture-work-item` skill, and exit 0.
+#    block-decision JSON on stdout whose `reason` routes the would-be
+#    memory write BY WHAT IT IS — trackable work to the resolved
+#    `/<plugin>:capture-work-item` skill, a spec-level rule to
+#    `/livespec:propose-change`, durable agent guidance / a learned
+#    preference / a convention to AGENTS.md (or a referenced instruction
+#    file), and only genuinely session-only notes dropped — so durable
+#    NON-work-item memory is never misfiled as a bogus work-item or
+#    silently lost (livespec-co9h). Exit 0.
 # 3. Otherwise: no-op pass-through (exit 0, no output).
 #
 # Note on the gating key: the originating item predates the beads
@@ -116,9 +122,18 @@ def _block_decision() -> str | None:
         return None
     namespace = plugin.strip()
     reason = (
-        f"This project uses livespec. Use /{namespace}:capture-work-item "
-        "(the active impl-plugin's capture-work-item skill) to file work "
-        "items into the ledger."
+        "This project is livespec-governed. Per-session agent memory files "
+        "(~/.claude/.../memory/*.md) are NOT used here — ephemeral, per-user, and "
+        "invisible to other agents/runtimes. Do NOT silently drop what you were about "
+        "to write; route it by what it IS:\n"
+        "  - Trackable work (task/bug/refactor/follow-up) -> file in the beads ledger "
+        f"via /{namespace}:capture-work-item.\n"
+        "  - A spec-level rule or behavior -> /livespec:propose-change.\n"
+        "  - Durable agent guidance / a learned preference / a convention -> capture in "
+        "AGENTS.md, or (to avoid bloating AGENTS.md) in a focused instruction file "
+        "that AGENTS.md references and that is loaded progressively/conditionally.\n"
+        "  - ONLY genuinely session-only, throwaway notes that matter nowhere outside "
+        "this session may be dropped."
     )
     return json.dumps(
         {

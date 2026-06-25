@@ -98,6 +98,38 @@ def test_blocks_memory_write_in_governed_project(tmp_path: Path) -> None:
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
+def test_reason_routes_by_intent_not_only_capture_work_item(tmp_path: Path) -> None:
+    """co9h: the deny reason routes the would-be memory write BY WHAT IT IS.
+
+    The bug was that the old reason sent EVERYTHING to capture-work-item, so
+    durable NON-work-item memory (a learned preference, a convention, agent
+    guidance) had no offered destination and was misfiled or dropped. The
+    reworded reason MUST name all four routes — trackable work, a spec rule,
+    durable guidance, and the narrow session-only drop — and MUST tell the
+    agent NOT to silently drop what it was about to write.
+    """
+    project = _governed_project(root=tmp_path)
+    result = _run_hook(
+        stdin=_hook_input(file_path=_MEMORY_WRITE_PATH),
+        project_dir=project,
+    )
+    decision = json.loads(result.stdout)
+    reason = decision["reason"]
+    # Trackable work still routes to the dynamically-resolved capture skill.
+    assert "/livespec-orchestrator-beads-fabro:capture-work-item" in reason
+    # A spec-level rule routes to the core propose-change surface.
+    assert "/livespec:propose-change" in reason
+    # Durable agent guidance / a learned preference / a convention routes to
+    # AGENTS.md (the destination the old reason omitted — the co9h bug).
+    assert "AGENTS.md" in reason
+    # The narrow session-only drop is offered, not the default.
+    assert "session-only" in reason
+    # The agent is explicitly told NOT to silently drop the content.
+    assert "Do NOT silently drop" in reason
+    # The permissionDecisionReason mirrors the same routing.
+    assert decision["hookSpecificOutput"]["permissionDecisionReason"] == reason
+
+
 def test_reason_names_the_configured_plugin_namespace(tmp_path: Path) -> None:
     project = _governed_project(root=tmp_path, plugin="livespec-impl-plaintext")
     result = _run_hook(
