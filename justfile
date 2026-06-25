@@ -9,10 +9,19 @@
 #   delegate to `just <target>`; direct tool invocations in hook/CI
 #   configs are banned.
 #
-# This repo carries NO product Python (the only .py files are the
-# repo-local structural check and the test suite), so the
-# red-green-replay ritual and the full canonical check inventory do
-# not apply here.
+# Authority: livespec/SPECIFICATION/contracts.md
+#   §"Pre-commit step ordering" — the gates wired here mirror the
+#   spec-required ordering: 00-lint-autofix-staged, 01-commit-pairs-
+#   source-and-test, 02-check-pre-commit at pre-commit;
+#   no-commit-on-master + red-green-replay at commit-msg.
+#
+# Red-green-replay is ENFORCED here per epic livespec-gcp2 (maintainer
+# directive 2026-06-25): red-green-replay is enforced fleet+adopter-
+# wide regardless of any "no product Python" self-classification. A
+# feat:/fix: commit with staged `.py` (the repo-local structural check
+# plus the test suite) follows the Red->Green ritual; the gate is a
+# no-op on commits with no staged `.py`, so a `ci:`/`docs:`/`chore:`
+# commit passes it freely.
 
 # Default to listing targets when no recipe is invoked.
 default:
@@ -176,6 +185,22 @@ check-e2e-cli:
 check-heading-coverage:
     uv run python -m livespec_dev_tooling.checks.heading_coverage
 
+# Commit-pair gate (shipped by livespec-dev-tooling): every commit
+# touching source files also touches tests. Lefthook pre-commit is the
+# load-bearing per-commit invocation (step 01); wired into the full
+# aggregate too so the gate runs at pre-push + CI.
+check-commit-pairs-source-and-test:
+    uv run python -m livespec_dev_tooling.checks.commit_pairs_source_and_test
+
+# Trailer-based Red->Green replay verification (hard gate; shipped by
+# livespec-dev-tooling). Enforced here per epic livespec-gcp2. Invoked
+# by the lefthook commit-msg stage with the commit-message file path as
+# argv[1] (the load-bearing per-commit verifier). The canonical
+# aggregate / `just check` invokes this with NO msg_path; the module
+# then DERIVES the message from HEAD and validates the branch range.
+check-red-green-replay *args:
+    uv run python -m livespec_dev_tooling.checks.red_green_replay {{args}}
+
 # Fast pre-commit subset (no test run; pre-push runs the full
 # aggregate).
 check-pre-commit:
@@ -196,3 +221,22 @@ check-pre-push:
         exit 0
     fi
     just check
+
+# ---------------------------------------------------------------
+# Pre-commit auxiliary gates.
+# ---------------------------------------------------------------
+
+# Ruff fix + format on staged .py files BEFORE the rest of the
+# pre-commit gate runs. Non-blocking — unfixable issues fall through
+# to check-lint / check-format inside `just check` later. Re-stages
+# post-autofix bytes.
+lint-autofix-staged:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    staged=$(git diff --cached --name-only --diff-filter=AM | grep -E '\.py$' || true)
+    if [[ -z "$staged" ]]; then
+        exit 0
+    fi
+    echo "$staged" | xargs uv run ruff check --fix --exit-zero
+    echo "$staged" | xargs uv run ruff format
+    echo "$staged" | xargs git add

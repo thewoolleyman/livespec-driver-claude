@@ -57,9 +57,46 @@ jobs:
       - name: just ${{ matrix.target }}
         run: just ${{ matrix.target }}
 
+  # check-red-green-replay runs in its OWN job (separate from the
+  # `check` matrix above) because its no-arg commit-range mode validates
+  # origin/master..HEAD and needs origin/master plus the merge base in
+  # the clone — `fetch-depth: 0` (full history). The `check` matrix
+  # deliberately keeps the default shallow checkout for its other
+  # targets (deterministic functions of the working tree that do not
+  # need history), so the range check gets its own full-history checkout
+  # rather than forcing every matrix entry to fetch all history. Enforced
+  # here per epic livespec-gcp2 (red-green-replay is enforced
+  # fleet+adopter-wide). It runs UNCONDITIONALLY: on a zero-.py PR the
+  # range carries no product .py and trivially passes; on a master push
+  # the range is empty.
+  check-red-green-replay:
+    name: check-red-green-replay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for commit-range validation)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned binaries via mise
+        uses: jdx/mise-action@v2
+
+      - name: Restore uv download cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install Python dev deps via uv
+        run: uv sync --all-groups
+
+      - name: just check-red-green-replay
+        run: just check-red-green-replay
+
   export-telemetry:
     name: export-telemetry
-    needs: [check]
+    needs: [check, check-red-green-replay]
     if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     permissions:

@@ -66,9 +66,15 @@ own plugin-root placeholder for core paths.
   ruff lint/format over `tests/`, and the e2e-cli mock-tier harness.
 
 ALL git operations via `mise exec -- git ...` so hooks fire;
-`--no-verify` is banned. Commits use Conventional Commit subjects;
-this repo has no product Python, so the red-green-replay ritual does
-not apply (use `chore:`/`docs:`/`feat:` as appropriate).
+`--no-verify` is banned. Commits use Conventional Commit subjects.
+Red-green-replay IS enforced here per epic `livespec-gcp2` (maintainer
+directive 2026-06-25: red-green-replay is enforced fleet+adopter-wide
+regardless of any "no product Python" self-classification): a
+`feat:`/`fix:` commit with staged `.py` follows the Red->Green ritual
+(stage the failing test alone, commit; then `--amend` with the impl),
+verified by the commit-msg `check-red-green-replay` gate. The gate is a
+no-op on commits with no staged `.py`, so `ci:`/`docs:`/`chore:`
+commits pass it freely.
 
 ## Codex dogfooding (OpenAI Codex CLI/TUI)
 
