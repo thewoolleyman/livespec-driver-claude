@@ -44,7 +44,15 @@ livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-to
 
 [tool.ruff]
 line-length = 100
-extend-exclude = [".claude/hooks/**", "**/__pycache__/**"]
+# `.claude-plugin/hooks/**` is excluded so ruff never reformats
+# `no_shadow_ledger.py`: that hook body is single-sourced and MUST ship
+# BYTE-IDENTICALLY in both Drivers' bundles (livespec core `contracts.md`
+# §"Driver-shipped hooks" → cross-Driver single-sourcing), so a
+# Driver-local ruff reformat would break byte-identity with the codex
+# Driver's copy. The shell hooks in that dir are not `.py` and ruff
+# ignores them regardless. (`.claude/hooks/**` is the pre-existing
+# project-local hook exclusion.)
+extend-exclude = [".claude/hooks/**", ".claude-plugin/hooks/**", "**/__pycache__/**"]
 
 [tool.ruff.lint]
 select = [

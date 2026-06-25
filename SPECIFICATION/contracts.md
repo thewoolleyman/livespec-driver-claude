@@ -88,26 +88,44 @@ and emits one violation per offending invocation line.
 ## Hook bundle
 
 The Driver SHIPS a Claude Code hook bundle at `.claude-plugin/hooks/`:
-a `hooks.json` registration plus one fail-open POSIX shell script per
-hook, each invoked by the harness as `"${CLAUDE_PLUGIN_ROOT}/hooks/<name>.sh"`
-(here the Driver's own plugin-root placeholder IS correct — the hooks are
-Driver-owned and live in the Driver bundle). The bundle's *existence and
-wiring* are this repo's contract; the hooks' *behavioral disciplines and
-postures* (the fail-open requirement, block-vs-warn, the gating
-predicates) are owned upstream by `livespec/SPECIFICATION/contracts.md`
-§"Driver-shipped hooks", which this repo realizes. The script
-implementations and their unit tests live in THIS repo (`tests/hooks/`).
+a `hooks.json` registration plus one fail-open script per hook. Most are
+POSIX shell scripts invoked by the harness as
+`"${CLAUDE_PLUGIN_ROOT}/hooks/<name>.sh"`; the cross-Driver
+no-shadow-ledger hook is a Python script invoked as
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/no_shadow_ledger.py"` so its one
+neutral body ships byte-identically in both Drivers' bundles (per
+`livespec/SPECIFICATION/contracts.md` §"Driver-shipped hooks" →
+cross-Driver single-sourcing). Either way the Driver's own plugin-root
+placeholder IS correct — the hooks are Driver-owned and live in the
+Driver bundle. The bundle's *existence and wiring* are this repo's
+contract; the hooks' *behavioral disciplines and postures* (the
+fail-open requirement, block-vs-warn, the gating predicates) are owned
+upstream by `livespec/SPECIFICATION/contracts.md` §"Driver-shipped
+hooks", which this repo realizes. The script implementations and their
+unit tests live in THIS repo (`tests/hooks/`).
 
-The bundle carries two hooks:
+The bundle carries three hooks:
 
 - a **PreToolUse** hook on `Write` that redirects auto-memory writes
   (`Write(**/memory/*.md)`) to the active impl-plugin's `capture-work-item`
   skill, resolved from the governed project's `.livespec.jsonc`
   `implementation.plugin`; a no-op pass-through otherwise;
-- a **Stop** hook that warns when the last assistant turn carried
-  substantial planning artifacts (headings / table rows / list items
-  above thresholds) with no persisting tool call in the window; WARN-only,
-  always exit 0.
+- a **Stop** plan-persistence hook that warns when the last assistant
+  turn carried substantial planning artifacts (headings / table rows /
+  list items above thresholds) with no persisting tool call in the
+  window; WARN-only, always exit 0;
+- a **Stop** no-shadow-ledger hook (`no_shadow_ledger.py`) that warns
+  when the last turn PERSISTED a planning artifact — a handoff, or any
+  markdown file under a `plan/` or `prompts/` directory — whose written
+  content carries markdown checkbox task-list items (`[ ]` / `[x]`) at or
+  above a mechanical threshold, directing the agent to derive status from
+  the work-item ledger instead of embedding a parallel work queue
+  (`livespec/SPECIFICATION/non-functional-requirements.md` §"Planning Lane
+  guidance" → "No shadow ledger"); WARN-only, always exit 0, never
+  auto-edits. Its detection body is single-sourced and ships
+  BYTE-IDENTICALLY in both Drivers' bundles per
+  `livespec/SPECIFICATION/contracts.md` §"Driver-shipped hooks" →
+  cross-Driver single-sourcing.
 
 Adding or removing a hook, renaming a hook surface, or changing a hook's
 posture requires a propose-change cycle against the upstream

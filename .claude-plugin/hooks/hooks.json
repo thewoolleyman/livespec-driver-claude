@@ -17,6 +17,10 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/warn-plan-persistence.sh\""
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/no_shadow_ledger.py\""
           }
         ]
       }
