@@ -230,6 +230,19 @@ check-pre-push:
 # pre-commit gate runs. Non-blocking — unfixable issues fall through
 # to check-lint / check-format inside `just check` later. Re-stages
 # post-autofix bytes.
+#
+# `--force-exclude` is REQUIRED: ruff's `extend-exclude`
+# (pyproject [tool.ruff]) only filters DIRECTORY-WALK discovery, so a
+# path passed EXPLICITLY on the command line (which this recipe does via
+# `xargs`) is fixed/formatted even when it matches an exclude. Without
+# `--force-exclude` this step would reformat `.claude-plugin/hooks/**`
+# (e.g. strip a `# noqa` ruff deems unused) and re-stage the mutated
+# bytes — breaking the cross-Driver BYTE-IDENTITY contract for
+# `no_shadow_ledger.py` (livespec core `contracts.md` §"Driver-shipped
+# hooks" → cross-Driver single-sourcing). `--force-exclude` makes the
+# explicit-arg invocations honor the same excludes as `just check`'s
+# `ruff check .` directory walk, so excluded hook bodies are left
+# untouched here too.
 lint-autofix-staged:
     #!/usr/bin/env bash
     set -uo pipefail
@@ -237,6 +250,6 @@ lint-autofix-staged:
     if [[ -z "$staged" ]]; then
         exit 0
     fi
-    echo "$staged" | xargs uv run ruff check --fix --exit-zero
-    echo "$staged" | xargs uv run ruff format
+    echo "$staged" | xargs uv run ruff check --fix --exit-zero --force-exclude
+    echo "$staged" | xargs uv run ruff format --force-exclude
     echo "$staged" | xargs git add
