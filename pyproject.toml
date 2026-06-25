@@ -83,3 +83,47 @@ testpaths = ["tests"]
 markers = [
     "mock_only: skipped under LIVESPEC_E2E_HARNESS=real per the CLI e2e harness contract",
 ]
+
+# ---------------------------------------------------------------------------
+# livespec-dev-tooling consumer configuration
+# (livespec/SPECIFICATION/contracts.md §"Consumer configuration schema").
+#
+# h3e7: WITHOUT this block, `load_config` falls back to the livespec-core
+# historical layout (`.claude-plugin/scripts/livespec/` etc.), which does
+# NOT match this thin Driver's real source surface — so
+# `check-commit-pairs-source-and-test` was a silent no-op here (it tested
+# `path.startswith(source_tree_prefixes)` against core paths that never
+# occur in this repo). This block names THIS repo's actual source surface
+# so the gate bites.
+#
+# EMPTY-BASELINE FLIP: the MOMENT any key exists in this block, the
+# whole-block-absent core fallback is gone and every OMITTED Config role
+# key reverts to the bare `Config()` baseline (empty tuples;
+# `tests_tree_prefix` defaults to "tests/"). That is intentional and
+# HARMLESS here: this thin Driver invokes only four dev-tooling entry
+# points (commit_pairs_source_and_test, heading_coverage, red_green_replay,
+# green_token), and the ONLY Config role keys any of them read are
+# `source_tree_prefixes` + `tests_tree_prefix` (both via commit_pairs).
+# `heading_coverage` reads `scenario_tiers` (a table-direct key, not a
+# Config role key); `red_green_replay` and `green_token` read no config.
+# The heavy product-tree role keys (`source_trees`, `io_trees`,
+# `commands_trees`, `pure_trees`, `dataclasses_tree`, `covered_trees`,
+# `target_dirs`, `mirror_pairings`) are read only by canonical checks this
+# repo does NOT run, so they are deliberately OMITTED rather than restated
+# with fictional paths — naming a tree this repo lacks would mislead
+# readers and add a config key that guards nothing (architecture-not-
+# mechanism: a key that no running check reads could be deleted without
+# losing a guardrail, so it is not added).
+# ---------------------------------------------------------------------------
+
+[tool.livespec_dev_tooling]
+# Heading-coverage scenario tiers (read directly off the table by
+# `load_scenario_tiers`, not a Config role key). Includes `tests.e2e-cli`
+# because this repo's user-surface tier lives under `tests/e2e-cli/`.
+scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
+# This repo's real source surface for the commit-pair gate: the two hook
+# dirs (project-local `.claude/hooks/` + plugin-shipped
+# `.claude-plugin/hooks/`) and the repo-local dev-tooling check. A commit
+# touching any of these MUST co-stage a `tests/` change.
+source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/", "dev-tooling/"]
+tests_tree_prefix = "tests/"
