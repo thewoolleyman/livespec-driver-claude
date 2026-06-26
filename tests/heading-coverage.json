@@ -233,9 +233,9 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
-    "heading": "## Scenario: auto-memory write in a governed project is redirected to capture-work-item",
+    "heading": "## Scenario: auto-memory write in a governed project is intent-routed by the block-auto-memory hook",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; the PreToolUse redirect hook is already exercised by tests/hooks/test_block_auto_memory.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise."
+    "reason": "Heading updated from 'redirected to capture-work-item' to 'intent-routed by the block-auto-memory hook' per livespec-co9h: the hook now routes by what the would-be write IS rather than redirecting everything to capture-work-item. The hook behavior is exercised by tests/hooks/test_block_auto_memory.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise."
   },
   {
     "spec_root": "SPECIFICATION",
