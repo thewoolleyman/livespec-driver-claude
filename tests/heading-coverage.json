@@ -78,6 +78,13 @@
   },
   {
     "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## CLI end-to-end harness contract",
+    "test": "TODO",
+    "reason": "Relocated from livespec core (livespec-besm.6, B4): this contract states a requirement on the Claude Driver's own top-of-pyramid, user-surface e2e tier whose sole interaction surface is the claude CLI binary. The REAL test is the full claude-CLI-binary e2e harness — the deferred li-e2ecli epic, whose harness ships from livespec-dev-tooling and is consumed via tests/e2e-cli/ fixtures wired into this repo's pytest collection. Replace TODO with the imported harness test's node ID when that epic lands here."
+  },
+  {
+    "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Inherited from livespec",
     "test": "TODO",
