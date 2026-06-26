@@ -30,6 +30,18 @@
 {
   "template": "livespec",
   "spec_root": "SPECIFICATION",
+  // Conformance Pattern concern #2 (cross-harness plugin-resolution):
+  // declares which agent runtimes this project's documented command
+  // surface MUST resolve+run from, consumed by the shared
+  // check-plugin-resolution Verifier (livespec-zs22.7.7 M6). `claude` is
+  // `supported` — this repo IS the Claude Driver, so the /livespec:*
+  // surface resolves here; `codex` is `exempt` because the Codex
+  // /livespec:* surface ships from the separate livespec-driver-codex
+  // Driver, not this repo.
+  "harnesses": {
+    "claude": { "status": "supported", "canonical_command": "livespec:next" },
+    "codex":  { "status": "exempt", "reason": "livespec-driver-claude is the Claude Driver; the Codex /livespec:* surface ships from livespec-driver-codex" }
+  },
   "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
   "livespec-driver-claude": {
     "compat": {
