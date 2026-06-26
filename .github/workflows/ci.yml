@@ -32,6 +32,7 @@ jobs:
       matrix:
         target:
           - check-plugin-structure
+          - check-plugin-resolution
           - check-lint
           - check-format
           - check-hooks
