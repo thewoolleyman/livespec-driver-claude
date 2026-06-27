@@ -50,7 +50,9 @@ SKILL.md files here only for Claude-runtime mechanics. Never vendor
 prose or CLI logic into this repo.
 
 Invocation-form rules for fenced commands in SKILL.md files (enforced
-by `dev-tooling/check_plugin_structure.py`): use
+by the `check-plugin-structure` gate, which consumes
+`livespec_dev_tooling.checks.plugin_structure` from the
+livespec-dev-tooling package): use
 `python3 "$LIVESPEC_CORE_ROOT/scripts/bin/<name>.py"`, never `uv run`,
 never a literal `.claude-plugin/scripts` path, and never the Driver's
 own plugin-root placeholder for core paths.
