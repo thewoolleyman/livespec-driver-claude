@@ -6,9 +6,8 @@ invoked `python3 <script>` (mirroring the hooks.json Stop registration
 Stop hook input JSON on stdin and a fabricated transcript JSONL
 materialized under `tmp_path`.
 
-Contract under test (livespec core `contracts.md` §"Driver-shipped
-hooks"; `non-functional-requirements.md` §"Planning Lane guidance" →
-"No shadow ledger"):
+Contract under test (livespec core `contracts.md`;
+`non-functional-requirements.md`):
 
 - The last turn (transcript entries after the last REAL user message;
   tool_result deliveries do NOT reset the window) is scanned for

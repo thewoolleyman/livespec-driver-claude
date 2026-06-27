@@ -2,7 +2,7 @@
 
 Adds `tests/e2e-cli/` to `sys.path` so the consumer test module resolves
 without per-module sys.path manipulation. Mirrors `tests/e2e/conftest.py`
-per SPECIFICATION/contracts.md §"CLI end-to-end harness contract".
+per SPECIFICATION/contracts.md.
 
 Also auto-scrubs inherited `GIT_*` environment variables (set by lefthook
 when tests run as a pre-commit hook) so the harness's tmp-`HOME` /
