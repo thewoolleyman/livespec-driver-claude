@@ -144,9 +144,10 @@ check:
 # 8-skill set, frontmatter names, and the fenced-invocation rules
 # (must use $LIVESPEC_CORE_ROOT; never `uv run`, never a literal
 # .claude-plugin/scripts path, never the Driver's own plugin-root
-# placeholder). Stdlib-only — runs under bare python3.
+# placeholder). Consumed from the livespec-dev-tooling package
+# (`livespec_dev_tooling.checks.plugin_structure`, profile-auto-detecting).
 check-plugin-structure:
-    python3 dev-tooling/check_plugin_structure.py
+    uv run python -m livespec_dev_tooling.checks.plugin_structure
 
 # Cross-harness plugin-resolution Verifier (shipped by
 # livespec-dev-tooling; Conformance Pattern concern #2). Reads the
