@@ -51,7 +51,7 @@ prose or CLI logic into this repo.
 
 Invocation-form rules for fenced commands in SKILL.md files (enforced
 by the `check-plugin-structure` gate, which consumes
-`livespec_dev_tooling.checks.plugin_structure` from the
+`livespec_dev_tooling.driver_checks.plugin_structure` from the
 livespec-dev-tooling package): use
 `python3 "$LIVESPEC_CORE_ROOT/scripts/bin/<name>.py"`, never `uv run`,
 never a literal `.claude-plugin/scripts` path, and never the Driver's

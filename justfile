@@ -145,9 +145,9 @@ check:
 # (must use $LIVESPEC_CORE_ROOT; never `uv run`, never a literal
 # .claude-plugin/scripts path, never the Driver's own plugin-root
 # placeholder). Consumed from the livespec-dev-tooling package
-# (`livespec_dev_tooling.checks.plugin_structure`, profile-auto-detecting).
+# (`livespec_dev_tooling.driver_checks.plugin_structure`, profile-auto-detecting).
 check-plugin-structure:
-    uv run python -m livespec_dev_tooling.checks.plugin_structure
+    uv run python -m livespec_dev_tooling.driver_checks.plugin_structure
 
 # Cross-harness plugin-resolution Verifier (shipped by
 # livespec-dev-tooling; Conformance Pattern concern #2). Reads the
