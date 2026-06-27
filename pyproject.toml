@@ -131,7 +131,13 @@ markers = [
 scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
 # This repo's real source surface for the commit-pair gate: the two hook
 # dirs (project-local `.claude/hooks/` + plugin-shipped
-# `.claude-plugin/hooks/`) and the repo-local dev-tooling check. A commit
-# touching any of these MUST co-stage a `tests/` change.
-source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/", "dev-tooling/"]
+# `.claude-plugin/hooks/`) and the repo-local dev-tooling Python check
+# (`check_plugin_structure.py`). A commit touching any of these MUST
+# co-stage a `tests/` change. The prefix is the specific Python source
+# file, NOT the bare `dev-tooling/` directory — the directory also carries
+# non-source artifacts (e.g. the deleted commit-refuse shell wrapper, now
+# installed from the livespec-dev-tooling package) that legitimately have
+# no paired test. This `dev-tooling/check_plugin_structure.py` entry drops
+# entirely once that check moves into the shared package (zs22.7.9.2).
+source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/", "dev-tooling/check_plugin_structure.py"]
 tests_tree_prefix = "tests/"
