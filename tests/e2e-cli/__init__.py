@@ -1,7 +1,7 @@
 """CLI end-to-end test package — the top-of-pyramid tier.
 
-Per livespec/SPECIFICATION/contracts.md §"CLI end-to-end harness
-contract": this package wires the single canonical harness shipped
+Per livespec/SPECIFICATION/contracts.md, this package wires the single
+canonical harness shipped
 from `livespec-dev-tooling` (`livespec_dev_tooling.testing.cli_e2e`)
 into this Driver repo's pytest collection. The consumer obligation
 relocated here from livespec core together with the `/livespec:*`
