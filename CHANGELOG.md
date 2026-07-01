@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.0...v0.2.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* point plugin-structure recipe at driver_checks + bump dt pin to v0.25.1 (livespec-2exa) ([6e168b2](https://github.com/thewoolleyman/livespec-driver-claude/commit/6e168b249c03f9c382ad0a25be319004447118f5))
+
+
+### Refactoring
+
+* consume check_plugin_structure from the livespec-dev-tooling package; drop vendored copy (zs22.7.9.2) ([08f0e9c](https://github.com/thewoolleyman/livespec-driver-claude/commit/08f0e9c3c512e2924854e966bc8dd33a9f14a635))
+
 ## [0.2.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.1.0...v0.2.0) (2026-06-24)
 
 
