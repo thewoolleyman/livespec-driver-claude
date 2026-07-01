@@ -43,6 +43,8 @@
     "codex":  { "status": "exempt", "reason": "livespec-driver-claude is the Claude Driver; the Codex /livespec:* surface ships from livespec-driver-codex" }
   },
   "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
+  // Credential-injection wrapper (fleet default) prefixed to the beads CLIs so a bare invocation self-heals its tenant secret.
+  "credential_wrapper": ["/usr/local/bin/with-livespec-env.sh", "--"],
   "livespec-driver-claude": {
     "compat": {
       // semver range and pinned tag against livespec core. The pin is
