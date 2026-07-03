@@ -65,10 +65,13 @@ install-commit-refuse-hooks:
 ensure-plugins:
     claude plugin marketplace add --scope project thewoolleyman/livespec
     claude plugin marketplace add --scope project thewoolleyman/livespec-driver-claude
+    claude plugin marketplace add --scope project thewoolleyman/livespec-orchestrator-beads-fabro
     claude plugin install -s project livespec@livespec
     claude plugin install -s project livespec@livespec-driver-claude
+    claude plugin install -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
     claude plugin update -s project livespec@livespec
     claude plugin update -s project livespec@livespec-driver-claude
+    claude plugin update -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
 
 # Idempotent host-wide Codex plugin provisioning. Codex does not support
 # project-scoped plugin enablement, so these registrations intentionally land in
