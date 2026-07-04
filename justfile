@@ -58,20 +58,18 @@ bootstrap:
 install-commit-refuse-hooks:
     uv run python -m livespec_dev_tooling.install_commit_refuse_hooks
 
-# Idempotent: `claude plugin marketplace add` / `install` / `update`
-# all exit 0 when the target is already present. Core MUST be
-# installed alongside this Driver — the bindings resolve core's
-# prose/ and scripts/ from the installed livespec@livespec cache.
+# The standard shared derive-from-settings wrapper: it reads the committed
+# `.claude/settings.json` (`extraKnownMarketplaces`, including each source's
+# `ref`, and `enabledPlugins`) at runtime and issues the `claude plugin
+# marketplace add` / `install` / `update` commands for exactly the
+# marketplaces and plugins it finds there — one source of truth, so
+# recipe-content drift is structurally impossible. Idempotent: the underlying
+# `add` / `install` / `update` all exit 0 when the target is already present.
+# Core MUST be installed alongside this Driver — the bindings resolve core's
+# prose/ and scripts/ from the installed livespec@livespec cache — which the
+# committed settings guarantee by enabling both plugins.
 ensure-plugins:
-    claude plugin marketplace add --scope project thewoolleyman/livespec@release
-    claude plugin marketplace add --scope project thewoolleyman/livespec-driver-claude@release
-    claude plugin marketplace add --scope project thewoolleyman/livespec-orchestrator-beads-fabro@release
-    claude plugin install -s project livespec@livespec
-    claude plugin install -s project livespec@livespec-driver-claude
-    claude plugin install -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
-    claude plugin update -s project livespec@livespec
-    claude plugin update -s project livespec@livespec-driver-claude
-    claude plugin update -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+    mise exec -- uv run --no-sync python -m livespec_dev_tooling.fleet.ensure_plugins
 
 # Idempotent host-wide Codex plugin provisioning. Codex does not support
 # project-scoped plugin enablement, so these registrations intentionally land in
