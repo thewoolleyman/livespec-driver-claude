@@ -54,7 +54,7 @@ _CLEAN_PLAN = (
     "## Status\n"
     "Status is derived from the ledger as the first action. A checklist\n"
     "item like `[ ]` written inline in prose is not a task queue.\n"
-    "Next session: run `just orchestrate` to pick up ledger id li-abc.\n"
+    "Next session: run `just drive` to pick up ledger id li-abc.\n"
 )
 
 
