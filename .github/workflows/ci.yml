@@ -130,6 +130,26 @@ jobs:
       - name: just check-red-green-replay
         run: just check-red-green-replay
 
+  # Single all-green gate job (livespec epic livespec-cf4bcu,
+  # fleet-ci-aggregate-coverage). This is the SOLE branch-protection
+  # required context: it `needs:` every check-bearing job, so requiring
+  # only `ci-green` blocks merges on the entire matrix + dedicated check
+  # jobs via one stable context-name that never churns as checks are
+  # added — replacing the brittle per-check required-context set. The
+  # gate is a pure GitHub-expression check (no external action, no direct
+  # tool invocation, so it satisfies NFR §"Toolchain pins"): `always()`
+  # makes it run even when a dependency failed, and the step fails the
+  # job iff any dependency failed or was cancelled.
+  ci-green:
+    name: ci-green
+    needs: [check, check-doctor-static, check-red-green-replay]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required checks passed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
+
   export-telemetry:
     name: export-telemetry
     needs: [check, check-red-green-replay]
