@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.1...v0.2.2) (2026-07-12)
+
+
+### Refactoring
+
+* **hooks:** make footgun guard structurally coverage-clean ([4489fca](https://github.com/thewoolleyman/livespec-driver-claude/commit/4489fcafde36e3edaf449c2922279bd18f23fdea))
+
 ## [0.2.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.0...v0.2.1) (2026-07-01)
 
 
