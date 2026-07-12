@@ -108,23 +108,51 @@ markers = [
 # whole-block-absent core fallback is gone and every OMITTED Config role
 # key reverts to the bare `Config()` baseline (empty tuples;
 # `tests_tree_prefix` defaults to "tests/"). That is intentional and
-# HARMLESS here: this thin Driver invokes only four dev-tooling entry
-# points (commit_pairs_source_and_test, heading_coverage, red_green_replay,
-# green_token), and the ONLY Config role keys any of them read are
-# `source_tree_prefixes` + `tests_tree_prefix` (both via commit_pairs).
-# `heading_coverage` reads `scenario_tiers` (a table-direct key, not a
-# Config role key); `red_green_replay` and `green_token` read no config.
-# The heavy product-tree role keys (`source_trees`, `io_trees`,
+# HARMLESS here — every OMITTED heavy role key is read only by canonical
+# checks this thin Driver does NOT run, so an empty baseline no-ops them
+# rather than misclassifying real files.
+#
+# fleet-check-coverage (livespec epic livespec-i5ebqd): this repo now ALSO
+# wires the applies-to-all structural COVERAGE checks (justfile + ci.yml:
+# check-all-declared, check-file-lloc, check-keyword-only-args,
+# check-no-write-direct, check-partition-completeness, and the rest). Those
+# checks do NOT read the heavy `source_trees`-family role keys for their
+# universe — they derive it from the root-anchored git index
+# (`resolve_check_universe` = `git ls-files '*.py'` minus `_vendor/`,
+# `tests_tree_prefix`, `templates/`, and `@generated`). So the two hook
+# `.py` (.claude-plugin/hooks/no_shadow_ledger.py + .claude/hooks/
+# livespec_footgun_guard.py) ARE the universe, and the Config role keys
+# these newly-wired checks actually consult here are only:
+#   - `source_tree_prefixes` — the `partition_completeness` broad-role
+#     claim for BOTH hooks (also the `commit_pairs` co-staging surface);
+#   - `supervisor_entry_files` — the `no_write_direct` file-scope exemption
+#     for `no_shadow_ledger.py` (see its key comment below);
+#   - `file_lloc_hard_gate` — the `file_lloc` Phase-2 hard-gate arming flag.
+# The remaining heavy product-tree role keys (`source_trees`, `io_trees`,
 # `commands_trees`, `pure_trees`, `dataclasses_tree`, `covered_trees`,
-# `target_dirs`, `mirror_pairings`) are read only by canonical checks this
-# repo does NOT run, so they are deliberately OMITTED rather than restated
-# with fictional paths — naming a tree this repo lacks would mislead
-# readers and add a config key that guards nothing (architecture-not-
-# mechanism: a key that no running check reads could be deleted without
-# losing a guardrail, so it is not added).
+# `target_dirs`, `mirror_pairings`) stay deliberately OMITTED: naming a tree
+# this repo lacks would mislead readers and add a config key that guards
+# nothing (architecture-not-mechanism: a key that no running check reads
+# could be deleted without losing a guardrail, so it is not added). With
+# `source_trees` empty, the delta-WARN classifier in each applies-to-all
+# check treats both hooks as newly-covered — so all but `file_lloc` stay
+# Phase-0 WARN-only (exit 0), and `file_lloc` hard-gates only because the
+# per-repo `file_lloc_hard_gate = true` flag below opts this whole universe
+# in (both hooks are far under the 250-LLOC ceiling).
 # ---------------------------------------------------------------------------
 
 [tool.livespec_dev_tooling]
+# Phase-2 file_lloc FLIP (fleet-check-coverage epic livespec-i5ebqd). With
+# this key true, `file_lloc` hard-gates this repo's WHOLE git-derived
+# first-party-.py universe (>250 LLOC => error/exit 1) instead of WARN-only.
+# Safe to arm: the universe is the two hook `.py`, both far under the ceiling
+# (verified: `check-file-lloc` exits 0 with the gate armed, zero files >250).
+# This is a SEVERITY increase, never a bypass (per livespec
+# .ai/ci-gate-discipline.md and the fleet-check-coverage golden rules).
+# Requires livespec-dev-tooling >= v0.39.0 (the flip lever; this repo is
+# pinned at v0.40.0 above). Placed directly under the header, above the
+# other keys, per the fleet placement convention.
+file_lloc_hard_gate = true
 # Heading-coverage scenario tiers (read directly off the table by
 # `load_scenario_tiers`, not a Config role key). Includes `tests.e2e-cli`
 # because this repo's user-surface tier lives under `tests/e2e-cli/`.
@@ -139,3 +167,18 @@ scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.cons
 # as a repo-local `dev-tooling/check_plugin_structure.py` (zs22.7.9.2).
 source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/"]
 tests_tree_prefix = "tests/"
+# no_write_direct file-scope exemption. `no_shadow_ledger.py` is a Claude
+# Code Stop hook whose documented output contract is to emit its
+# `systemMessage` JSON on stdout (`sys.stdout.write(warning + "\n")`); that
+# stdout write is the hook's I/O boundary, exactly the "supervisor surface
+# owns a documented stdout contract" case the `no_write_direct`
+# `supervisor_entry_files` exemption exists for (analogous to core's
+# `run_static.py` findings-JSON contract). Declaring it here is honest
+# classification — not a bypass — and pre-empts a false hard-fail when the
+# applies-to-all checks flip fleet-wide in a later phase. It ALSO gives
+# `partition_completeness` a specific (rather than broad-role) claim for the
+# file, which stays exactly one claim (warning-clean). The file body is
+# UNTOUCHED — it is single-sourced BYTE-IDENTICALLY across both Drivers
+# (livespec core contracts.md §"Driver-shipped hooks"), so its coverage is
+# handled by config here, never by editing the shared body.
+supervisor_entry_files = [".claude-plugin/hooks/no_shadow_ledger.py"]
