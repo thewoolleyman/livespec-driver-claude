@@ -120,6 +120,7 @@ check:
         check-no-except-outside-io
         check-no-fmt-directives
         check-no-raise-outside-io
+        check-no-shadow-ledger-body-identical
         check-no-todo-registry
         check-pbt-coverage-pure-modules
         check-per-file-coverage
@@ -469,3 +470,6 @@ check-vendor-manifest:
 
 check-wrapper-shape:
     uv run python -m livespec_dev_tooling.checks.wrapper_shape
+
+check-no-shadow-ledger-body-identical:
+    uv run python -m livespec_dev_tooling.checks.no_shadow_ledger_body_identical
