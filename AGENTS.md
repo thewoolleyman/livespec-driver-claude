@@ -18,6 +18,7 @@ Claude Code runtime.
 | `.claude-plugin/marketplace.json` | Marketplace catalog (`livespec-driver-claude`) listing the single `livespec` Driver plugin. |
 | `.claude-plugin/skills/<name>/SKILL.md` | The eight thin Claude Code bindings: seed, propose-change, critique, revise, doctor, prune-history, next, help. |
 | `.claude-plugin/hooks/` | Plugin-shipped Claude Code hooks: `hooks.json` declares the events; each hook is a fail-open POSIX shell script resolved via the Driver's plugin root (this IS Driver-owned runtime surface, unlike prose/CLIs). |
+| `.ai/` | Progressive-load agent guidance for repo-specific operational notes that should not live in harness-local memory. |
 | `dev-tooling/` | Repo-local enforcement scripts (manifest/skill structural checks) + the family commit-refuse hook scripts. |
 | `tests/e2e-cli/` | The CLI end-to-end harness consumer (relocated from livespec core with the bindings): mock-tier skill discovery + fail-closed fixture coverage gate, harness imported from livespec-dev-tooling. |
 | `tests/hooks/` | Unit tests for the plugin-shipped hook scripts (subprocess invocation, mocked `CLAUDE_PROJECT_DIR`, tmp_path fixture projects). |
@@ -77,6 +78,12 @@ regardless of any "no product Python" self-classification): a
 verified by the commit-msg `check-red-green-replay` gate. The gate is a
 no-op on commits with no staged `.py`, so `ci:`/`docs:`/`chore:`
 commits pass it freely.
+
+## Progressive guidance
+
+- Read `.ai/beads-tenant.md` before running live `bd` or
+  livespec-orchestrator-beads-fabro commands against this repo's beads
+  tenant.
 
 ## Codex dogfooding (OpenAI Codex CLI/TUI)
 
