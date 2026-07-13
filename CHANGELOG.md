@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.2...v0.2.3) (2026-07-13)
+
+
+### Refactoring
+
+* make plugin-shipped Claude hooks importable + full CI parity (S3+S5) ([1722a60](https://github.com/thewoolleyman/livespec-driver-claude/commit/1722a60ac7818d254be52e7af6932e240c18bdfa))
+
 ## [0.2.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.1...v0.2.2) (2026-07-12)
 
 
