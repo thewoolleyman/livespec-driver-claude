@@ -113,6 +113,7 @@ check:
         check-claude-md-coverage
         check-commit-pairs-source-and-test
         check-fleet-marketplace-relative-sources
+        check-local-memory-drift-audit
         check-master-ci-green
         check-newtype-domain-primitives
         check-no-direct-destructive-cli
@@ -473,3 +474,6 @@ check-wrapper-shape:
 
 check-no-shadow-ledger-body-identical:
     uv run python -m livespec_dev_tooling.checks.no_shadow_ledger_body_identical
+
+check-local-memory-drift-audit:
+    uv run python -m livespec_dev_tooling.checks.local_memory_drift_audit
