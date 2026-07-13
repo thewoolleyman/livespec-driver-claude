@@ -31,30 +31,75 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - check-plugin-structure
-          - check-plugin-resolution
-          - check-lint
-          - check-format
-          - check-hooks
-          - check-e2e-cli
-          - check-heading-coverage
+          # Canonical check set (livespec_dev_tooling.canonical_checks) minus
+          # the two WORLD-GATE checks (check-master-ci-green,
+          # check-branch-protection-alignment) which are excluded from the
+          # CI-mirror requirement and enforce at pre-push under an admin token,
+          # and minus check-red-green-replay (its own full-history job below).
+          - check-agents-ai-references-resolve
+          - check-aggregate-completeness
           - check-all-declared
           - check-assert-never-exhaustiveness
+          - check-canonical-recipe-fidelity
+          - check-check-coverage-incremental
+          - check-check-mutation
+          - check-check-tools
+          - check-ci-matrix-completeness
+          - check-claude-md-coverage
           - check-comment-line-anchors
+          - check-commit-pairs-source-and-test
           - check-file-lloc
+          - check-fleet-marketplace-relative-sources
           - check-global-writes
+          - check-heading-coverage
           - check-keyword-only-args
+          - check-local-memory-drift-audit
           - check-main-guard
           - check-match-keyword-only
+          - check-newtype-domain-primitives
+          - check-no-direct-destructive-cli
+          - check-no-direct-tool-invocation
+          - check-no-except-outside-io
+          - check-no-fmt-directives
           - check-no-inheritance
           - check-no-lloc-soft-warnings
+          - check-no-raise-outside-io
+          - check-no-shadow-ledger-body-identical
+          - check-no-todo-registry
           - check-no-write-direct
           - check-partition-completeness
+          - check-pbt-coverage-pure-modules
+          - check-per-file-coverage
+          - check-plugin-resolution
+          - check-primary-checkout-commit-refuse-hook-installed
           - check-private-calls
+          - check-public-api-result-typed
           - check-rop-pipeline-shape
+          - check-skill-invocation-paths
+          - check-supervisor-discipline
+          - check-tests-mirror-pairing
+          - check-tests-no-subprocess-spawn
+          - check-tool-backed-check-completeness
+          - check-vendor-manifest
+          - check-wrapper-shape
+          # Repo-private extras (non-canonical). The four tool-backed gates
+          # (lint/format/types/coverage) must be literal CI-matrix members per
+          # check-tool-backed-check-completeness.
+          - check-plugin-structure
+          - check-lint
+          - check-format
+          - check-types
+          - check-coverage
+          - check-hooks
+          - check-e2e-cli
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: check-check-coverage-incremental diffs
+          # origin/master...HEAD, and other metadata checks need the base ref
+          # reachable. Cheap for this repo; harmless for the other legs.
+          fetch-depth: 0
 
       - name: Install pinned binaries via mise
         uses: jdx/mise-action@v2
@@ -69,7 +114,24 @@ jobs:
       - name: Install Python dev deps via uv
         run: uv sync --all-groups
 
+      # CI's actions/checkout does NOT install the git hooks, so
+      # check-primary-checkout-commit-refuse-hook-installed would fail.
+      # Install them here — AFTER uv sync, so the installer module is
+      # importable — for the one matrix leg that exercises that check,
+      # REUSING the same from-package installer bootstrap uses. The verifier
+      # only READS the hook file; the hook never fires in this CI job.
+      - name: Install commit-refuse hook (satisfy invariant)
+        if: matrix.target == 'check-primary-checkout-commit-refuse-hook-installed'
+        run: just install-commit-refuse-hooks
+
       - name: just ${{ matrix.target }}
+        env:
+          # Arm the CI-matrix drift guard: now that this repo's matrix +
+          # ci-green are complete, flip check-ci-matrix-completeness from warn
+          # (exit 0) to FAIL (exit 4) so any future canonical slug wired into
+          # `just check` but dropped from CI reddens this leg. Harmless for the
+          # other legs (they do not read this var).
+          LIVESPEC_FAIL_IF_CI_MATRIX_GAPS_EXIST: "true"
         run: just ${{ matrix.target }}
 
   # livespec core's doctor STATIC phase (reference-discipline + out-of-band

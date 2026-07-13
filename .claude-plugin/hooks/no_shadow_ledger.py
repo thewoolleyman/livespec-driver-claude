@@ -17,8 +17,8 @@ file under a plan/ or prompts/ directory. When such an artifact's written
 content carries markdown checkbox task-list items ([ ] / [x]) at or above
 a mechanical threshold, it emits a `systemMessage` WARNING on stdout.
 
-WARN-ONLY BY CONTRACT (livespec core non-functional-requirements and
-contracts.md): this hook NEVER blocks the stop — it never
+WARN-ONLY BY CONTRACT (livespec core non-functional-requirements
+"No shadow ledger"; contracts.md): this hook NEVER blocks the stop — it never
 emits a `decision` key and never exits non-zero — and it never auto-edits
 anything. The mechanical detection internals (the planning-artifact path
 predicate, the checkbox threshold, the persisting-tool set) are Driver
@@ -182,10 +182,22 @@ def _warning() -> str | None:
     return None
 
 
-try:
-    warning = _warning()
-except Exception:  # noqa: BLE001 — fail-open by contract
-    warning = None
-if warning is not None:
-    sys.stdout.write(warning + "\n")
-sys.exit(0)
+def main() -> int:
+    """Hook entry point: emit the shadow-ledger WARN, if any; always exit 0.
+
+    Owns the stdout write at the hook boundary and catches every failure so
+    the Stop hook stays fail-open by contract — it NEVER blocks the stop and
+    NEVER exits non-zero. Importable (no work at module import) so the hook
+    body is testable in-process for real per-file coverage.
+    """
+    try:
+        warning = _warning()
+    except Exception:  # noqa: BLE001 — fail-open by contract
+        warning = None
+    if warning is not None:
+        sys.stdout.write(warning + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
