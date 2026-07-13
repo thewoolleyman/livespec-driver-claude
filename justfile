@@ -101,9 +101,14 @@ check:
     #!/usr/bin/env bash
     set -uo pipefail
     targets=(
-        check-plugin-structure
+        # Canonical check set (livespec_dev_tooling.canonical_checks), in
+        # alphabetical + CONTIGUOUS order — check-aggregate-completeness
+        # requires the full canonical set present, in order, with extras
+        # only AFTER this block (full-parity decision 2026-07-13).
         check-agents-ai-references-resolve
         check-aggregate-completeness
+        check-all-declared
+        check-assert-never-exhaustiveness
         check-branch-protection-alignment
         check-canonical-recipe-fidelity
         check-check-coverage-incremental
@@ -111,39 +116,32 @@ check:
         check-check-tools
         check-ci-matrix-completeness
         check-claude-md-coverage
+        check-comment-line-anchors
         check-commit-pairs-source-and-test
+        check-file-lloc
         check-fleet-marketplace-relative-sources
+        check-global-writes
+        check-heading-coverage
+        check-keyword-only-args
         check-local-memory-drift-audit
+        check-main-guard
         check-master-ci-green
+        check-match-keyword-only
         check-newtype-domain-primitives
         check-no-direct-destructive-cli
         check-no-direct-tool-invocation
         check-no-except-outside-io
         check-no-fmt-directives
+        check-no-inheritance
+        check-no-lloc-soft-warnings
         check-no-raise-outside-io
         check-no-shadow-ledger-body-identical
         check-no-todo-registry
+        check-no-write-direct
+        check-partition-completeness
         check-pbt-coverage-pure-modules
         check-per-file-coverage
         check-plugin-resolution
-        check-lint
-        check-format
-        check-hooks
-        check-e2e-cli
-        check-heading-coverage
-        check-doctor-static
-        check-all-declared
-        check-assert-never-exhaustiveness
-        check-comment-line-anchors
-        check-file-lloc
-        check-global-writes
-        check-keyword-only-args
-        check-main-guard
-        check-match-keyword-only
-        check-no-inheritance
-        check-no-lloc-soft-warnings
-        check-no-write-direct
-        check-partition-completeness
         check-primary-checkout-commit-refuse-hook-installed
         check-private-calls
         check-public-api-result-typed
@@ -156,6 +154,18 @@ check:
         check-tool-backed-check-completeness
         check-vendor-manifest
         check-wrapper-shape
+        # Repo-private extras (NON-canonical) — MUST follow the canonical
+        # block. The four tool-backed gates (lint / format / types /
+        # coverage) live here AND in the CI matrix, per
+        # check-tool-backed-check-completeness's both-surfaces invariant.
+        check-plugin-structure
+        check-lint
+        check-format
+        check-types
+        check-coverage
+        check-hooks
+        check-e2e-cli
+        check-doctor-static
     )
     failed=()
     for target in "${targets[@]}"; do
@@ -261,17 +271,18 @@ check-doctor-static:
 # Applies-to-all structural coverage checks (fleet-check-coverage,
 # livespec epic livespec-i5ebqd). Each derives its file universe from
 # the SAME root-anchored git index (`resolve_check_universe`), so this
-# thin Driver's two first-party hook `.py`
-# (.claude-plugin/hooks/no_shadow_ledger.py + .claude/hooks/
-# livespec_footgun_guard.py) are now structurally covered. `file_lloc`
-# is armed to the hard gate for THIS repo via `file_lloc_hard_gate =
-# true` in pyproject's [tool.livespec_dev_tooling]; the remaining
-# checks stay Phase-0 WARN-only (exit 0) until a later fleet phase
-# flips them. `check-aggregate-completeness` is DELIBERATELY NOT wired:
-# it is the universal-propagation gate that requires the full canonical
-# spec/orchestrator/copier check set, which a thin per-runtime binding
-# does not carry — Drivers stay OUTSIDE universal-propagation
-# (maintainer decision 2026-07-12).
+# Driver's first-party hook `.py` (the three plugin-shipped hooks under
+# .claude-plugin/hooks/ + the project-local .claude/hooks/
+# livespec_footgun_guard.py) are structurally covered. `file_lloc` is
+# armed to the hard gate for THIS repo via `file_lloc_hard_gate = true`
+# in pyproject's [tool.livespec_dev_tooling]; the remaining checks stay
+# Phase-0 WARN-only (exit 0) until a later fleet phase flips them.
+# Full canonical parity: as of the 2026-07-13 full-parity decision this
+# Driver DOES carry the complete canonical check set (wired above in the
+# `check:` aggregate and mirrored into the CI matrix), so
+# check-aggregate-completeness / check-ci-matrix-completeness /
+# check-tool-backed-check-completeness are all in force here — reversing
+# the earlier "Drivers stay outside universal-propagation" stance.
 # ---------------------------------------------------------------
 
 check-all-declared:
@@ -442,7 +453,42 @@ check-no-todo-registry:
 check-pbt-coverage-pure-modules:
     uv run python -m livespec_dev_tooling.checks.pbt_coverage_pure_modules
 
+# Per-file 100% line+branch coverage of the plugin-shipped hook bodies.
+# Runs `pytest --cov` over tests/hooks/ (the in-process main() suites supply
+# the coverage; the retained subprocess smokes do not) to write `.coverage`,
+# then the shared per_file_coverage gate reads it. `-e` (errexit) is
+# load-bearing: without it a non-zero pytest exit would be swallowed by the
+# trailing gate command, silently reporting GREEN on a RED suite.
 check-per-file-coverage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
+    uv run python -m livespec_dev_tooling.checks.per_file_coverage
+
+# Pyright type gate (tool-backed; a literal member of BOTH the `just check`
+# array AND the CI matrix per check-tool-backed-check-completeness). Scoped to
+# the two Driver-authored plugin hooks via pyproject's [tool.pyright].
+check-types:
+    uv run pyright
+
+# Aggregate (total) coverage gate (tool-backed; both-surfaces per
+# check-tool-backed-check-completeness). `fail_under = 100` lives in
+# pyproject's [tool.coverage.report]. To avoid a DUPLICATE suite run inside
+# `just check`, this gates off the EXISTING `.coverage` that the canonical
+# check-per-file-coverage slug (which sorts alphabetically before this
+# repo-private extra) already produced; a standalone CI check-coverage job
+# with no prior pytest runs the suite itself. `-e` errexit for the same
+# swallow-a-red-suite reason as check-per-file-coverage.
+check-coverage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -f .coverage ]]; then
+        echo ":: check-coverage: reading existing .coverage (produced by check-per-file-coverage); no duplicate suite run"
+        uv run coverage report --fail-under=100
+    else
+        echo ":: check-coverage: no .coverage data file (CI standalone job); running the suite"
+        uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
+    fi
     uv run python -m livespec_dev_tooling.checks.per_file_coverage
 
 check-primary-checkout-commit-refuse-hook-installed:
@@ -477,3 +523,11 @@ check-no-shadow-ledger-body-identical:
 
 check-local-memory-drift-audit:
     uv run python -m livespec_dev_tooling.checks.local_memory_drift_audit
+
+# Install the canonical no-shadow-ledger hook body (the single cross-Driver
+# neutral shared body) into pyproject's `neutral_hook_body_path` by REUSING
+# the shared livespec-dev-tooling installer — the SINGLE source of the body.
+# NOT re-implemented here; idempotent. check-no-shadow-ledger-body-identical
+# gates that the shipped copy is byte-identical to the packaged canonical.
+install-no-shadow-ledger:
+    uv run python -m livespec_dev_tooling.install_no_shadow_ledger

@@ -25,7 +25,9 @@ authors = [
 # .mise.toml.
 dev = [
     "ruff==0.8.6",
+    "pyright==1.1.391",
     "pytest==8.3.4",
+    "pytest-cov==6.0.0",
     "livespec-dev-tooling",
 ]
 
@@ -44,14 +46,17 @@ livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-to
 
 [tool.ruff]
 line-length = 100
-# `.claude-plugin/hooks/**` is excluded so ruff never reformats
-# `no_shadow_ledger.py`: that hook body is single-sourced and MUST ship
+# `.claude-plugin/hooks/**` is excluded from ruff exactly as the Codex
+# Driver excludes its `livespec/hooks/**`: the plugin-shipped hook bodies
+# are exercised by the in-process + subprocess hook tests (tests/hooks/)
+# and type-checked by pyright (below), not by the product-code ruff rule
+# set. Excluding the whole dir also guarantees ruff never reformats
+# `no_shadow_ledger.py` — that body is single-sourced and MUST ship
 # BYTE-IDENTICALLY in both Drivers' bundles (livespec core `contracts.md`
 # §"Driver-shipped hooks" → cross-Driver single-sourcing), so a
-# Driver-local ruff reformat would break byte-identity with the codex
-# Driver's copy. The shell hooks in that dir are not `.py` and ruff
-# ignores them regardless. (`.claude/hooks/**` is the pre-existing
-# project-local hook exclusion.)
+# Driver-local ruff reformat (e.g. stripping a `# noqa: BLE001`) would
+# break byte-identity with the Codex Driver's copy. (`.claude/hooks/**`
+# is the pre-existing project-local footgun-guard exclusion.)
 extend-exclude = [".claude/hooks/**", ".claude-plugin/hooks/**", "**/__pycache__/**"]
 
 [tool.ruff.lint]
@@ -167,18 +172,113 @@ scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.cons
 # as a repo-local `dev-tooling/check_plugin_structure.py` (zs22.7.9.2).
 source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/"]
 tests_tree_prefix = "tests/"
-# no_write_direct file-scope exemption. `no_shadow_ledger.py` is a Claude
-# Code Stop hook whose documented output contract is to emit its
-# `systemMessage` JSON on stdout (`sys.stdout.write(warning + "\n")`); that
-# stdout write is the hook's I/O boundary, exactly the "supervisor surface
-# owns a documented stdout contract" case the `no_write_direct`
-# `supervisor_entry_files` exemption exists for (analogous to core's
-# `run_static.py` findings-JSON contract). Declaring it here is honest
-# classification — not a bypass — and pre-empts a false hard-fail when the
-# applies-to-all checks flip fleet-wide in a later phase. It ALSO gives
-# `partition_completeness` a specific (rather than broad-role) claim for the
-# file, which stays exactly one claim (warning-clean). The file body is
-# UNTOUCHED — it is single-sourced BYTE-IDENTICALLY across both Drivers
-# (livespec core contracts.md §"Driver-shipped hooks"), so its coverage is
-# handled by config here, never by editing the shared body.
-supervisor_entry_files = [".claude-plugin/hooks/no_shadow_ledger.py"]
+# Mirror pairings map each hook source tree to its test tree. Read by
+# `check-tests-mirror-pairing` (every hook `.py` has a `tests/hooks/test_<name>.py`)
+# and by `check-check-coverage-incremental` (which resolves a CHANGED impl path
+# to its paired test tree — without a pairing it errors "not under any
+# mirror-paired source tree"). Both hook trees are covered: the plugin-shipped
+# bundle (`.claude-plugin/hooks/`) and the project-local footgun guard
+# (`.claude/hooks/`).
+mirror_pairings = [
+    { source_tree = ".claude-plugin/hooks", test_tree = "tests/hooks" },
+    { source_tree = ".claude/hooks", test_tree = "tests/hooks" },
+]
+# The single cross-Driver neutral shared body: the no-shadow-ledger Stop
+# hook. `check-no-shadow-ledger-body-identical` asserts this file is
+# BYTE-IDENTICAL to the packaged canonical body (`CANONICAL_NO_SHADOW_LEDGER_BODY`
+# in livespec-dev-tooling), and `just install-no-shadow-ledger` writes the
+# canonical body here. Both Drivers (this repo + livespec-driver-codex) ship
+# the SAME body so one detection body serves both runtimes (livespec core
+# contracts.md §"Driver-shipped hooks" → cross-Driver single-sourcing).
+neutral_hook_body_path = ".claude-plugin/hooks/no_shadow_ledger.py"
+# `check-tests-no-subprocess-spawn` bans subprocess spawns in tests unless
+# the test file is allowlisted here. Each hook now has an in-process
+# `main()` suite (real per-file coverage) PLUS exactly one retained
+# subprocess smoke that proves the real hook I/O contract (stdin JSON →
+# stdout decision, exit 0); those smokes deliberately spawn `python3
+# <hook>`, whose child-process coverage is not collected by the parent —
+# so they are declared here, not counted for coverage. The project-local
+# footgun guard (`.claude/hooks/livespec_footgun_guard.py`) is exercised
+# purely as a subprocess (its own project-level Bash-hook registration),
+# so its test file is allowlisted too.
+subprocess_spawn_allowlist = [
+    "tests/hooks/test_block_auto_memory.py",
+    "tests/hooks/test_warn_plan_persistence.py",
+    "tests/hooks/test_no_shadow_ledger.py",
+    "tests/hooks/test_livespec_footgun_guard.py",
+]
+# no_write_direct file-scope exemption. All three plugin-shipped hooks emit
+# their payload on stdout as their documented I/O boundary:
+# `no_shadow_ledger.py` and `warn_plan_persistence.py` (Stop hooks —
+# `sys.stdout.write(<systemMessage-JSON>)`) and `block_auto_memory.py` (a
+# PreToolUse hook — `sys.stdout.write(<deny-decision-JSON>)`). Those stdout
+# writes ARE each hook's I/O contract, exactly the "supervisor surface owns a
+# documented stdout contract" case the `no_write_direct` exemption exists for
+# (analogous to core's `run_static.py` findings-JSON contract). Declaring them
+# here is honest classification — not a bypass — and clears the newly-covered
+# no_write_direct WARNs while giving `partition_completeness` a specific
+# (rather than broad-role) claim for each file. `no_shadow_ledger.py` is
+# single-sourced BYTE-IDENTICALLY across both Drivers (livespec core
+# contracts.md §"Driver-shipped hooks"), so its coverage is handled by config
+# here, never by editing the shared body.
+supervisor_entry_files = [
+    ".claude-plugin/hooks/block_auto_memory.py",
+    ".claude-plugin/hooks/warn_plan_persistence.py",
+    ".claude-plugin/hooks/no_shadow_ledger.py",
+]
+
+# ---------------------------------------------------------------------------
+# Coverage — the plugin-shipped hook bodies must be measured in-process at
+# 100% (line + branch). `check-per-file-coverage` (canonical) and
+# `check-coverage` (tool-backed total `fail_under = 100`) both read the
+# `.coverage` data file `pytest --cov` writes over `tests/hooks/`. The
+# in-process `main()` tests supply the coverage; the retained per-hook
+# subprocess smokes exercise the real hook I/O contract but contribute no
+# parent-process coverage (child processes are not measured), so they are
+# declared in `subprocess_spawn_allowlist` above, not relied on for coverage.
+# ---------------------------------------------------------------------------
+
+[tool.coverage.run]
+branch = true
+source = [".claude-plugin/hooks"]
+omit = [
+    "*/.venv/*",
+    "*/site-packages/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = false
+include = [
+    ".claude-plugin/hooks/block_auto_memory.py",
+    ".claude-plugin/hooks/warn_plan_persistence.py",
+    ".claude-plugin/hooks/no_shadow_ledger.py",
+]
+exclude_also = [
+    "if __name__ == .__main__.:",
+]
+
+# ---------------------------------------------------------------------------
+# Pyright — `check-types` type-checks the two Driver-authored plugin-shipped
+# hooks (`block_auto_memory.py`, `warn_plan_persistence.py`). `strict`
+# mirrors the family baseline (livespec core `pyproject.toml`); the rest of
+# the repo is thin SKILL.md bindings and tests with no product-code type
+# surface of its own. `no_shadow_ledger.py` is EXCLUDED: it is the neutral
+# shared body shipped BYTE-IDENTICALLY across both Drivers (livespec core
+# `contracts.md` §"Driver-shipped hooks"), authored upstream and verified by
+# `check-no-shadow-ledger-body-identical` — not re-typed per Driver, and it
+# uses bare `dict`/`list` annotations that this repo cannot edit without
+# breaking byte-identity, so type-checking it here would be both wrong (a
+# foreign body) and impossible to satisfy under strict.
+# ---------------------------------------------------------------------------
+
+[tool.pyright]
+include = [".claude-plugin/hooks"]
+exclude = [
+    ".claude-plugin/hooks/no_shadow_ledger.py",
+    "**/__pycache__/**",
+]
+pythonVersion = "3.10"
+typeCheckingMode = "strict"

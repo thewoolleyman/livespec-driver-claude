@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/block-auto-memory.sh\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_auto_memory.py\""
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/warn-plan-persistence.sh\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/warn_plan_persistence.py\""
           },
           {
             "type": "command",
