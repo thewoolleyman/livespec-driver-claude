@@ -121,6 +121,7 @@ check:
         check-file-lloc
         check-fleet-marketplace-relative-sources
         check-global-writes
+        check-handoff-dispatch-routing
         check-heading-coverage
         check-keyword-only-args
         check-local-memory-drift-audit
@@ -531,3 +532,6 @@ check-local-memory-drift-audit:
 # gates that the shipped copy is byte-identical to the packaged canonical.
 install-no-shadow-ledger:
     uv run python -m livespec_dev_tooling.install_no_shadow_ledger
+
+check-handoff-dispatch-routing:
+    uv run python -m livespec_dev_tooling.checks.handoff_dispatch_routing
