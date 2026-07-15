@@ -148,6 +148,7 @@ check:
         check-public-api-result-typed
         check-red-green-replay
         check-rop-pipeline-shape
+        check-self-hosted-routing
         check-skill-invocation-paths
         check-supervisor-discipline
         check-tests-mirror-pairing
@@ -535,3 +536,6 @@ install-no-shadow-ledger:
 
 check-handoff-dispatch-routing:
     uv run python -m livespec_dev_tooling.checks.handoff_dispatch_routing
+
+check-self-hosted-routing:
+    uv run python -m livespec_dev_tooling.checks.self_hosted_routing
