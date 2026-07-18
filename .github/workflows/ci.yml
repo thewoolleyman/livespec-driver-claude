@@ -136,6 +136,13 @@ jobs:
           # reachable. Cheap for this repo; harmless for the other legs.
           fetch-depth: 0
 
+      # Hosted routing keeps the baked container image but checks out as the
+      # runner uid while git runs as ROOT inside → "dubious ownership" (exit 128);
+      # global-gitconfig safe.directory (HOME=/github/home) survives resolve_repo_root's
+      # GIT_* scrub (config.py) so every git call reads it. No-op on the self-hosted lane.
+      - name: Trust workspace for git (hosted container root-vs-checkout uid)
+        run: git config --global --add safe.directory '*'
+
       # Tools are baked into the image; `mise install` is a near-no-op that just
       # confirms the pinned versions. A fresh container does not TRUST the repo
       # .mise.toml, so `mise trust` is required for the shims to resolve.
@@ -200,6 +207,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Hosted routing keeps the baked container image but checks out as the
+      # runner uid while git runs as ROOT inside → "dubious ownership" (exit 128);
+      # global-gitconfig safe.directory (HOME=/github/home) survives resolve_repo_root's
+      # GIT_* scrub (config.py) so every git call reads it. No-op on the self-hosted lane.
+      - name: Trust workspace for git (hosted container root-vs-checkout uid)
+        run: git config --global --add safe.directory '*'
+
       - name: mise trust + install (baked tools — install is a near-no-op)
         run: |
           mise trust
@@ -253,6 +267,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Hosted routing keeps the baked container image but checks out as the
+      # runner uid while git runs as ROOT inside → "dubious ownership" (exit 128);
+      # global-gitconfig safe.directory (HOME=/github/home) survives resolve_repo_root's
+      # GIT_* scrub (config.py) so every git call reads it. No-op on the self-hosted lane.
+      - name: Trust workspace for git (hosted container root-vs-checkout uid)
+        run: git config --global --add safe.directory '*'
 
       - name: mise trust + install (baked tools — install is a near-no-op)
         run: |
