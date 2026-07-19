@@ -57,7 +57,7 @@ line-length = 100
 # Driver-local ruff reformat (e.g. stripping a `# noqa: BLE001`) would
 # break byte-identity with the Codex Driver's copy. (`.claude/hooks/**`
 # is the pre-existing project-local footgun-guard exclusion.)
-extend-exclude = [".claude/hooks/**", ".claude-plugin/hooks/**", "**/__pycache__/**"]
+extend-exclude = [".claude/hooks/**", ".claude-plugin/hooks/**", "_vendor/**", "**/__pycache__/**"]
 
 [tool.ruff.lint]
 select = [
@@ -65,6 +65,7 @@ select = [
     "F",     # pyflakes
     "I",     # isort
     "B",     # flake8-bugbear
+    "BLE",   # flake8-blind-except
     "UP",    # pyupgrade
     "SIM",   # flake8-simplify
     "C90",   # mccabe complexity
@@ -280,10 +281,13 @@ exclude_also = [
 # ---------------------------------------------------------------------------
 
 [tool.pyright]
-include = [".claude-plugin/hooks"]
+include = [".claude-plugin/hooks", ".claude/hooks"]
 exclude = [
     ".claude-plugin/hooks/no_shadow_ledger.py",
     "**/__pycache__/**",
 ]
 pythonVersion = "3.10"
+stubPath = "typings"
+reportMissingModuleSource = "none"
+reportUnusedCallResult = "error"
 typeCheckingMode = "strict"

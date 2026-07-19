@@ -42,6 +42,24 @@ from pathlib import Path, PurePosixPath
 from typing import cast
 
 
+def _add_vendor_path() -> None:
+    for vendor_root in (
+        Path(__file__).resolve().parents[2] / "_vendor",
+        Path(__file__).resolve().parents[1] / "_vendor",
+    ):
+        if vendor_root.is_dir():
+            vendor_path = str(vendor_root)
+            if vendor_path not in sys.path:
+                sys.path.insert(0, vendor_path)
+            return
+
+
+_VENDOR_PATH_READY = _add_vendor_path()
+
+from returns.io import IOFailure, IOResult, IOSuccess  # noqa: E402
+from returns.result import Failure, Result, Success  # noqa: E402
+
+
 def _as_object_dict(value: object) -> dict[str, object] | None:
     """Narrow an arbitrary JSON value to a string-keyed dict, else None."""
     if isinstance(value, dict):
@@ -158,6 +176,30 @@ def _block_decision(*, raw: str) -> str | None:
     )
 
 
+
+def _read_stdin() -> tuple[str, IOResult[str, Exception]]:
+    try:
+        raw = sys.stdin.read()
+        return raw, IOSuccess(raw)
+    except Exception as exc:  # noqa: BLE001 - stdin boundary captured on IO rail
+        return "", IOFailure(exc)
+
+
+def _write_stdout(*, text: str) -> IOResult[int, Exception]:
+    try:
+        written = sys.stdout.write(text)
+        return IOSuccess(written)
+    except Exception as exc:  # noqa: BLE001 - stdout boundary captured on IO rail
+        return IOFailure(exc)
+
+
+def _decision_result(*, raw: str) -> Result[str | None, Exception]:
+    try:
+        return Success(_block_decision(raw=raw))
+    except (OSError, ValueError) as exc:
+        return Failure(exc)
+
+
 def main() -> int:
     """Hook entry point: emit the block decision, if any; always exit 0.
 
@@ -167,11 +209,16 @@ def main() -> int:
     non-zero.
     """
     try:
-        decision = _block_decision(raw=sys.stdin.read())
+        raw, read_result = _read_stdin()
+        read_io = read_result.value_or("")
+        _ = read_io
+        decision = _decision_result(raw=raw).value_or(None)
+        if decision is not None:
+            write_result = _write_stdout(text=decision + "\n")
+            written_io = write_result.value_or(0)
+            _ = written_io
     except Exception:  # noqa: BLE001 — fail-open by contract
-        decision = None
-    if decision is not None:
-        sys.stdout.write(decision + "\n")
+        pass
     return 0
 
 

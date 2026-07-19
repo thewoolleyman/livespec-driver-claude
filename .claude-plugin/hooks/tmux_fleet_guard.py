@@ -23,7 +23,26 @@ import json
 import re
 import shlex
 import sys
+from pathlib import Path
 from typing import cast
+
+
+def _add_vendor_path() -> None:
+    for vendor_root in (
+        Path(__file__).resolve().parents[2] / "_vendor",
+        Path(__file__).resolve().parents[1] / "_vendor",
+    ):
+        if vendor_root.is_dir():
+            vendor_path = str(vendor_root)
+            if vendor_path not in sys.path:
+                sys.path.insert(0, vendor_path)
+            return
+
+
+_VENDOR_PATH_READY = _add_vendor_path()
+
+from returns.io import IOFailure, IOResult, IOSuccess  # noqa: E402
+from returns.result import Failure, Result, Success  # noqa: E402
 
 __all__: list[str] = []
 
@@ -206,16 +225,45 @@ def _decision(*, raw: str) -> str | None:
     return None
 
 
-def main() -> int:
-    """Hook entry point: emit a deny decision, if any; always exit 0."""
-    raw = ""
+
+def _read_stdin() -> tuple[str, IOResult[str, Exception]]:
     try:
         raw = sys.stdin.read()
-        decision = _decision(raw=raw)
-    except Exception:  # noqa: BLE001 - fail closed only for hinted hazards
-        decision = _deny_decision() if _has_hazard_hint(command=raw) else None
-    if decision is not None:
-        sys.stdout.write(decision + "\n")
+        return raw, IOSuccess(raw)
+    except Exception as exc:  # noqa: BLE001 - stdin boundary captured on IO rail
+        return "", IOFailure(exc)
+
+
+def _write_stdout(*, text: str) -> IOResult[int, Exception]:
+    try:
+        written = sys.stdout.write(text)
+        return IOSuccess(written)
+    except Exception as exc:  # noqa: BLE001 - stdout boundary captured on IO rail
+        return IOFailure(exc)
+
+
+def _decision_result(*, raw: str) -> Result[str | None, Exception]:
+    try:
+        return Success(_decision(raw=raw))
+    except Exception as exc:  # noqa: BLE001 - fail closed only for hinted hazards
+        if _has_hazard_hint(command=raw):
+            return Success(_deny_decision())
+        return Failure(exc)
+
+
+def main() -> int:
+    """Hook entry point: emit a deny decision, if any; always exit 0."""
+    try:
+        raw, read_result = _read_stdin()
+        read_io = read_result.value_or("")
+        _ = read_io
+        decision = _decision_result(raw=raw).value_or(None)
+        if decision is not None:
+            write_result = _write_stdout(text=decision + "\n")
+            written_io = write_result.value_or(0)
+            _ = written_io
+    except Exception:  # noqa: BLE001 - fail closed cannot classify without readable stdin
+        pass
     return 0
 
 
