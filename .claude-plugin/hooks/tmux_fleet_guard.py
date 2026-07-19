@@ -23,13 +23,13 @@ import here is the standard library or the sibling `_result` railway module.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import shlex
 import sys
 from typing import cast
 
-from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 __all__: list[str] = []
 
@@ -203,54 +203,24 @@ def _decision(*, raw: str) -> str | None:
     command = tool_input.get("command")
     if not isinstance(command, str) or not command:
         return None
-    try:
-        denied = _classify(command=command)
-    except Exception:  # noqa: BLE001 - fail closed for hinted hazard commands
-        denied = _has_hazard_hint(command=command)
-    if denied:
+    if _classify(command=command):
         return _deny_decision()
     return None
 
 
 
-def _read_stdin() -> tuple[str, IOResult[str, Exception]]:
+def main() -> int:
+    """Guard entry point: deny hinted hazards even when classification fails; exit 0."""
+    raw = ""
     try:
         raw = sys.stdin.read()
-        return raw, IOSuccess(raw)
-    except Exception as exc:  # noqa: BLE001 - stdin boundary captured on IO rail
-        return "", IOFailure(exc)
-
-
-def _write_stdout(*, text: str) -> IOResult[int, Exception]:
-    try:
-        written = sys.stdout.write(text)
-        return IOSuccess(written)
-    except Exception as exc:  # noqa: BLE001 - stdout boundary captured on IO rail
-        return IOFailure(exc)
-
-
-def _decision_result(*, raw: str) -> Result[str | None, Exception]:
-    try:
-        return Success(_decision(raw=raw))
-    except Exception as exc:  # noqa: BLE001 - fail closed only for hinted hazards
-        if _has_hazard_hint(command=raw):
-            return Success(_deny_decision())
-        return Failure(exc)
-
-
-def main() -> int:
-    """Hook entry point: emit a deny decision, if any; always exit 0."""
-    try:
-        raw, read_result = _read_stdin()
-        read_io = read_result.value_or(default="")
-        _ = read_io
-        decision = _decision_result(raw=raw).value_or(default=None)
+        decision = _decision(raw=raw)
         if decision is not None:
-            write_result = _write_stdout(text=decision + "\n")
-            written_io = write_result.value_or(default=0)
-            _ = written_io
-    except Exception:  # noqa: BLE001 - fail closed cannot classify without readable stdin
-        pass
+            _ = sys.stdout.write(decision + "\n")
+    except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
+        if _has_hazard_hint(command=raw):
+            with contextlib.suppress(OSError):
+                _ = sys.stdout.write(_deny_decision() + "\n")
     return 0
 
 

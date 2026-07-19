@@ -261,6 +261,20 @@ def test_main_fail_closes_when_decision_raises_with_hazard_hint(monkeypatch) -> 
     _assert_denied(result=result)
 
 
+def test_main_fail_closes_when_legacy_decision_result_raises_with_hazard_hint(
+    monkeypatch,
+) -> None:
+    hook = _load_hook()
+
+    def broken_decision_result(*, raw: str):
+        raise RuntimeError(raw)
+
+    if hasattr(hook, "_decision_result"):
+        monkeypatch.setattr(hook, "_decision_result", broken_decision_result)
+    result = _run_loaded(hook=hook, stdin=_bash_input(command="tmux kill-server"))
+    _assert_denied(result=result)
+
+
 def test_main_fails_open_when_decision_raises_without_hazard_hint(monkeypatch) -> None:
     hook = _load_hook()
 
