@@ -35,6 +35,7 @@ _SHIPPED_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",
     _HOOKS_DIR / "warn_plan_persistence.py",
     _HOOKS_DIR / "tmux_fleet_guard.py",
+    _HOOKS_DIR / "_tmux_hazard.py",
 )
 _SHIPPED_RAILWAY_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",
