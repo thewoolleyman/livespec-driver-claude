@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import json
 import sys
 from io import StringIO
 from pathlib import Path
@@ -34,6 +35,10 @@ if str(_HOOKS_DIR) not in sys.path:
 _SHIPPED_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",
     _HOOKS_DIR / "warn_plan_persistence.py",
+    # no_shadow_ledger.py is intentionally excluded: its body is owned by
+    # livespec_dev_tooling.install_no_shadow_ledger.CANONICAL_NO_SHADOW_LEDGER_BODY,
+    # installed via `just install-no-shadow-ledger`, and guarded byte-identical
+    # across Drivers by check-no-shadow-ledger-body-identical.
     _HOOKS_DIR / "tmux_fleet_guard.py",
 )
 _SHIPPED_RAILWAY_HOOKS = (
@@ -44,6 +49,8 @@ _STANDARD_BLE001_MARKERS = {
     "# noqa: BLE001 — sole supervisor bug-catcher: log traceback, exit 1",
     "# noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0",
     "# noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0",
+    "# noqa: BLE001 — sole loop-iteration bug-catcher: log traceback, continue",
+    "# noqa: BLE001 — foreign-code isolation: <surface> crash captured as <ErrorType>, reported",
 }
 _LOCAL_ONLY_HOOK = _REPO_ROOT / ".claude" / "hooks" / "livespec_footgun_guard.py"
 
@@ -148,7 +155,11 @@ class _BrokenStdin:
 
 
 class _BrokenStdout:
+    def __init__(self) -> None:
+        self.writes: list[str] = []
+
     def write(self, text: str) -> int:
+        self.writes.append(text)
         raise OSError(text)
 
 
@@ -174,7 +185,7 @@ def test_main_fail_open_when_decision_rail_raises(monkeypatch, capsys) -> None:
     assert captured.err == ""
 
 
-def test_main_boundaries_own_unexpected_io_failures(monkeypatch, capsys) -> None:
+def test_main_boundaries_own_unexpected_io_failures(monkeypatch, capsys, tmp_path) -> None:
     import block_auto_memory
     import tmux_fleet_guard
     import warn_plan_persistence
@@ -186,10 +197,70 @@ def test_main_boundaries_own_unexpected_io_failures(monkeypatch, capsys) -> None
         assert captured.out == ""
         assert captured.err == ""
 
-    for module in (block_auto_memory, warn_plan_persistence):
-        monkeypatch.setattr(module.sys, "stdin", StringIO("{}"))
-        monkeypatch.setattr(module.sys, "stdout", _BrokenStdout())
-        assert module.main() == 0
-        captured = capsys.readouterr()
-        assert captured.out == ""
-        assert captured.err == ""
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / ".livespec.jsonc").write_text(
+        '{"implementation": {"plugin": "livespec-orchestrator-beads-fabro"}}',
+        encoding="utf-8",
+    )
+    memory_payload = {
+        "tool_name": "Write",
+        "tool_input": {
+            "file_path": str(tmp_path / "claude" / "memory" / "note.md"),
+            "content": "durable note",
+        },
+    }
+    memory_stdout = _BrokenStdout()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project_dir))
+    monkeypatch.setattr(block_auto_memory.sys, "stdin", StringIO(json.dumps(memory_payload)))
+    monkeypatch.setattr(block_auto_memory.sys, "stdout", memory_stdout)
+    assert block_auto_memory.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+    assert len(memory_stdout.writes) == 1
+    assert '"permissionDecision": "deny"' in memory_stdout.writes[0]
+
+    transcript_path = tmp_path / "transcript.jsonl"
+    transcript_path.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "user",
+                        "message": {"content": "plan the implementation"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "\n".join(
+                                        [
+                                            "# Stage 1",
+                                            "## Stage 2",
+                                            "### Stage 3",
+                                        ]
+                                    ),
+                                }
+                            ]
+                        },
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    warning_stdout = _BrokenStdout()
+    warning_payload = {"transcript_path": str(transcript_path), "stop_hook_active": False}
+    monkeypatch.setattr(warn_plan_persistence.sys, "stdin", StringIO(json.dumps(warning_payload)))
+    monkeypatch.setattr(warn_plan_persistence.sys, "stdout", warning_stdout)
+    assert warn_plan_persistence.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+    assert len(warning_stdout.writes) == 1
+    assert '"systemMessage"' in warning_stdout.writes[0]
