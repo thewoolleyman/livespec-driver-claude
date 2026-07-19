@@ -1,12 +1,27 @@
-"""Policy checks for the hook Result/IOResult railway adoption."""
+"""Policy checks for the hook Result/IOResult railway adoption.
+
+Two DIFFERENT railway sources are correct here, and the split is the policy:
+
+- **Plugin-shipped hooks** (`.claude-plugin/hooks/`) are the only files the
+  installer copies, and they run under bare `python3` with no virtualenv and no
+  third-party packages. They MUST take the railway from the self-contained
+  sibling `_result` module, with no `returns` import and no `sys.path`
+  arithmetic — a module-scope third-party import there kills the process before
+  `main()` can fail open, so the hook silently guards nothing.
+- **The project-local footgun guard** (`.claude/hooks/`) is NEVER shipped; it
+  runs from this checkout, where the repo-root `_vendor/` tree carries the real
+  dry-python/returns. It keeps using that.
+"""
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import sys
 from io import StringIO
 from pathlib import Path
 
+import pytest
 import tomli
 
 __all__: list[str] = []
@@ -16,19 +31,31 @@ _HOOKS_DIR = _REPO_ROOT / ".claude-plugin" / "hooks"
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
-_HOOK_FILES = (
-    _REPO_ROOT / ".claude-plugin" / "hooks" / "block_auto_memory.py",
-    _REPO_ROOT / ".claude-plugin" / "hooks" / "warn_plan_persistence.py",
-    _REPO_ROOT / ".claude-plugin" / "hooks" / "tmux_fleet_guard.py",
-    _REPO_ROOT / ".claude" / "hooks" / "livespec_footgun_guard.py",
+_SHIPPED_RAILWAY_HOOKS = (
+    _HOOKS_DIR / "block_auto_memory.py",
+    _HOOKS_DIR / "warn_plan_persistence.py",
+    _HOOKS_DIR / "tmux_fleet_guard.py",
 )
+_LOCAL_ONLY_HOOK = _REPO_ROOT / ".claude" / "hooks" / "livespec_footgun_guard.py"
+
+
+def _imported_roots(*, source: str) -> set[str]:
+    """Top-level package name of every import, read off the AST not the prose."""
+    roots: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                roots.add(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            roots.add(node.module.split(".")[0])
+    return roots
 
 
 def _pyproject() -> dict[str, object]:
     return tomli.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def test_returns_is_vendored_under_vendor() -> None:
+def test_returns_is_vendored_under_vendor_for_the_local_only_hook() -> None:
     vendor_root = _REPO_ROOT / "_vendor" / "returns"
     assert (vendor_root / "__init__.py").is_file()
     assert (vendor_root / "result.py").is_file()
@@ -36,6 +63,9 @@ def test_returns_is_vendored_under_vendor() -> None:
 
     spec = importlib.util.spec_from_file_location("returns", vendor_root / "__init__.py")
     assert spec is not None
+
+    source = _LOCAL_ONLY_HOOK.read_text(encoding="utf-8")
+    assert "returns.result" in source or "returns.io" in source
 
 
 def test_ruff_ble_and_pyright_unused_call_result_are_errors() -> None:
@@ -47,33 +77,40 @@ def test_ruff_ble_and_pyright_unused_call_result_are_errors() -> None:
     assert pyright["reportUnusedCallResult"] == "error"  # type: ignore[index]
 
 
-def test_repo_owned_hook_bodies_import_result_railway() -> None:
-    for hook_file in _HOOK_FILES:
+def test_shipped_hook_bodies_import_the_self_contained_railway() -> None:
+    for hook_file in _SHIPPED_RAILWAY_HOOKS:
         source = hook_file.read_text(encoding="utf-8")
-        assert "returns.result" in source or "returns.io" in source, hook_file
+        roots = _imported_roots(source=source)
+        assert "_result" in roots, hook_file
+        assert "returns" not in roots, hook_file
+        assert "sys.path.insert" not in source, hook_file
 
 
-def test_vendor_path_helpers_are_idempotent() -> None:
-    import block_auto_memory
-    import tmux_fleet_guard
-    import warn_plan_persistence
-
-    assert block_auto_memory._add_vendor_path() is None
-    assert tmux_fleet_guard._add_vendor_path() is None
-    assert warn_plan_persistence._add_vendor_path() is None
+def test_shipped_railway_module_is_standard_library_only() -> None:
+    source = (_HOOKS_DIR / "_result.py").read_text(encoding="utf-8")
+    for root in _imported_roots(source=source):
+        assert root in sys.stdlib_module_names, root
 
 
-def test_vendor_path_helpers_insert_when_path_is_absent(monkeypatch) -> None:
-    import tmux_fleet_guard
-    import warn_plan_persistence
+def test_success_rail_carries_its_value() -> None:
+    from _result import IOSuccess, Success
 
-    for module in (tmux_fleet_guard, warn_plan_persistence):
-        vendor_path = str(module.Path(module.__file__).resolve().parents[2] / "_vendor")
-        monkeypatch.setattr(
-            module.sys, "path", [item for item in module.sys.path if item != vendor_path]
-        )
-        assert module._add_vendor_path() is None
-        assert vendor_path in module.sys.path
+    assert Success(3).unwrap() == 3
+    assert Success(3).value_or(default=9) == 3
+    assert IOSuccess("x").value_or(default="fallback") == "x"
+    with pytest.raises(RuntimeError):
+        _ = Success(3).failure()
+
+
+def test_failure_rail_yields_the_default() -> None:
+    from _result import Failure, IOFailure
+
+    error = OSError("boom")
+    assert Failure(error).failure() is error
+    assert Failure(error).value_or(default=9) == 9
+    assert IOFailure(error).value_or(default="fallback") == "fallback"
+    with pytest.raises(RuntimeError):
+        _ = Failure(error).unwrap()
 
 
 class _BrokenStdin:
@@ -93,12 +130,10 @@ def test_rail_helpers_capture_io_failures(monkeypatch) -> None:
 
     for module in (block_auto_memory, tmux_fleet_guard, warn_plan_persistence):
         monkeypatch.setattr(module.sys, "stdin", _BrokenStdin())
-        read_io = module._read_stdin()[1].value_or("fallback")
-        assert read_io is not None
+        assert module._read_stdin()[1].value_or(default="fallback") == "fallback"
 
         monkeypatch.setattr(module.sys, "stdout", _BrokenStdout())
-        write_io = module._write_stdout(text="x").value_or(0)
-        assert write_io is not None
+        assert module._write_stdout(text="x").value_or(default=0) == 0
 
 
 def test_main_fail_open_when_rail_raises(monkeypatch, capsys) -> None:
@@ -131,13 +166,3 @@ def test_main_fail_open_when_rail_raises(monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
-
-
-def test_vendor_path_helpers_tolerate_missing_vendor(monkeypatch) -> None:
-    import block_auto_memory
-    import tmux_fleet_guard
-    import warn_plan_persistence
-
-    for module in (block_auto_memory, tmux_fleet_guard, warn_plan_persistence):
-        monkeypatch.setattr(module.Path, "is_dir", lambda _path: False)
-        assert module._add_vendor_path() is None

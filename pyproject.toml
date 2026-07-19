@@ -201,12 +201,18 @@ neutral_hook_body_path = ".claude-plugin/hooks/no_shadow_ledger.py"
 # so they are declared here, not counted for coverage. The project-local
 # footgun guard (`.claude/hooks/livespec_footgun_guard.py`) is exercised
 # purely as a subprocess (its own project-level Bash-hook registration),
-# so its test file is allowlisted too.
+# so its test file is allowlisted too. `test_shipped_hooks_install_shape.py`
+# is subprocess-ONLY by construction: it reproduces the INSTALL shape (only
+# `.claude-plugin/` copied, bare interpreter, no repo on PYTHONPATH), which is
+# unreachable from an in-process import of the checkout — the dev-shape import
+# is precisely the blind spot that let a hook ship with an unresolvable
+# module-scope import.
 subprocess_spawn_allowlist = [
     "tests/hooks/test_block_auto_memory.py",
     "tests/hooks/test_warn_plan_persistence.py",
     "tests/hooks/test_no_shadow_ledger.py",
     "tests/hooks/test_tmux_fleet_guard.py",
+    "tests/hooks/test_shipped_hooks_install_shape.py",
     "tests/hooks/test_livespec_footgun_guard.py",
 ]
 # no_write_direct file-scope exemption. All four plugin-shipped hooks emit
@@ -240,6 +246,10 @@ supervisor_entry_files = [
 # subprocess smokes exercise the real hook I/O contract but contribute no
 # parent-process coverage (child processes are not measured), so they are
 # declared in `subprocess_spawn_allowlist` above, not relied on for coverage.
+# `_result.py` — the self-contained standard-library railway the shipped hooks
+# import instead of a third-party `returns` the install cache cannot carry — is
+# measured at the same 100% bar via its own container tests in
+# `tests/hooks/test_rop_policy.py`.
 # ---------------------------------------------------------------------------
 
 [tool.coverage.run]
@@ -256,6 +266,7 @@ fail_under = 100
 show_missing = true
 skip_covered = false
 include = [
+    ".claude-plugin/hooks/_result.py",
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
@@ -268,7 +279,7 @@ exclude_also = [
 # ---------------------------------------------------------------------------
 # Pyright — `check-types` type-checks the three Driver-authored plugin-shipped
 # hooks (`block_auto_memory.py`, `warn_plan_persistence.py`, and
-# `tmux_fleet_guard.py`). `strict`
+# `tmux_fleet_guard.py`) plus the `_result.py` railway they import. `strict`
 # mirrors the family baseline (livespec core `pyproject.toml`); the rest of
 # the repo is thin SKILL.md bindings and tests with no product-code type
 # surface of its own. `no_shadow_ledger.py` is EXCLUDED: it is the neutral
