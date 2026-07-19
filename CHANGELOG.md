@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.3...v0.3.0) (2026-07-19)
+
+
+### Features
+
+* bundle tmux fleet guard hook ([340dff8](https://github.com/thewoolleyman/livespec-driver-claude/commit/340dff81dfbbbd54c8436b3c30e009136b8a8f66))
+
 ## [0.2.3](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.2...v0.2.3) (2026-07-13)
 
 
