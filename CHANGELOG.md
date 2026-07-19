@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.3.0...v0.4.0) (2026-07-19)
+
+
+### Features
+
+* adopt hook ROP policy ([b73260e](https://github.com/thewoolleyman/livespec-driver-claude/commit/b73260ee22a60787884b9afda5f1e4249166eb72))
+
 ## [0.3.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.2.3...v0.3.0) (2026-07-19)
 
 
