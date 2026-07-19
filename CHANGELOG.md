@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.0...v0.4.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* **hooks:** make plugin-shipped hooks self-contained under bare python3 ([fced250](https://github.com/thewoolleyman/livespec-driver-claude/commit/fced2508025a6c37cc7a5eca5f1aeb8235e9efb2))
+
+
+### Refactoring
+
+* **hooks:** swap the shipped railway to the self-contained _result shim ([b1b339d](https://github.com/thewoolleyman/livespec-driver-claude/commit/b1b339d00b374c2435d8d764c1319c74e8e5169c))
+
 ## [0.4.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.3.0...v0.4.0) (2026-07-19)
 
 
