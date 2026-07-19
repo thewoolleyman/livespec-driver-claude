@@ -31,6 +31,24 @@ import sys
 from pathlib import Path
 from typing import cast
 
+
+def _add_vendor_path() -> None:
+    for vendor_root in (
+        Path(__file__).resolve().parents[2] / "_vendor",
+        Path(__file__).resolve().parents[1] / "_vendor",
+    ):
+        if vendor_root.is_dir():
+            vendor_path = str(vendor_root)
+            if vendor_path not in sys.path:
+                sys.path.insert(0, vendor_path)
+            return
+
+
+_VENDOR_PATH_READY = _add_vendor_path()
+
+from returns.io import IOFailure, IOResult, IOSuccess  # noqa: E402
+from returns.result import Failure, Result, Success  # noqa: E402
+
 # Mechanical "substantial planning artifact" thresholds over the aggregated
 # assistant text of the last turn.
 HEADING_THRESHOLD = 3
@@ -167,6 +185,30 @@ def _warning(*, raw: str) -> str | None:
     return json.dumps({"systemMessage": message})
 
 
+
+def _read_stdin() -> tuple[str, IOResult[str, Exception]]:
+    try:
+        raw = sys.stdin.read()
+        return raw, IOSuccess(raw)
+    except Exception as exc:  # noqa: BLE001 - stdin boundary captured on IO rail
+        return "", IOFailure(exc)
+
+
+def _write_stdout(*, text: str) -> IOResult[int, Exception]:
+    try:
+        written = sys.stdout.write(text)
+        return IOSuccess(written)
+    except Exception as exc:  # noqa: BLE001 - stdout boundary captured on IO rail
+        return IOFailure(exc)
+
+
+def _warning_result(*, raw: str) -> Result[str | None, Exception]:
+    try:
+        return Success(_warning(raw=raw))
+    except (OSError, ValueError) as exc:
+        return Failure(exc)
+
+
 def main() -> int:
     """Hook entry point: emit the plan-persistence WARN, if any; always exit 0.
 
@@ -175,11 +217,16 @@ def main() -> int:
     emits a `decision` key and never exits non-zero.
     """
     try:
-        warning = _warning(raw=sys.stdin.read())
+        raw, read_result = _read_stdin()
+        read_io = read_result.value_or("")
+        _ = read_io
+        warning = _warning_result(raw=raw).value_or(None)
+        if warning is not None:
+            write_result = _write_stdout(text=warning + "\n")
+            written_io = write_result.value_or(0)
+            _ = written_io
     except Exception:  # noqa: BLE001 — fail-open by contract
-        warning = None
-    if warning is not None:
-        sys.stdout.write(warning + "\n")
+        pass
     return 0
 
 

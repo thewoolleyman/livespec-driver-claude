@@ -27,6 +27,25 @@ import json
 import re
 import shlex
 import sys
+from pathlib import Path
+
+
+def _add_vendor_path() -> None:
+    for vendor_root in (
+        Path(__file__).resolve().parents[2] / "_vendor",
+        Path(__file__).resolve().parents[1] / "_vendor",
+    ):
+        if vendor_root.is_dir():
+            vendor_path = str(vendor_root)
+            if vendor_path not in sys.path:
+                sys.path.insert(0, vendor_path)
+            return
+
+
+_VENDOR_PATH_READY = _add_vendor_path()
+
+from returns.io import IOFailure, IOResult, IOSuccess  # noqa: E402
+from returns.result import Failure, Result, Success  # noqa: E402
 
 __all__: list[str] = []
 
@@ -185,7 +204,7 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
     return False, ""
 
 
-def _deny(*, reason: str, command: str) -> None:
+def _deny(*, reason: str, command: str) -> str:
     payload = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -200,31 +219,58 @@ def _deny(*, reason: str, command: str) -> None:
             ),
         }
     }
-    print(json.dumps(payload))
-    sys.exit(0)
+    return json.dumps(payload)
 
 
-def main() -> None:
+def _read_stdin() -> tuple[str, IOResult[str, Exception]]:
     try:
         raw = sys.stdin.read()
+        return raw, IOSuccess(raw)
+    except Exception as exc:  # noqa: BLE001 - stdin boundary captured on IO rail
+        return "", IOFailure(exc)
+
+
+def _write_stdout(*, text: str) -> IOResult[int, Exception]:
+    try:
+        written = sys.stdout.write(text)
+        return IOSuccess(written)
+    except Exception as exc:  # noqa: BLE001 - stdout boundary captured on IO rail
+        return IOFailure(exc)
+
+
+def _deny_result(*, raw: str) -> Result[str | None, Exception]:
+    try:
         if not raw.strip():
-            sys.exit(0)
+            return Success(None)
         data = json.loads(raw)
         if data.get("tool_name", "") != "Bash":
-            sys.exit(0)
+            return Success(None)
         command = data.get("tool_input", {}).get("command", "")
         if not command:
-            sys.exit(0)
+            return Success(None)
         for seg in _segments(command=command):
             blocked, reason = _check_segment(seg=seg)
             if blocked:
-                _deny(reason=reason, command=command)
-        sys.exit(0)
-    except json.JSONDecodeError:
-        sys.exit(0)
-    except Exception:
-        sys.exit(0)
+                return Success(_deny(reason=reason, command=command))
+        return Success(None)
+    except json.JSONDecodeError as exc:
+        return Failure(exc)
+
+
+def main() -> int:
+    try:
+        raw, read_result = _read_stdin()
+        read_io = read_result.value_or("")
+        _ = read_io
+        decision = _deny_result(raw=raw).value_or(None)
+        if decision is not None:
+            write_result = _write_stdout(text=decision + "\n")
+            written_io = write_result.value_or(0)
+            _ = written_io
+    except Exception:  # noqa: BLE001 — fail-open by contract
+        pass
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
