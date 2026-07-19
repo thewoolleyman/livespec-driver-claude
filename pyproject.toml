@@ -205,13 +205,15 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_block_auto_memory.py",
     "tests/hooks/test_warn_plan_persistence.py",
     "tests/hooks/test_no_shadow_ledger.py",
+    "tests/hooks/test_tmux_fleet_guard.py",
     "tests/hooks/test_livespec_footgun_guard.py",
 ]
-# no_write_direct file-scope exemption. All three plugin-shipped hooks emit
+# no_write_direct file-scope exemption. All four plugin-shipped hooks emit
 # their payload on stdout as their documented I/O boundary:
 # `no_shadow_ledger.py` and `warn_plan_persistence.py` (Stop hooks —
-# `sys.stdout.write(<systemMessage-JSON>)`) and `block_auto_memory.py` (a
-# PreToolUse hook — `sys.stdout.write(<deny-decision-JSON>)`). Those stdout
+# `sys.stdout.write(<systemMessage-JSON>)`) and `block_auto_memory.py` /
+# `tmux_fleet_guard.py` (PreToolUse hooks —
+# `sys.stdout.write(<deny-decision-JSON>)`). Those stdout
 # writes ARE each hook's I/O contract, exactly the "supervisor surface owns a
 # documented stdout contract" case the `no_write_direct` exemption exists for
 # (analogous to core's `run_static.py` findings-JSON contract). Declaring them
@@ -225,6 +227,7 @@ supervisor_entry_files = [
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
+    ".claude-plugin/hooks/tmux_fleet_guard.py",
 ]
 
 # ---------------------------------------------------------------------------
@@ -255,14 +258,16 @@ include = [
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
+    ".claude-plugin/hooks/tmux_fleet_guard.py",
 ]
 exclude_also = [
     "if __name__ == .__main__.:",
 ]
 
 # ---------------------------------------------------------------------------
-# Pyright — `check-types` type-checks the two Driver-authored plugin-shipped
-# hooks (`block_auto_memory.py`, `warn_plan_persistence.py`). `strict`
+# Pyright — `check-types` type-checks the three Driver-authored plugin-shipped
+# hooks (`block_auto_memory.py`, `warn_plan_persistence.py`, and
+# `tmux_fleet_guard.py`). `strict`
 # mirrors the family baseline (livespec core `pyproject.toml`); the rest of
 # the repo is thin SKILL.md bindings and tests with no product-code type
 # surface of its own. `no_shadow_ledger.py` is EXCLUDED: it is the neutral
