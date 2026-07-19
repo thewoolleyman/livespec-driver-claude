@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.1...v0.4.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* harden hook broad-except boundaries ([4b496e1](https://github.com/thewoolleyman/livespec-driver-claude/commit/4b496e1d79d1cedf31211d9c084b5dc397391bfd))
+
 ## [0.4.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.0...v0.4.1) (2026-07-19)
 
 
