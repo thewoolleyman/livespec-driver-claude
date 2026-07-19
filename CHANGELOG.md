@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.3...v0.4.4) (2026-07-19)
+
+
+### Bug Fixes
+
+* **hooks:** scan every token position for a tmux command head ([d9ec17b](https://github.com/thewoolleyman/livespec-driver-claude/commit/d9ec17b1b71dd75bda1683795fa05441e941d53c))
+
 ## [0.4.3](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.2...v0.4.3) (2026-07-19)
 
 
