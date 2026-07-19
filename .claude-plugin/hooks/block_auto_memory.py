@@ -31,6 +31,10 @@ exit 0. The hook only blocks when it POSITIVELY identifies a livespec-governed
 project. `main()` owns stdin/stdout at the hook boundary, catches every
 failure, and returns 0 on every path; it is importable (no work at module
 import) so the body is testable in-process for real per-file coverage.
+
+Self-contained by contract: the plugin installer ships this file under bare
+system `python3` with no virtualenv and no third-party packages, so every
+import here is the standard library or the sibling `_result` railway module.
 """
 
 from __future__ import annotations
@@ -41,23 +45,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import cast
 
-
-def _add_vendor_path() -> None:
-    for vendor_root in (
-        Path(__file__).resolve().parents[2] / "_vendor",
-        Path(__file__).resolve().parents[1] / "_vendor",
-    ):
-        if vendor_root.is_dir():
-            vendor_path = str(vendor_root)
-            if vendor_path not in sys.path:
-                sys.path.insert(0, vendor_path)
-            return
-
-
-_VENDOR_PATH_READY = _add_vendor_path()
-
-from returns.io import IOFailure, IOResult, IOSuccess  # noqa: E402
-from returns.result import Failure, Result, Success  # noqa: E402
+from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 
 def _as_object_dict(value: object) -> dict[str, object] | None:
@@ -210,12 +198,12 @@ def main() -> int:
     """
     try:
         raw, read_result = _read_stdin()
-        read_io = read_result.value_or("")
+        read_io = read_result.value_or(default="")
         _ = read_io
-        decision = _decision_result(raw=raw).value_or(None)
+        decision = _decision_result(raw=raw).value_or(default=None)
         if decision is not None:
             write_result = _write_stdout(text=decision + "\n")
-            written_io = write_result.value_or(0)
+            written_io = write_result.value_or(default=0)
             _ = written_io
     except Exception:  # noqa: BLE001 — fail-open by contract
         pass

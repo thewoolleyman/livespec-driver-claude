@@ -15,6 +15,10 @@ that is not the default `/tmp/tmux-<uid>/default` socket.
 Fail-closed safety: ANY parsing or main-loop failure on a command that carries
 the hazard hints (`kill-server`, `pkill`, or `killall`) emits a deny decision.
 Commands without those hints fail open silently with exit 0.
+
+Self-contained by contract: the plugin installer ships this file under bare
+system `python3` with no virtualenv and no third-party packages, so every
+import here is the standard library or the sibling `_result` railway module.
 """
 
 from __future__ import annotations
@@ -23,26 +27,9 @@ import json
 import re
 import shlex
 import sys
-from pathlib import Path
 from typing import cast
 
-
-def _add_vendor_path() -> None:
-    for vendor_root in (
-        Path(__file__).resolve().parents[2] / "_vendor",
-        Path(__file__).resolve().parents[1] / "_vendor",
-    ):
-        if vendor_root.is_dir():
-            vendor_path = str(vendor_root)
-            if vendor_path not in sys.path:
-                sys.path.insert(0, vendor_path)
-            return
-
-
-_VENDOR_PATH_READY = _add_vendor_path()
-
-from returns.io import IOFailure, IOResult, IOSuccess  # noqa: E402
-from returns.result import Failure, Result, Success  # noqa: E402
+from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 __all__: list[str] = []
 
@@ -255,12 +242,12 @@ def main() -> int:
     """Hook entry point: emit a deny decision, if any; always exit 0."""
     try:
         raw, read_result = _read_stdin()
-        read_io = read_result.value_or("")
+        read_io = read_result.value_or(default="")
         _ = read_io
-        decision = _decision_result(raw=raw).value_or(None)
+        decision = _decision_result(raw=raw).value_or(default=None)
         if decision is not None:
             write_result = _write_stdout(text=decision + "\n")
-            written_io = write_result.value_or(0)
+            written_io = write_result.value_or(default=0)
             _ = written_io
     except Exception:  # noqa: BLE001 - fail closed cannot classify without readable stdin
         pass
