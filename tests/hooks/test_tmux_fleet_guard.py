@@ -234,7 +234,7 @@ def test_fail_closes_when_classify_raises_with_hazard_hint(monkeypatch) -> None:
     def broken_classify(*, command: str) -> bool:
         raise ValueError(command)
 
-    monkeypatch.setattr(hook, "_classify", broken_classify)
+    monkeypatch.setattr(hook, "classify", broken_classify)
     result = _run_loaded(hook=hook, stdin=_bash_input(command="tmux kill-server"))
     _assert_denied(result=result)
 
@@ -245,7 +245,7 @@ def test_fails_open_when_classify_raises_without_hazard_hint(monkeypatch) -> Non
     def broken_classify(*, command: str) -> bool:
         raise ValueError(command)
 
-    monkeypatch.setattr(hook, "_classify", broken_classify)
+    monkeypatch.setattr(hook, "classify", broken_classify)
     result = _run_loaded(hook=hook, stdin=_bash_input(command="git status"))
     _assert_silent(result=result)
 
@@ -283,9 +283,10 @@ def test_allows_shell_without_dash_c() -> None:
     _assert_silent(result=result)
 
 
-def test_missing_option_value_returns_none() -> None:
-    hook = _load_hook()
-    assert hook._option_value(tokens=["tmux", "-L"], flag="-L") is None
+def test_missing_option_value_is_treated_as_hazardous() -> None:
+    # A `-L` with no value names no scope at all, so it cannot license a kill.
+    result = _run(stdin=_bash_input(command="tmux kill-server -L"))
+    _assert_denied(result=result)
 
 
 def test_env_only_segment_is_not_hazard() -> None:

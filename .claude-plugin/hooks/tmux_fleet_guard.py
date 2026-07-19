@@ -12,13 +12,20 @@ Explicitly scoped tmux servers remain allowed: use `tmux -L <name> kill-server`
 with a non-default socket name, or `tmux -S <path> kill-server` with a path
 that is not the default `/tmp/tmux-<uid>/default` socket.
 
+This module owns the hook BOUNDARY only — reading the PreToolUse payload from
+stdin, emitting the deny decision, and always exiting 0. The verdict itself
+comes from the sibling `_tmux_hazard` module, whose docstring documents the
+evasion families it closes (wrapper prefixes such as `env -i` and `sudo`,
+`-S` socket-path spellings that resolve to the fleet socket, and nested
+`sh -lc` / `xargs` payloads).
+
 Fail-closed safety: ANY parsing or main-loop failure on a command that carries
 the hazard hints (`kill-server`, `pkill`, or `killall`) emits a deny decision.
 Commands without those hints fail open silently with exit 0.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
-import here is the standard library or the sibling `_result` railway module.
+import here is the standard library or a sibling module shipped beside it.
 """
 
 from __future__ import annotations
@@ -26,9 +33,10 @@ from __future__ import annotations
 import contextlib
 import json
 import re
-import shlex
 import sys
 from typing import cast
+
+from _tmux_hazard import classify
 
 
 __all__: list[str] = []
@@ -40,12 +48,7 @@ _DENY_REASON = (
     "`tmux -L <name> kill-server` for a deliberately scoped tmux socket."
 )
 
-_ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-_FLEET_DEFAULT_SOCKET = re.compile(r"^/tmp/tmux-\d+/default(?:/.*)?$")
 _HAZARD_HINT = re.compile(r"\b(?:kill-server|pkill|killall)\b")
-_HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
-_SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
-_SHELL_OPERATORS = frozenset({";", "&", "&&", "|", "||"})
 
 
 def _as_object_dict(*, value: object) -> dict[str, object] | None:
@@ -57,128 +60,6 @@ def _as_object_dict(*, value: object) -> dict[str, object] | None:
 
 def _has_hazard_hint(*, command: str) -> bool:
     return bool(_HAZARD_HINT.search(command))
-
-
-def _strip_heredoc_bodies(*, command: str) -> str:
-    """Remove here-doc BODIES because they are stdin data, not executed shell."""
-    lines = command.split("\n")
-    out: list[str] = []
-    i = 0
-    n = len(lines)
-    while i < n:
-        line = lines[i]
-        out.append(line)
-        match = _HEREDOC.search(line)
-        if match is None:
-            i += 1
-            continue
-        terminator = match.group(1)
-        i += 1
-        while i < n and lines[i].strip() != terminator:
-            i += 1
-        if i < n:
-            i += 1
-    return "\n".join(out)
-
-
-def _tokens_by_segment(*, command: str) -> list[list[str]]:
-    """Tokenize once, then split shell command segments without re-lexing."""
-    cleaned = _strip_heredoc_bodies(command=command).replace("\n", " ; ")
-    lexer = shlex.shlex(cleaned, posix=True, punctuation_chars=";&|")
-    lexer.whitespace_split = True
-    segments: list[list[str]] = []
-    current: list[str] = []
-    for token in lexer:
-        if token in _SHELL_OPERATORS:
-            if current:
-                segments.append(current)
-                current = []
-            continue
-        current.append(token)
-    if current:
-        segments.append(current)
-    return segments
-
-
-def _peel_leading_env(*, tokens: list[str]) -> list[str]:
-    """Peel leading VAR=VAL assignments and one or more `env` wrappers."""
-    remaining = tokens
-    changed = True
-    while changed and remaining:
-        changed = False
-        while remaining and _ENV_ASSIGN.match(remaining[0]):
-            remaining = remaining[1:]
-            changed = True
-        if remaining and remaining[0].rsplit("/", 1)[-1] == "env":
-            remaining = remaining[1:]
-            changed = True
-            while remaining and _ENV_ASSIGN.match(remaining[0]):
-                remaining = remaining[1:]
-    return remaining
-
-
-def _shell_c_inner(*, tokens: list[str]) -> str | None:
-    if not tokens or tokens[0].rsplit("/", 1)[-1] not in _SHELLS:
-        return None
-    i = 1
-    while i < len(tokens):
-        token = tokens[i]
-        if token == "-c":
-            if i + 1 < len(tokens):
-                return tokens[i + 1]
-            return None
-        if token.startswith("-c") and len(token) > 2:
-            return token[2:]
-        i += 1
-    return None
-
-
-def _option_value(*, tokens: list[str], flag: str) -> str | None:
-    i = 0
-    while i < len(tokens):
-        token = tokens[i]
-        if token == flag:
-            if i + 1 < len(tokens):
-                return tokens[i + 1]
-        elif token.startswith(f"{flag}="):
-            return token[len(flag) + 1 :]
-        elif token.startswith(flag) and len(token) > len(flag):
-            return token[len(flag) :]
-        i += 1
-    return None
-
-
-def _is_non_default_scope(*, tokens: list[str]) -> bool:
-    socket_name = _option_value(tokens=tokens, flag="-L")
-    if socket_name is not None:
-        return socket_name != "default"
-    socket_path = _option_value(tokens=tokens, flag="-S")
-    if socket_path is not None:
-        return not _FLEET_DEFAULT_SOCKET.match(socket_path)
-    return False
-
-
-def _segment_is_hazard(*, tokens: list[str]) -> bool:
-    core = _peel_leading_env(tokens=tokens)
-    if not core:
-        return False
-    inner = _shell_c_inner(tokens=core)
-    if inner is not None:
-        return _classify(command=inner)
-    base = core[0].rsplit("/", 1)[-1]
-    if base == "tmux" and "kill-server" in core:
-        return not _is_non_default_scope(tokens=core)
-    if base in {"pkill", "killall"}:
-        return any("tmux" in token for token in core[1:])
-    return False
-
-
-def _classify(*, command: str) -> bool:
-    """Return True when a command must be denied."""
-    for segment in _tokens_by_segment(command=command):
-        if _segment_is_hazard(tokens=segment):
-            return True
-    return False
 
 
 def _deny_decision() -> str:
@@ -203,10 +84,9 @@ def _decision(*, raw: str) -> str | None:
     command = tool_input.get("command")
     if not isinstance(command, str) or not command:
         return None
-    if _classify(command=command):
+    if classify(command=command):
         return _deny_decision()
     return None
-
 
 
 def main() -> int:

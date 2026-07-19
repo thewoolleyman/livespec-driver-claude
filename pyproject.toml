@@ -267,6 +267,7 @@ show_missing = true
 skip_covered = false
 include = [
     ".claude-plugin/hooks/_result.py",
+    ".claude-plugin/hooks/_tmux_hazard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",

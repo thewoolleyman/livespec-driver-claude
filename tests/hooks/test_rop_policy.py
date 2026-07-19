@@ -40,6 +40,7 @@ _SHIPPED_HOOKS = (
     # installed via `just install-no-shadow-ledger`, and guarded byte-identical
     # across Drivers by check-no-shadow-ledger-body-identical.
     _HOOKS_DIR / "tmux_fleet_guard.py",
+    _HOOKS_DIR / "_tmux_hazard.py",
 )
 _SHIPPED_RAILWAY_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",
