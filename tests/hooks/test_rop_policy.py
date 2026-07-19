@@ -4,10 +4,10 @@ Two DIFFERENT railway sources are correct here, and the split is the policy:
 
 - **Plugin-shipped hooks** (`.claude-plugin/hooks/`) are the only files the
   installer copies, and they run under bare `python3` with no virtualenv and no
-  third-party packages. They MUST take the railway from the self-contained
-  sibling `_result` module, with no `returns` import and no `sys.path`
-  arithmetic — a module-scope third-party import there kills the process before
-  `main()` can fail open, so the hook silently guards nothing.
+  third-party packages. Hooks that need a decision rail MUST take it from the
+  self-contained sibling `_result` module, with no `returns` import and no
+  `sys.path` arithmetic — a module-scope third-party import there kills the
+  process before `main()` can fail open, so the hook silently guards nothing.
 - **The project-local footgun guard** (`.claude/hooks/`) is NEVER shipped; it
   runs from this checkout, where the repo-root `_vendor/` tree carries the real
   dry-python/returns. It keeps using that.
@@ -31,11 +31,20 @@ _HOOKS_DIR = _REPO_ROOT / ".claude-plugin" / "hooks"
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
-_SHIPPED_RAILWAY_HOOKS = (
+_SHIPPED_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",
     _HOOKS_DIR / "warn_plan_persistence.py",
     _HOOKS_DIR / "tmux_fleet_guard.py",
 )
+_SHIPPED_RAILWAY_HOOKS = (
+    _HOOKS_DIR / "block_auto_memory.py",
+    _HOOKS_DIR / "warn_plan_persistence.py",
+)
+_STANDARD_BLE001_MARKERS = {
+    "# noqa: BLE001 — sole supervisor bug-catcher: log traceback, exit 1",
+    "# noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0",
+    "# noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0",
+}
 _LOCAL_ONLY_HOOK = _REPO_ROOT / ".claude" / "hooks" / "livespec_footgun_guard.py"
 
 
@@ -77,13 +86,33 @@ def test_ruff_ble_and_pyright_unused_call_result_are_errors() -> None:
     assert pyright["reportUnusedCallResult"] == "error"  # type: ignore[index]
 
 
-def test_shipped_hook_bodies_import_the_self_contained_railway() -> None:
+def test_shipped_hook_bodies_are_self_contained() -> None:
+    for hook_file in _SHIPPED_HOOKS:
+        source = hook_file.read_text(encoding="utf-8")
+        roots = _imported_roots(source=source)
+        assert "returns" not in roots, hook_file
+        assert "sys.path.insert" not in source, hook_file
+
+
+def test_shipped_hook_bodies_import_the_self_contained_railway_when_needed() -> None:
     for hook_file in _SHIPPED_RAILWAY_HOOKS:
         source = hook_file.read_text(encoding="utf-8")
         roots = _imported_roots(source=source)
         assert "_result" in roots, hook_file
-        assert "returns" not in roots, hook_file
-        assert "sys.path.insert" not in source, hook_file
+
+
+def test_ble001_markers_are_standardized_boundaries() -> None:
+    for hook_file in _SHIPPED_HOOKS:
+        source = hook_file.read_text(encoding="utf-8")
+        sole_markers = 0
+        for line in source.splitlines():
+            if "# noqa: BLE001" not in line:
+                continue
+            marker = line[line.index("# noqa: BLE001") :]
+            assert marker in _STANDARD_BLE001_MARKERS, (hook_file, marker)
+            if " sole " in marker:
+                sole_markers += 1
+        assert sole_markers <= 1, hook_file
 
 
 def test_shipped_railway_module_is_standard_library_only() -> None:
@@ -123,22 +152,8 @@ class _BrokenStdout:
         raise OSError(text)
 
 
-def test_rail_helpers_capture_io_failures(monkeypatch) -> None:
+def test_main_fail_open_when_decision_rail_raises(monkeypatch, capsys) -> None:
     import block_auto_memory
-    import tmux_fleet_guard
-    import warn_plan_persistence
-
-    for module in (block_auto_memory, tmux_fleet_guard, warn_plan_persistence):
-        monkeypatch.setattr(module.sys, "stdin", _BrokenStdin())
-        assert module._read_stdin()[1].value_or(default="fallback") == "fallback"
-
-        monkeypatch.setattr(module.sys, "stdout", _BrokenStdout())
-        assert module._write_stdout(text="x").value_or(default=0) == 0
-
-
-def test_main_fail_open_when_rail_raises(monkeypatch, capsys) -> None:
-    import block_auto_memory
-    import tmux_fleet_guard
     import warn_plan_persistence
 
     def broken_decision(*, raw: str):
@@ -158,11 +173,23 @@ def test_main_fail_open_when_rail_raises(monkeypatch, capsys) -> None:
     assert captured.out == ""
     assert captured.err == ""
 
-    def broken_read():
-        raise RuntimeError("read rail failed")
 
-    monkeypatch.setattr(tmux_fleet_guard, "_read_stdin", broken_read)
-    assert tmux_fleet_guard.main() == 0
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == ""
+def test_main_boundaries_own_unexpected_io_failures(monkeypatch, capsys) -> None:
+    import block_auto_memory
+    import tmux_fleet_guard
+    import warn_plan_persistence
+
+    for module in (block_auto_memory, tmux_fleet_guard, warn_plan_persistence):
+        monkeypatch.setattr(module.sys, "stdin", _BrokenStdin())
+        assert module.main() == 0
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+    for module in (block_auto_memory, warn_plan_persistence):
+        monkeypatch.setattr(module.sys, "stdin", StringIO("{}"))
+        monkeypatch.setattr(module.sys, "stdout", _BrokenStdout())
+        assert module.main() == 0
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
