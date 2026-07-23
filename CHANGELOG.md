@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.4...v0.4.5) (2026-07-23)
+
+
+### Bug Fixes
+
+* pin no-shadow-ledger body byte-identity to the packaged canonical ([f35425c](https://github.com/thewoolleyman/livespec-driver-claude/commit/f35425ca7b83b407699eec5054acadb916be0b8d))
+
 ## [0.4.4](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.3...v0.4.4) (2026-07-19)
 
 

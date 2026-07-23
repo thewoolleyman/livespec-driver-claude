@@ -1,5 +1,5 @@
 {
   "name": "livespec",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Claude Code Driver for livespec: thin SKILL.md bindings exposing /livespec:seed, /livespec:propose-change, /livespec:critique, /livespec:revise, /livespec:doctor, /livespec:prune-history, /livespec:next, and /livespec:help. The harness-neutral prose and the reference spec-side CLIs ship with livespec core (install livespec@livespec alongside this Driver)."
 }
