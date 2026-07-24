@@ -38,7 +38,6 @@ from typing import cast
 
 from _tmux_hazard import classify
 
-
 __all__: list[str] = []
 
 _DENY_REASON = (

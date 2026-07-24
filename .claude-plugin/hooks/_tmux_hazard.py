@@ -63,7 +63,6 @@ import os
 import re
 import shlex
 
-
 __all__: list[str] = ["classify"]
 
 _COMMAND_SUBSTITUTION = re.compile(r"\$\(|`")

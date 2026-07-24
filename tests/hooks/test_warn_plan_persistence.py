@@ -309,5 +309,5 @@ def test_last_turn_skips_non_conforming_shapes() -> None:
 
 
 def test_as_object_dict_narrows_only_mappings() -> None:
-    assert warn_plan_persistence._as_object_dict({"k": 1}) == {"k": 1}
-    assert warn_plan_persistence._as_object_dict([1]) is None
+    assert warn_plan_persistence._as_object_dict(value={"k": 1}) == {"k": 1}
+    assert warn_plan_persistence._as_object_dict(value=[1]) is None

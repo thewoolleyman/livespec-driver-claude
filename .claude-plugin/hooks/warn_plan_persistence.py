@@ -37,6 +37,8 @@ from typing import cast
 
 from _result import Failure, Result, Success
 
+__all__: list[str] = []
+
 # Mechanical "substantial planning artifact" thresholds over the aggregated
 # assistant text of the last turn.
 HEADING_THRESHOLD = 3
@@ -50,7 +52,7 @@ _HEADING_RE = re.compile(r"^#{1,6}\s+\S")
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\S")
 
 
-def _as_object_dict(value: object) -> dict[str, object] | None:
+def _as_object_dict(*, value: object) -> dict[str, object] | None:
     """Narrow an arbitrary JSON value to a string-keyed dict, else None."""
     if isinstance(value, dict):
         return cast("dict[str, object]", value)
@@ -61,7 +63,7 @@ def _is_real_user_entry(*, entry: dict[str, object]) -> bool:
     """A user entry typed by the human — NOT a tool_result delivery."""
     if entry.get("type") != "user":
         return False
-    message = _as_object_dict(entry.get("message"))
+    message = _as_object_dict(value=entry.get("message"))
     if message is None:
         return False
     content = message.get("content")
@@ -71,7 +73,7 @@ def _is_real_user_entry(*, entry: dict[str, object]) -> bool:
         return False
     has_text = False
     for block in cast("list[object]", content):
-        block_dict = _as_object_dict(block)
+        block_dict = _as_object_dict(value=block)
         if block_dict is None:
             continue
         if block_dict.get("type") == "tool_result":
@@ -79,6 +81,31 @@ def _is_real_user_entry(*, entry: dict[str, object]) -> bool:
         if block_dict.get("type") == "text":
             has_text = True
     return has_text
+
+
+def _assistant_content_blocks(*, entry: dict[str, object]) -> list[object]:
+    if entry.get("type") != "assistant":
+        return []
+    message = _as_object_dict(value=entry.get("message"))
+    if message is None:
+        return []
+    content = message.get("content")
+    return cast("list[object]", content) if isinstance(content, list) else []
+
+
+def _add_last_turn_block(*, block: object, texts: list[str], tool_names: set[str]) -> None:
+    block_dict = _as_object_dict(value=block)
+    if block_dict is None:
+        return
+    block_type = block_dict.get("type")
+    if block_type == "text":
+        text = block_dict.get("text")
+        if isinstance(text, str):
+            texts.append(text)
+    elif block_type == "tool_use":
+        name = block_dict.get("name")
+        if isinstance(name, str):
+            tool_names.add(name)
 
 
 def _last_turn(*, entries: list[dict[str, object]]) -> tuple[str, set[str]]:
@@ -90,27 +117,8 @@ def _last_turn(*, entries: list[dict[str, object]]) -> tuple[str, set[str]]:
     texts: list[str] = []
     tool_names: set[str] = set()
     for entry in entries[start:]:
-        if entry.get("type") != "assistant":
-            continue
-        message = _as_object_dict(entry.get("message"))
-        if message is None:
-            continue
-        content = message.get("content")
-        if not isinstance(content, list):
-            continue
-        for block in cast("list[object]", content):
-            block_dict = _as_object_dict(block)
-            if block_dict is None:
-                continue
-            block_type = block_dict.get("type")
-            if block_type == "text":
-                text = block_dict.get("text")
-                if isinstance(text, str):
-                    texts.append(text)
-            elif block_type == "tool_use":
-                name = block_dict.get("name")
-                if isinstance(name, str):
-                    tool_names.add(name)
+        for block in _assistant_content_blocks(entry=entry):
+            _add_last_turn_block(block=block, texts=texts, tool_names=tool_names)
     return "\n".join(texts), tool_names
 
 
@@ -132,7 +140,7 @@ def _artifact_counts(*, text: str) -> tuple[int, int, int]:
 
 def _warning(*, raw: str) -> str | None:
     """Return the systemMessage JSON, or None for a silent pass-through."""
-    payload = _as_object_dict(json.loads(raw))
+    payload = _as_object_dict(value=json.loads(raw))
     if payload is None or payload.get("stop_hook_active"):
         return None
     transcript_path = payload.get("transcript_path")
@@ -146,7 +154,7 @@ def _warning(*, raw: str) -> str | None:
         if not line.strip():
             continue
         try:
-            parsed = _as_object_dict(json.loads(line))
+            parsed = _as_object_dict(value=json.loads(line))
         except ValueError:
             continue  # fail-open per line: skip malformed transcript lines
         if parsed is not None:
@@ -171,7 +179,6 @@ def _warning(*, raw: str) -> str | None:
         "work-items via the active impl-plugin) before moving on."
     )
     return json.dumps({"systemMessage": message})
-
 
 
 def _warning_result(*, raw: str) -> Result[str | None, Exception]:
