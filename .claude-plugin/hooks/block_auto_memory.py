@@ -47,8 +47,10 @@ from typing import cast
 
 from _result import Failure, Result, Success
 
+__all__: list[str] = []
 
-def _as_object_dict(value: object) -> dict[str, object] | None:
+
+def _as_object_dict(*, value: object) -> dict[str, object] | None:
     """Narrow an arbitrary JSON value to a string-keyed dict, else None."""
     if isinstance(value, dict):
         return cast("dict[str, object]", value)
@@ -99,11 +101,11 @@ def _resolve_namespace(*, project_dir: str) -> str | None:
     if not config_path.is_file():
         return None
     config = _as_object_dict(
-        json.loads(_strip_jsonc_comments(text=config_path.read_text(encoding="utf-8")))
+        value=json.loads(_strip_jsonc_comments(text=config_path.read_text(encoding="utf-8")))
     )
     if config is None:
         return None
-    implementation = _as_object_dict(config.get("implementation"))
+    implementation = _as_object_dict(value=config.get("implementation"))
     if implementation is None:
         return None
     plugin = implementation.get("plugin")
@@ -132,10 +134,10 @@ def _deny_reason(*, namespace: str) -> str:
 
 def _block_decision(*, raw: str) -> str | None:
     """Return the block-decision JSON, or None for a pass-through."""
-    payload = _as_object_dict(json.loads(raw))
+    payload = _as_object_dict(value=json.loads(raw))
     if payload is None or payload.get("tool_name") != "Write":
         return None
-    tool_input = _as_object_dict(payload.get("tool_input"))
+    tool_input = _as_object_dict(value=payload.get("tool_input"))
     if tool_input is None:
         return None
     file_path = tool_input.get("file_path")
@@ -162,7 +164,6 @@ def _block_decision(*, raw: str) -> str | None:
             },
         }
     )
-
 
 
 def _decision_result(*, raw: str) -> Result[str | None, Exception]:

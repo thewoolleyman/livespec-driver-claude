@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, NoReturn, TypeAlias, TypeVar
 
-__all__ = ["Failure", "IOFailure", "IOResult", "IOSuccess", "Result", "Success"]
+__all__: list[str] = ["Failure", "IOFailure", "IOResult", "IOSuccess", "Result", "Success"]
 
 _T = TypeVar("_T")
 _E = TypeVar("_E")

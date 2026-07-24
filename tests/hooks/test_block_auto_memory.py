@@ -334,6 +334,6 @@ def test_strip_jsonc_comments_covers_string_escape_and_both_comment_forms() -> N
 
 
 def test_as_object_dict_narrows_only_mappings() -> None:
-    assert block_auto_memory._as_object_dict({"k": 1}) == {"k": 1}
-    assert block_auto_memory._as_object_dict([1, 2]) is None
-    assert block_auto_memory._as_object_dict("str") is None
+    assert block_auto_memory._as_object_dict(value={"k": 1}) == {"k": 1}
+    assert block_auto_memory._as_object_dict(value=[1, 2]) is None
+    assert block_auto_memory._as_object_dict(value="str") is None

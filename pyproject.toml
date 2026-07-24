@@ -46,18 +46,9 @@ livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-to
 
 [tool.ruff]
 line-length = 100
-# `.claude-plugin/hooks/**` is excluded from ruff exactly as the Codex
-# Driver excludes its `livespec/hooks/**`: the plugin-shipped hook bodies
-# are exercised by the in-process + subprocess hook tests (tests/hooks/)
-# and type-checked by pyright (below), not by the product-code ruff rule
-# set. Excluding the whole dir also guarantees ruff never reformats
-# `no_shadow_ledger.py` — that body is single-sourced and MUST ship
-# BYTE-IDENTICALLY in both Drivers' bundles (livespec core `contracts.md`
-# §"Driver-shipped hooks" → cross-Driver single-sourcing), so a
-# Driver-local ruff reformat (e.g. stripping a `# noqa: BLE001`) would
-# break byte-identity with the Codex Driver's copy. (`.claude/hooks/**`
-# is the pre-existing project-local footgun-guard exclusion.)
-extend-exclude = [".claude/hooks/**", ".claude-plugin/hooks/**", "_vendor/**", "**/__pycache__/**"]
+# Hook trees are first-party source and must stay under Ruff BLE001 coverage;
+# no_except_outside_io fails if an inspected source file is Ruff-excluded.
+extend-exclude = ["_vendor/**", "**/__pycache__/**"]
 
 [tool.ruff.lint]
 select = [
@@ -91,6 +82,9 @@ ignore = [
 # that tree (it is never imported as a package by product code).
 [tool.ruff.lint.per-file-ignores]
 "tests/e2e-cli/**.py" = ["N999"]
+# no_shadow_ledger.py is a byte-identical upstream canonical hook body; keep
+# Ruff BLE001 coverage active while leaving its existing function shape intact.
+".claude-plugin/hooks/no_shadow_ledger.py" = ["C901"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -134,17 +128,11 @@ markers = [
 #   - `supervisor_entry_files` — the `no_write_direct` file-scope exemption
 #     for `no_shadow_ledger.py` (see its key comment below);
 #   - `file_lloc_hard_gate` — the `file_lloc` Phase-2 hard-gate arming flag.
-# The remaining heavy product-tree role keys (`source_trees`, `io_trees`,
-# `commands_trees`, `pure_trees`, `dataclasses_tree`, `covered_trees`,
-# `target_dirs`, `mirror_pairings`) stay deliberately OMITTED: naming a tree
-# this repo lacks would mislead readers and add a config key that guards
-# nothing (architecture-not-mechanism: a key that no running check reads
-# could be deleted without losing a guardrail, so it is not added). With
-# `source_trees` empty, the delta-WARN classifier in each applies-to-all
-# check treats both hooks as newly-covered — so all but `file_lloc` stay
-# Phase-0 WARN-only (exit 0), and `file_lloc` hard-gates only because the
-# per-repo `file_lloc_hard_gate = true` flag below opts this whole universe
-# in (both hooks are far under the 250-LLOC ceiling).
+# `source_trees` names the same first-party hook trees so the newer
+# source-scoped checks inspect a non-empty, repo-accurate file set. The
+# remaining heavy product-tree role keys (`io_trees`, `commands_trees`,
+# `pure_trees`, `dataclasses_tree`, `covered_trees`, and `target_dirs`) stay
+# deliberately omitted: this repo has no such separate tree roles.
 # ---------------------------------------------------------------------------
 
 [tool.livespec_dev_tooling]
@@ -172,6 +160,7 @@ scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.cons
 # structural check ships from the livespec-dev-tooling package rather than
 # as a repo-local `dev-tooling/check_plugin_structure.py` (zs22.7.9.2).
 source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/"]
+source_trees = [".claude/hooks", ".claude-plugin/hooks"]
 tests_tree_prefix = "tests/"
 # Mirror pairings map each hook source tree to its test tree. Read by
 # `check-tests-mirror-pairing` (every hook `.py` has a `tests/hooks/test_<name>.py`)
@@ -235,6 +224,7 @@ supervisor_entry_files = [
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
+    ".claude/hooks/livespec_footgun_guard.py",
 ]
 
 # ---------------------------------------------------------------------------
@@ -278,26 +268,14 @@ exclude_also = [
 ]
 
 # ---------------------------------------------------------------------------
-# Pyright — `check-types` type-checks the three Driver-authored plugin-shipped
-# hooks (`block_auto_memory.py`, `warn_plan_persistence.py`, and
-# `tmux_fleet_guard.py`) plus the `_result.py` railway they import. `strict`
-# mirrors the family baseline (livespec core `pyproject.toml`); the rest of
-# the repo is thin SKILL.md bindings and tests with no product-code type
-# surface of its own. `no_shadow_ledger.py` is EXCLUDED: it is the neutral
-# shared body shipped BYTE-IDENTICALLY across both Drivers (livespec core
-# `contracts.md` §"Driver-shipped hooks"), authored upstream and verified by
-# `check-no-shadow-ledger-body-identical` — not re-typed per Driver, and it
-# uses bare `dict`/`list` annotations that this repo cannot edit without
-# breaking byte-identity, so type-checking it here would be both wrong (a
-# foreign body) and impossible to satisfy under strict.
+# Pyright — `check-types` type-checks the hook trees under strict mode. The
+# shared `no_shadow_ledger.py` body is now strict-clean upstream and remains
+# byte-identity checked against the packaged canonical body.
 # ---------------------------------------------------------------------------
 
 [tool.pyright]
 include = [".claude-plugin/hooks", ".claude/hooks"]
-exclude = [
-    ".claude-plugin/hooks/no_shadow_ledger.py",
-    "**/__pycache__/**",
-]
+exclude = ["**/__pycache__/**"]
 pythonVersion = "3.10"
 stubPath = "typings"
 reportMissingModuleSource = "none"

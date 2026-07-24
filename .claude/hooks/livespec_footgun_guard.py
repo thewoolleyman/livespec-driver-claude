@@ -138,7 +138,7 @@ def _strip_leading_noise(*, tokens: list[str]) -> tuple[list[str], bool]:
         if base == "mise":
             j = i + 1
             # consume `exec`, any flags, and a `--` terminator
-            while j < n and tokens[j] != "--" and tokens[j] in ("exec", "x") or (
+            while (j < n and tokens[j] != "--" and tokens[j] in ("exec", "x")) or (
                 j < n and tokens[j].startswith("-")
             ):
                 j += 1
@@ -226,7 +226,7 @@ def _read_stdin() -> tuple[str, IOResult[str, Exception]]:
     try:
         raw = sys.stdin.read()
         return raw, IOSuccess(raw)
-    except Exception as exc:  # noqa: BLE001 - stdin boundary captured on IO rail
+    except (OSError, ValueError) as exc:
         return "", IOFailure(exc)
 
 
@@ -234,7 +234,7 @@ def _write_stdout(*, text: str) -> IOResult[int, Exception]:
     try:
         written = sys.stdout.write(text)
         return IOSuccess(written)
-    except Exception as exc:  # noqa: BLE001 - stdout boundary captured on IO rail
+    except OSError as exc:
         return IOFailure(exc)
 
 
@@ -267,7 +267,7 @@ def main() -> int:
             write_result = _write_stdout(text=decision + "\n")
             written_io = write_result.value_or(0)
             _ = written_io
-    except Exception:  # noqa: BLE001 — fail-open by contract
+    except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
         pass
     return 0
 

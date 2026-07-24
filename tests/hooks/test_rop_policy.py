@@ -123,6 +123,17 @@ def test_ble001_markers_are_standardized_boundaries() -> None:
         assert sole_markers <= 1, hook_file
 
 
+def test_local_footgun_guard_has_one_standardized_boundary_marker() -> None:
+    source = _LOCAL_ONLY_HOOK.read_text(encoding="utf-8")
+    markers = []
+    for line in source.splitlines():
+        if "# noqa: BLE001" not in line:
+            continue
+        markers.append(line[line.index("# noqa: BLE001") :])
+
+    assert markers == ["# noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0"]
+
+
 def test_shipped_railway_module_is_standard_library_only() -> None:
     source = (_HOOKS_DIR / "_result.py").read_text(encoding="utf-8")
     for root in _imported_roots(source=source):
