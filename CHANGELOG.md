@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.8](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.7...v0.4.8) (2026-07-26)
+
+
+### Refactoring
+
+* **tests:** stop hand-copying the closed BLE001 marker set ([5626956](https://github.com/thewoolleyman/livespec-driver-claude/commit/56269561c6b317aa21cea875e7dd070187b73e21))
+
 ## [0.4.7](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.6...v0.4.7) (2026-07-26)
 
 
