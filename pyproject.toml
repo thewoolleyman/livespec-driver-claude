@@ -96,21 +96,26 @@ markers = [
 # livespec-dev-tooling consumer configuration
 # (livespec/SPECIFICATION/contracts.md §"Consumer configuration schema").
 #
-# h3e7: WITHOUT this block, `load_config` falls back to the livespec-core
-# historical layout (`.claude-plugin/scripts/livespec/` etc.), which does
-# NOT match this thin Driver's real source surface — so
-# `check-commit-pairs-source-and-test` was a silent no-op here (it tested
-# `path.startswith(source_tree_prefixes)` against core paths that never
-# occur in this repo). This block names THIS repo's actual source surface
-# so the gate bites.
+# IMPORTANT: every role key MUST be DECLARED. An undeclared key that a wired
+# check consumes is a hard ERROR naming the key and the two sanctioned outs —
+# declare its real value, or declare it explicitly empty (`[]` for list keys,
+# `""` for the scalar `dataclasses_tree` / `neutral_hook_body_path`) with a
+# comment giving the reason. Declared-empty is the sanctioned, VISIBLE opt-out:
+# the gating check no-ops and says so in a structured `info` event. Omission is
+# NOT a silent baseline and NOT a way to opt out — in particular, omitting a
+# "heavy" role key this thin Driver's checks never read is NOT harmless.
 #
-# EMPTY-BASELINE FLIP: the MOMENT any key exists in this block, the
-# whole-block-absent core fallback is gone and every OMITTED Config role
-# key reverts to the bare `Config()` baseline (empty tuples;
-# `tests_tree_prefix` defaults to "tests/"). That is intentional and
-# HARMLESS here — every OMITTED heavy role key is read only by canonical
-# checks this thin Driver does NOT run, so an empty baseline no-ops them
-# rather than misclassifying real files.
+# HISTORY, retained because it explains why these keys exist: under the
+# PRE-v0.54.12 regime, WITHOUT this block `load_config` fell back to the
+# livespec-core historical layout (`.claude-plugin/scripts/livespec/` etc.),
+# which does NOT match this thin Driver's real source surface — so
+# `check-commit-pairs-source-and-test` was a silent no-op here (it tested
+# `path.startswith(source_tree_prefixes)` against core paths that never occur
+# in this repo). That is work-item h3e7, and it is why this block names THIS
+# repo's actual source surface. That fallback, and the "empty-baseline flip"
+# the old comment warned about when the first key appeared, are BOTH RETIRED
+# (livespec-dev-tooling epic livespec-dev-tooling-e9j slice L, v0.54.12) — the
+# mechanism no longer exists, so the warning no longer applies.
 #
 # fleet-check-coverage (livespec epic livespec-i5ebqd): this repo now ALSO
 # wires the applies-to-all structural COVERAGE checks (justfile + ci.yml:
