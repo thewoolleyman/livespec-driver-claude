@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.7](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.6...v0.4.7) (2026-07-26)
+
+
+### Bug Fixes
+
+* **config:** describe the current role-key regime, not the retired fallback ([0d0576b](https://github.com/thewoolleyman/livespec-driver-claude/commit/0d0576b55c0fd64a82425d8c1c1230415d6b9455))
+
 ## [0.4.6](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.5...v0.4.6) (2026-07-24)
 
 
