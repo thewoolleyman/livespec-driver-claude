@@ -169,14 +169,22 @@ source_trees = [".claude/hooks", ".claude-plugin/hooks"]
 io_trees = []
 # this Driver ships hook entry points, not command-layer modules.
 commands_trees = []
-# this Driver has no pure parse/validate-style layer.
-pure_trees = []
+# NOT APPLICABLE: this Driver ships hook entry points, not a layered parse/validate
+# package, so the mutation / PBT / public-api-result gates that read this role have
+# nothing to scan here. Deliberately NOT `unarmed_until`: livespec and livespec-overseer
+# carry the same EMPTY value for the opposite reason (gated on livespec-mutreal.1), and
+# telling those two states apart is the point of the union (livespec-dev-tooling-8o8e.1).
+pure_trees = { not_applicable = "this Driver has no pure parse/validate-style layer" }
 # coverage is configured by coverage.py include/source, not a dev-tooling covered tree role.
 covered_trees = []
-# this Driver has no dataclasses/schema tree.
-dataclasses_tree = ""
-# this Driver has no legacy target dirs; git-derived coverage owns the hook universe.
-target_dirs = []
+# NOT APPLICABLE: this Driver has no dataclasses/schema tree for
+# `check-newtype-domain-primitives` to police.
+dataclasses_tree = { not_applicable = "this Driver has no dataclasses/schema tree" }
+# SUPERSEDED, not not-applicable: the per-directory-CLAUDE.md concept DOES apply here and
+# IS satisfied — by the git-derived first-party universe (`resolve_check_universe`), which
+# owns this repo's hook coverage. That is materially different from a repo where the
+# concept does not exist at all, and the union exists to keep the two distinguishable.
+target_dirs = { superseded_by = "git-derived first-party universe owns the hook coverage" }
 tests_tree_prefix = "tests/"
 # Mirror pairings map each hook source tree to its test tree. Read by
 # `check-tests-mirror-pairing` (every hook `.py` has a `tests/hooks/test_<name>.py`)
