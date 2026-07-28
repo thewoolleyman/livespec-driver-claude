@@ -97,13 +97,32 @@ markers = [
 # (livespec/SPECIFICATION/contracts.md §"Consumer configuration schema").
 #
 # IMPORTANT: every role key MUST be DECLARED. An undeclared key that a wired
-# check consumes is a hard ERROR naming the key and the two sanctioned outs —
-# declare its real value, or declare it explicitly empty (`[]` for list keys,
-# `""` for the scalar `dataclasses_tree` / `neutral_hook_body_path`) with a
-# comment giving the reason. Declared-empty is the sanctioned, VISIBLE opt-out:
-# the gating check no-ops and says so in a structured `info` event. Omission is
-# NOT a silent baseline and NOT a way to opt out — in particular, omitting a
-# "heavy" role key this thin Driver's checks never read is NOT harmless.
+# check consumes is a hard ERROR naming the key and its legal spellings.
+# Omission is NOT a silent baseline and NOT a way to opt out — in particular,
+# omitting a "heavy" role key this thin Driver's checks never read is NOT
+# harmless.
+#
+# HOW TO DECLARE A KEY THAT HAS NO REAL VALUE HERE. The keys split into two
+# groups and the split is load-bearing (livespec-dev-tooling-8o8e.1).
+#
+# The five UNION keys — `pure_trees`, `target_dirs`, `source_tree_prefixes`,
+# `dataclasses_tree`, `neutral_hook_body_path` — are the ones whose value IS a
+# check's scan universe, so an empty value made that check scan NOTHING and exit
+# 0. `[]` / `""` carried two incompatible meanings there — "the concept does not
+# apply here" versus "it applies and is switched off" — and the gate read either
+# as consent. Each of the five now declares a real value or exactly ONE of the
+# four blessed variants (`not_applicable`, `superseded_by`, `unarmed_until`,
+# `convention_not_adopted`), each carrying its reason in the PARSED VALUE rather
+# than in a comment no checker can read. A bare `[]` / `""` on those five is no
+# longer sanctioned: it parses to `LegacyAmbiguousEmpty` and WARNs, and becomes a
+# hard `ConfigParseError` once every repo in the fleet has migrated.
+#
+# Every OTHER role key keeps a bare `[]` as a LEGITIMATE spelling. Those are
+# EXEMPTION / SEVERITY PREDICATES: their consuming checks derive the file
+# universe from `resolve_check_universe()` and read the key only to decide what
+# is EXEMPT, so an empty value makes them STRICTER, never blinder. With
+# `io_trees` empty nothing here is wholesale exempt from the catch-position and
+# domain-raise checks — they inspect the whole universe.
 #
 # HISTORY, retained because it explains why these keys exist: under the
 # PRE-v0.54.12 regime, WITHOUT this block `load_config` fell back to the
@@ -135,8 +154,9 @@ markers = [
 #   - `file_lloc_hard_gate` — the `file_lloc` Phase-2 hard-gate arming flag.
 # `source_trees` names the same first-party hook trees so the newer
 # source-scoped checks inspect a non-empty, repo-accurate file set. The
-# remaining heavy product-tree role keys are explicitly declared empty
-# below: this repo has no such separate tree roles.
+# remaining heavy product-tree role keys declare their absence EXPLICITLY
+# below — a blessed variant for the union keys, a bare `[]` for the
+# exemption predicates: this repo has no such separate tree roles.
 # ---------------------------------------------------------------------------
 
 [tool.livespec_dev_tooling]
