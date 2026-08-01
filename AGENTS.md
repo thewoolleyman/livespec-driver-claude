@@ -18,6 +18,7 @@ Claude Code runtime.
 | `.claude-plugin/marketplace.json` | Marketplace catalog (`livespec-driver-claude`) listing the single `livespec` Driver plugin. |
 | `.claude-plugin/skills/<name>/SKILL.md` | The eight thin Claude Code bindings: seed, propose-change, critique, revise, doctor, prune-history, next, help. |
 | `.claude-plugin/hooks/` | Plugin-shipped Claude Code hooks: `hooks.json` declares the events; each hook is a fail-open POSIX shell script resolved via the Driver's plugin root (this IS Driver-owned runtime surface, unlike prose/CLIs). |
+| `.claude-plugin/lib/` | Driver-owned bundle library. Currently one file: `resolve_core_root.py`, the single realization of core-root resolution that all eight bindings call. Standard-library only — the installer ships no virtualenv, so the repo-root `_vendor/returns` is NOT reachable from the install cache. ⛔ MUST NOT be renamed to `scripts/`: that directory name is what `check-skill-invocation-paths` uses to decide which of two contradictory plugin models this repo is held to. |
 | `.ai/` | Progressive-load agent guidance for repo-specific operational notes that should not live in harness-local memory. |
 | `dev-tooling/` | Repo-local enforcement scripts (manifest/skill structural checks) + the family commit-refuse hook scripts. |
 | `tests/e2e-cli/` | The CLI end-to-end harness consumer (relocated from livespec core with the bindings): mock-tier skill discovery + fail-closed fixture coverage gate, harness imported from livespec-dev-tooling. |
@@ -28,15 +29,26 @@ Claude Code runtime.
 
 ## The one design rule that matters here
 
-Each SKILL.md is self-contained and follows the same three-part shape:
+Each SKILL.md follows the same three-part shape:
 
 1. **Resolve `<core-root>`** — the livespec CORE plugin root. The
-   Driver's own plugin root carries no `prose/` and no `scripts/`;
-   the bindings resolve core via (a) the `LIVESPEC_CORE_PLUGIN_ROOT`
-   env override, (b) `<project-root>/.claude-plugin/prose/` when the
-   governed project IS the livespec core repo (dev mode /
-   dogfooding), then (c) the installed `livespec@livespec` cache root
-   from `~/.claude/plugins/installed_plugins.json`.
+   Driver's own plugin root carries no `prose/` and no core `bin/`
+   wrappers. The bindings do NOT restate the algorithm: they call the
+   Driver-owned `.claude-plugin/lib/resolve_core_root.py`, which
+   resolves via (a) the `LIVESPEC_CORE_PLUGIN_ROOT` env override,
+   (b) `<project-root>/.claude-plugin/` when it carries `prose/` and
+   the governed project IS the livespec core repo (dev mode /
+   dogfooding), then (c) the `livespec@livespec` install record in
+   `~/.claude/plugins/installed_plugins.json` **whose `projectPath` is
+   the project root**.
+   ⛔ That key holds an ARRAY of records, one per project. Selecting by
+   POSITION resolves whichever project on the host installed core
+   earliest — unrelated to the one you are in — and the resulting
+   failure surfaces as a plugin-STALENESS message whose prescribed
+   remedy cannot work, because `claude plugin update --scope project`
+   rewrites the record a positional reader does not read. That defect
+   lived in all eight bindings at once, which is why the resolver is
+   single-sourced and why an inline copy must never come back.
 2. **Read the prose** — `<core-root>/prose/<name>.md` is the complete
    harness-neutral driving prose; the binding executes it.
 3. **Dispatch the config-named CLI** — the governed project's
