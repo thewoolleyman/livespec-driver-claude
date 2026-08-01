@@ -81,7 +81,7 @@
     "spec_file": "contracts.md",
     "heading": "## CLI end-to-end harness contract",
     "test": "TODO",
-    "reason": "Relocated from livespec core (livespec-besm.6, B4): this contract states a requirement on the Claude Driver's own top-of-pyramid, user-surface e2e tier whose sole interaction surface is the claude CLI binary. The REAL test is the full claude-CLI-binary e2e harness — the deferred li-e2ecli epic, whose harness ships from livespec-dev-tooling and is consumed via tests/e2e-cli/ fixtures wired into this repo's pytest collection. Replace TODO with the imported harness test's node ID when that epic lands here."
+    "reason": "Relocated from livespec core (livespec-besm.6, B4): this contract states a requirement on the Claude Driver's own top-of-pyramid, user-surface e2e tier whose sole interaction surface is the claude CLI binary. The REAL test is the full claude-CLI-binary e2e harness \u2014 the deferred li-e2ecli epic, whose harness ships from livespec-dev-tooling and is consumed via tests/e2e-cli/ fixtures wired into this repo's pytest collection. Replace TODO with the imported harness test's node ID when that epic lands here."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -198,9 +198,30 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
-    "heading": "## Scenario: core-root resolution falls back to the installed cache",
+    "heading": "## Scenario: core-root resolution selects the install record for this project",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this resolution path is exercised by the e2e-cli harness. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Renamed from '## Scenario: core-root resolution falls back to the installed cache' by the core-root-project-path-selection revision (livespec-dev-tooling-e01t), which replaced positional selection with projectPath selection. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the selection logic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, including the multi-project POSITIVE CONTROL whose FIRST record belongs to a different project \u2014 without which an implementation still reading entries[0] would satisfy every other assertion. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: core-root resolution reports a projectPath mismatch as such",
+    "test": "TODO",
+    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this diagnostic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, which asserts the message names the mismatch AS SUCH rather than as plugin staleness. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an unreadable registry is not reported as core being uninstalled",
+    "test": "TODO",
+    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this can't-read arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py, whose fixture uses undecodable bytes and a directory-in-place-of-file rather than a chmod-based unreadability that would not fail for a root-run suite. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an absent registry yields the install instructions",
+    "test": "TODO",
+    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this absence arm \u2014 definitive, and deliberately kept on the install-instructions track rather than fused with the unreadable arm \u2014 is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise."
   },
   {
     "spec_root": "SPECIFICATION",
