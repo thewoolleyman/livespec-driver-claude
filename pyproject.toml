@@ -183,8 +183,17 @@ scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.cons
 # scaffolds) that legitimately have no paired test, now that the
 # structural check ships from the livespec-dev-tooling package rather than
 # as a repo-local `dev-tooling/check_plugin_structure.py` (zs22.7.9.2).
-source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/"]
-source_trees = [".claude/hooks", ".claude-plugin/hooks"]
+# `.claude-plugin/lib/` joins them for the core-root resolver. Adding a
+# shipped product tree WITHOUT declaring it here makes the tree invisible to
+# both gates that read this key: `red_green_replay` classifies a staged `.py`
+# as impl only when it starts with a declared prefix, so the Green leg never
+# dispatches and the ritual silently does not apply; and `commit_pairs` stops
+# requiring a co-staged test. Both then report GREEN over a tree they cannot
+# see — measured here, not predicted: a first Green amend of
+# resolve_core_root.py landed carrying Red trailers and NO Green trailers
+# while check-red-green-replay exited 0.
+source_tree_prefixes = [".claude/hooks/", ".claude-plugin/hooks/", ".claude-plugin/lib/"]
+source_trees = [".claude/hooks", ".claude-plugin/hooks", ".claude-plugin/lib"]
 # hook I/O is narrowed at the seams (y21); no separate io tree.
 io_trees = []
 # this Driver ships hook entry points, not command-layer modules.
@@ -215,6 +224,7 @@ tests_tree_prefix = "tests/"
 # (`.claude/hooks/`).
 mirror_pairings = [
     { source_tree = ".claude-plugin/hooks", test_tree = "tests/hooks" },
+    { source_tree = ".claude-plugin/lib", test_tree = "tests/hooks" },
     { source_tree = ".claude/hooks", test_tree = "tests/hooks" },
 ]
 # The single cross-Driver neutral shared body: the no-shadow-ledger Stop
@@ -264,6 +274,10 @@ subprocess_spawn_allowlist = [
 # contracts.md §"Driver-shipped hooks"), so its coverage is handled by config
 # here, never by editing the shared body.
 supervisor_entry_files = [
+    # The core-root resolver is a process entry point: it carries a `main()`,
+    # a `__main__` guard and a `SystemExit`, exactly like the shipped hooks,
+    # because the bindings invoke it as `python3 <path>`.
+    ".claude-plugin/lib/resolve_core_root.py",
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
@@ -288,7 +302,7 @@ supervisor_entry_files = [
 
 [tool.coverage.run]
 branch = true
-source = [".claude-plugin/hooks"]
+source = [".claude-plugin/hooks", ".claude-plugin/lib"]
 omit = [
     "*/.venv/*",
     "*/site-packages/*",
@@ -306,9 +320,18 @@ include = [
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
+    # The single core-root resolver all eight SKILL.md bindings share. Listed
+    # here — and its directory added to [tool.coverage.run] source above —
+    # because BOTH keys are explicit ALLOWLISTS: a shipped module left out of
+    # them is measured by nothing and reads as covered.
+    ".claude-plugin/lib/resolve_core_root.py",
 ]
 exclude_also = [
     "if __name__ == .__main__.:",
+    # `case _:` arms are structurally unreachable: every `match` terminates
+    # with `case _: assert_never(...)`, so the arm cannot run while the
+    # subject's declared type is exhaustively handled by the prior arms.
+    "case _:",
 ]
 
 # ---------------------------------------------------------------------------
@@ -318,7 +341,7 @@ exclude_also = [
 # ---------------------------------------------------------------------------
 
 [tool.pyright]
-include = [".claude-plugin/hooks", ".claude/hooks"]
+include = [".claude-plugin/hooks", ".claude-plugin/lib", ".claude/hooks"]
 exclude = ["**/__pycache__/**"]
 pythonVersion = "3.10"
 stubPath = "typings"
