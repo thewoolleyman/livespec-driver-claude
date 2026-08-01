@@ -30,6 +30,17 @@
 {
   "template": "livespec",
   "spec_root": "SPECIFICATION",
+  // Allowlist for cross-repo spec-heading references. §"Core-root resolution"
+  // cites livespec core's install-verification invariant because that clause is
+  // the UPSTREAM OWNER of the projectPath rule this Driver realizes — citing it
+  // is what makes the Driver's step 3 a realization rather than a restatement,
+  // and restating it here is exactly what the no-cross-spec-reference rule
+  // exists to prevent (livespec-dev-tooling-e01t).
+  "external_references": {
+    "livespec": [
+      "SPECIFICATION/contracts.md §\"Install verification\""
+    ]
+  },
   // Conformance Pattern concern #2 (cross-harness plugin-resolution):
   // declares which agent runtimes this project's documented command
   // surface MUST resolve+run from, consumed by the shared
