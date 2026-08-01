@@ -19,45 +19,53 @@ follows.
 
 ## Resolving livespec core (`<core-root>`)
 
-This Driver plugin ships ONLY bindings. The harness-neutral prose and
-the reference spec-side CLIs ship with **livespec core** — the
-`livespec` plugin from the `thewoolleyman/livespec` marketplace, which
-must be installed alongside this Driver. The plugin-root placeholder
-of THIS plugin resolves to the Driver's own root, which carries no
-`prose/` and no `scripts/` — NEVER use it for core paths. Resolve
-`<core-root>` once, in this order:
+This Driver plugin ships ONLY the bindings plus the small resolver named
+below. The harness-neutral prose and the reference spec-side CLIs ship
+with **livespec core** — the `livespec` plugin from the
+`thewoolleyman/livespec` marketplace, which must be installed alongside
+this Driver. The plugin-root placeholder of THIS plugin resolves to the
+Driver's own root, which carries no `prose/` and no core `bin/` wrappers
+— NEVER use it for core paths.
 
-1. If the `LIVESPEC_CORE_PLUGIN_ROOT` environment variable is set and
-   non-empty, use its value (explicit override; covers nonstandard
-   dev setups, e.g. driving a sibling checkout's core).
-2. If `<project-root>/.claude-plugin/prose/prune-history.md` exists — the
+The ordered algorithm is realized ONCE, by the Driver-owned
+`lib/resolve_core_root.py` in this plugin's own bundle. Do NOT
+restate it inline. Eight byte-identical inline copies are exactly how one
+defect — selecting an install record by POSITION instead of by
+`projectPath` — came to live in all eight bindings simultaneously, and
+made every spec-side operation from an affected project hard-stop before
+doing any work.
+
+1. `LIVESPEC_CORE_PLUGIN_ROOT`, when set and non-empty (explicit
+   operator override; covers nonstandard dev setups, e.g. driving a
+   sibling checkout's core).
+2. Else `<project-root>/.claude-plugin/` when it carries `prose/` — the
    governed project IS the livespec core repo itself (`--plugin-dir .`
-   dev mode / dogfooding) — use `<project-root>/.claude-plugin`.
-3. Otherwise use the installed `livespec@livespec` plugin's flattened
-   cache root, read from `~/.claude/plugins/installed_plugins.json`.
+   dev mode / dogfooding).
+3. Else the `livespec@livespec` install record in
+   `~/.claude/plugins/installed_plugins.json` **whose `projectPath` is
+   the project root**. That key holds an ARRAY of records, one per
+   project that installed the plugin; taking the first resolves
+   whichever project on this host installed core earliest, which bears
+   no relation to this one.
 
 Canonical Bash form (`<project-root>` defaults to the cwd):
 
 ```bash
-LIVESPEC_CORE_ROOT="$LIVESPEC_CORE_PLUGIN_ROOT"
-if [ -z "$LIVESPEC_CORE_ROOT" ] && [ -d "./.claude-plugin/prose" ]; then
-  LIVESPEC_CORE_ROOT="$(pwd)/.claude-plugin"
-fi
-if [ -z "$LIVESPEC_CORE_ROOT" ]; then
-  LIVESPEC_CORE_ROOT="$(python3 -c 'import json, pathlib; entries = json.loads((pathlib.Path.home() / ".claude" / "plugins" / "installed_plugins.json").read_text(encoding="utf-8"))["plugins"]["livespec@livespec"]; print(entries[0]["installPath"])' 2>/dev/null || true)"
-fi
-if [ -z "$LIVESPEC_CORE_ROOT" ] || [ ! -d "$LIVESPEC_CORE_ROOT/prose" ]; then
-  echo "livespec core not found. Install it first:" >&2
-  echo "  claude plugin marketplace add thewoolleyman/livespec" >&2
-  echo "  claude plugin install livespec@livespec" >&2
+LIVESPEC_CORE_ROOT="$(python3 "${CLAUDE_PLUGIN_ROOT}/lib/resolve_core_root.py" --project-root .)" || exit 1
+if [ ! -d "$LIVESPEC_CORE_ROOT/prose" ]; then
+  echo "resolved livespec core root carries no prose/: $LIVESPEC_CORE_ROOT" >&2
   exit 1
 fi
 echo "$LIVESPEC_CORE_ROOT"
 ```
 
-If resolution fails, STOP and surface those install instructions to
-the user instead of improvising paths.
-
+The resolver writes its OWN diagnostic to stderr and exits non-zero. That
+diagnostic distinguishes core being genuinely absent from a registry that
+could not be READ, and from core being installed for OTHER projects but
+not this one — which is a provisioning defect, NOT a stale plugin. If
+resolution fails, STOP and surface the resolver's diagnostic verbatim.
+Do not improvise a path, and do not run an install or update command the
+diagnostic did not ask for.
 ## Config-named CLI dispatch
 
 Per livespec core's contract (its `contracts.md`), every spec-side
