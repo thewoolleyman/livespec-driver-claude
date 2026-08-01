@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.9](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.8...v0.4.9) (2026-08-01)
+
+
+### Bug Fixes
+
+* **skills:** resolve core by projectPath, not by position in the registry ([99bfac0](https://github.com/thewoolleyman/livespec-driver-claude/commit/99bfac0beb82832472e29a7e8a89f6dd3a2cde72))
+
 ## [0.4.8](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.7...v0.4.8) (2026-07-26)
 
 
