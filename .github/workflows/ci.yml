@@ -39,7 +39,7 @@ jobs:
     # green-in-CI / red-in-sandbox drift this epic exists to remove.
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.16.1
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.18.0
     env:
       # The image installs the pinned tools under /root (build-time HOME), but
       # container-hooks run steps with a DIFFERENT HOME — so mise's default data
@@ -113,6 +113,7 @@ jobs:
           - check-required-role-keys-declared
           - check-rop-pipeline-shape
           - check-self-hosted-routing
+          - check-shell-quality
           - check-skill-invocation-paths
           - check-source-trees-scoped-to-consumer
           - check-supervisor-discipline
@@ -209,7 +210,7 @@ jobs:
     name: check-doctor-static
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.16.1
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.18.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -268,7 +269,7 @@ jobs:
     name: check-red-green-replay
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.16.1
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.18.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
