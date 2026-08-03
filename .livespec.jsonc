@@ -41,6 +41,16 @@
       "SPECIFICATION/contracts.md §\"Install verification\""
     ]
   },
+  // Planning/work-item-resolution registry. These targets are the repo slugs
+  // accepted by cross-tenant DependsOnEntry refs (`sibling_work_item`,
+  // `pull_request`, and `branch`).
+  "cross_repo_targets": {
+    "livespec-dev-tooling": {
+      "github_url": "https://github.com/thewoolleyman/livespec-dev-tooling",
+      "local_clone": "/data/projects/livespec-dev-tooling",
+      "default_branch": "master"
+    }
+  },
   // Conformance Pattern concern #2 (cross-harness plugin-resolution):
   // declares which agent runtimes this project's documented command
   // surface MUST resolve+run from, consumed by the shared
