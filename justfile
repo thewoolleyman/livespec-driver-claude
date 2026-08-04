@@ -110,26 +110,13 @@ ensure-plugins:
 # is an optional dogfooding runtime; bootstrap skips this target when the CLI is
 # absent but fails on real install errors when Codex is present.
 ensure-codex-plugins:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if ! command -v codex >/dev/null 2>&1; then
-        echo "codex CLI not found; skipping host-wide Codex plugin install." >&2
-        exit 0
-    fi
-    codex plugin marketplace add thewoolleyman/livespec --ref release
-    codex plugin marketplace add thewoolleyman/livespec-driver-codex --ref release
-    codex plugin marketplace add thewoolleyman/livespec-orchestrator-beads-fabro --ref release
-    codex plugin marketplace upgrade livespec
-    codex plugin marketplace upgrade livespec-driver-codex
-    codex plugin marketplace upgrade livespec-orchestrator-beads-fabro
-    codex plugin add livespec@livespec
-    codex plugin add livespec@livespec-driver-codex
-    codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+    bash dev-tooling/just/ensure-codex-plugins.sh
 
 # ---------------------------------------------------------------
 # Enforcement aggregate.
 # ---------------------------------------------------------------
 
+# The check aggregate deliberately omits errexit so it reports every failure.
 check:
     #!/usr/bin/env bash
     set -uo pipefail
@@ -221,7 +208,7 @@ check:
     fi
     # Advisory-local green token — keyed on the current HEAD tree-hash so
     # check-pre-push can skip the full aggregate on a clean, unchanged tree.
-    # || true: a write failure must never abort a successful check aggregate.
+    # A write failure must never abort a successful check aggregate.
     # STRICTLY advisory-local; CI remains authoritative.
     uv run python -m livespec_dev_tooling.green_token write || true
 
@@ -292,21 +279,7 @@ check-heading-coverage:
 # history backfill into the worktree and fails, and committing that backfill
 # heals the track; on a clean tree it never fires.
 check-doctor-static:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    core_root="${LIVESPEC_CORE_PLUGIN_ROOT:-}"
-    if [ -z "$core_root" ]; then
-      # Resolve the CURRENT released core build (== marketplace clone HEAD), NOT
-      # installed_plugins.json[...]["livespec@livespec"][0] — that per-project list is
-      # unordered and its first row can be a different, stale project on a mixed-build
-      # host, which the c1k9 currency gate then correctly blocks (livespec-q2me).
-      core_root="$(python3 -c 'import subprocess, pathlib; mk = pathlib.Path.home() / ".claude" / "plugins" / "marketplaces" / "livespec"; head = subprocess.run(["git", "-C", str(mk), "rev-parse", "--short=12", "HEAD"], capture_output=True, text=True).stdout.strip().lower(); cache = pathlib.Path.home() / ".claude" / "plugins" / "cache" / "livespec" / "livespec" / head; print(cache if head and (cache / "scripts" / "bin" / "doctor_static.py").is_file() else "")' 2>/dev/null || true)"
-    fi
-    if [ -z "$core_root" ] || [ ! -f "$core_root/scripts/bin/doctor_static.py" ]; then
-      echo "livespec core not found. Set LIVESPEC_CORE_PLUGIN_ROOT to a livespec checkout's .claude-plugin, or install the livespec@livespec plugin (claude plugin install livespec@livespec)." >&2
-      exit 1
-    fi
-    python3 "$core_root/scripts/bin/doctor_static.py" --project-root .
+    bash dev-tooling/just/check-doctor-static.sh
 
 # ---------------------------------------------------------------
 # Applies-to-all structural coverage checks (fleet-check-coverage,
@@ -381,29 +354,17 @@ check-commit-pairs-source-and-test:
 # argv[1] (the load-bearing per-commit verifier). The canonical
 # aggregate / `just check` invokes this with NO msg_path; the module
 # then DERIVES the message from HEAD and validates the branch range.
+[positional-arguments]
 check-red-green-replay *args:
-    uv run python -m livespec_dev_tooling.checks.red_green_replay {{args}}
+    uv run python -m livespec_dev_tooling.checks.red_green_replay "$@"
 
 # Fast pre-commit subset (no test run; pre-push runs the full
 # aggregate).
 check-pre-commit:
-    just check-plugin-structure
-    just check-lint
-    just check-format
+    bash dev-tooling/just/check-pre-commit.sh
 
 check-pre-push:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    # Advisory-local green-token short-circuit: if the current HEAD tree was
-    # already verified clean by a successful full `just check` run, skip the
-    # full aggregate. The token is invalidated by any new commit (tree-hash
-    # change) or an uncommitted worktree modification. STRICTLY advisory-local;
-    # CI is authoritative — a token match never bypasses the remote gate.
-    if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
-        echo ":: pre-push: green token matched — tree byte-identical to last green check; skipping full aggregate (CI is authoritative)"
-        exit 0
-    fi
-    just check
+    bash dev-tooling/just/check-pre-push.sh
 
 # ---------------------------------------------------------------
 # Pre-commit auxiliary gates.
@@ -413,18 +374,7 @@ check-pre-push:
 # changes. The dispatcher runs this before `check` so any accidental workflow
 # diff is rejected with the maintainer-landable patch shown in the log.
 check-no-workflow-edits:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    changed_workflows="$(git diff --name-only origin/master..HEAD -- .github/workflows || true)"
-    if [[ -z "$changed_workflows" ]]; then
-        exit 0
-    fi
-    echo "Factory branches must not create or update .github/workflows/ files." >&2
-    echo "Restore these paths to origin/master before publishing:" >&2
-    echo "$changed_workflows" >&2
-    echo >&2
-    git diff origin/master..HEAD -- .github/workflows >&2
-    exit 1
+    bash dev-tooling/just/check-no-workflow-edits.sh
 
 # Ruff fix + format on staged .py files BEFORE the rest of the
 # pre-commit gate runs. Non-blocking — unfixable issues fall through
@@ -444,15 +394,7 @@ check-no-workflow-edits:
 # `ruff check .` directory walk, so excluded hook bodies are left
 # untouched here too.
 lint-autofix-staged:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    staged=$(git diff --cached --name-only --diff-filter=AM | grep -E '\.py$' || true)
-    if [[ -z "$staged" ]]; then
-        exit 0
-    fi
-    echo "$staged" | xargs uv run ruff check --fix --exit-zero --force-exclude
-    echo "$staged" | xargs uv run ruff format --force-exclude
-    echo "$staged" | xargs git add
+    bash dev-tooling/just/lint-autofix-staged.sh
 
 check-agents-ai-references-resolve:
     uv run python -m livespec_dev_tooling.checks.agents_ai_references_resolve
@@ -514,13 +456,12 @@ check-pbt-coverage-pure-modules:
 # Per-file 100% line+branch coverage of the plugin-shipped hook bodies.
 # Runs `pytest --cov` over tests/hooks/ (the in-process main() suites supply
 # the coverage; the retained subprocess smokes do not) to write `.coverage`,
-# then the shared per_file_coverage gate reads it. `-e` (errexit) is
-# load-bearing: without it a non-zero pytest exit would be swallowed by the
-# trailing gate command, silently reporting GREEN on a RED suite.
+# then the shared per_file_coverage gate reads it. This canonical recipe
+# deliberately omits errexit; the pytest leg fail-closes explicitly.
 check-per-file-coverage:
     #!/usr/bin/env bash
-    set -euo pipefail
-    uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
+    set -uo pipefail
+    uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing || exit $?
     uv run python -m livespec_dev_tooling.checks.per_file_coverage
 
 # Pyright type gate (tool-backed; a literal member of BOTH the `just check`
@@ -538,16 +479,7 @@ check-types:
 # with no prior pytest runs the suite itself. `-e` errexit for the same
 # swallow-a-red-suite reason as check-per-file-coverage.
 check-coverage:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ -f .coverage ]]; then
-        echo ":: check-coverage: reading existing .coverage (produced by check-per-file-coverage); no duplicate suite run"
-        uv run coverage report --fail-under=100
-    else
-        echo ":: check-coverage: no .coverage data file (CI standalone job); running the suite"
-        uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
-    fi
-    uv run python -m livespec_dev_tooling.checks.per_file_coverage
+    bash dev-tooling/just/check-coverage.sh
 
 check-primary-checkout-commit-refuse-hook-installed:
     uv run python -m livespec_dev_tooling.checks.primary_checkout_commit_refuse_hook_installed
