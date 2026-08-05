@@ -80,8 +80,8 @@ def test_primary_guard_fails_open_for_missing_path_and_linked_worktree(
     monkeypatch, capsys, tmp_path: Path
 ) -> None:
     hook = _reload_hook(module_name="primary_checkout_playwright_guard")
-    linked_worktree = _HOOKS_DIR.parent.parent
-    for cwd in (tmp_path / "missing", linked_worktree):
+
+    def assert_silent(*, cwd: Path) -> None:
         payload = {
             "tool_name": "mcp__playwright__browser_snapshot",
             "cwd": str(cwd),
@@ -91,3 +91,16 @@ def test_primary_guard_fails_open_for_missing_path_and_linked_worktree(
         captured = capsys.readouterr()
         assert captured.out == ""
         assert captured.err == ""
+
+    assert_silent(cwd=tmp_path / "missing")
+
+    governed_root = tmp_path / "governed"
+    governed_root.mkdir()
+    _ = (governed_root / ".livespec.jsonc").write_text("{}\n", encoding="utf-8")
+
+    def linked_context(*, cwd: Path) -> tuple[Path, Path, Path]:
+        del cwd
+        return governed_root, tmp_path / "git-dir", tmp_path / "git-common-dir"
+
+    monkeypatch.setattr(hook, "_git_context", linked_context)
+    assert_silent(cwd=governed_root)
