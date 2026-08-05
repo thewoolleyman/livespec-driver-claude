@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib
 import io
+import json
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -53,3 +54,18 @@ def test_each_hook_main_returns_zero_on_malformed_stdin(
         captured = capsys.readouterr()
         assert captured.out == ""
         assert captured.err == ""
+
+
+def test_github_rate_limit_guard_allows_sleeping_single_mutation(monkeypatch, capsys) -> None:
+    hook = _reload_hook(module_name="github_rate_limit_guard")
+    payload = {
+        "tool_name": "Bash",
+        "tool_input": {
+            "command": "sleep 1 && gh api -X POST repos/acme/project/dispatches",
+        },
+    }
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+    assert hook.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
