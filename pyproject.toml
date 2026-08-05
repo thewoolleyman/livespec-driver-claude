@@ -89,6 +89,7 @@ ignore = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "integration: exercises a runtime boundary such as a hook subprocess against a real Git repository",
     "mock_only: skipped under LIVESPEC_E2E_HARNESS=real per the CLI e2e harness contract",
 ]
 
@@ -254,6 +255,7 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_block_auto_memory.py",
     "tests/hooks/test_warn_plan_persistence.py",
     "tests/hooks/test_no_shadow_ledger.py",
+    "tests/hooks/test_primary_checkout_playwright_guard.py",
     "tests/hooks/test_tmux_fleet_guard.py",
     "tests/hooks/test_shipped_hooks_install_shape.py",
     "tests/hooks/test_livespec_footgun_guard.py",
@@ -282,6 +284,7 @@ supervisor_entry_files = [
     ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
+    ".claude-plugin/hooks/primary_checkout_playwright_guard.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
     ".claude/hooks/livespec_footgun_guard.py",
 ]
@@ -321,6 +324,7 @@ include = [
     ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
+    ".claude-plugin/hooks/primary_checkout_playwright_guard.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
     # The single core-root resolver all eight SKILL.md bindings share. Listed
     # here — and its directory added to [tool.coverage.run] source above —

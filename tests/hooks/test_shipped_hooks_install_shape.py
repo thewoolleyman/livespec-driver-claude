@@ -168,6 +168,10 @@ _BENIGN_PAYLOADS = (
     ),
     ("warn_plan_persistence.py", {"transcript_path": "/nonexistent/transcript.jsonl"}),
     ("no_shadow_ledger.py", {"transcript_path": "/nonexistent/transcript.jsonl"}),
+    (
+        "primary_checkout_playwright_guard.py",
+        {"tool_name": "mcp__playwright__browser_snapshot", "cwd": "/nonexistent"},
+    ),
 )
 
 

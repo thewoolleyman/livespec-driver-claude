@@ -66,8 +66,8 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Hook bundle",
-    "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "test": "tests.hooks.test_primary_checkout_playwright_guard.test_primary_checkout_playwright_guard_realizes_contract",
+    "reason": "The integration-tier hook test creates a governed primary checkout and linked worktree, executes the shipped hook protocol, and proves the Driver-owned registration realizes the upstream primary-checkout Playwright guard contract."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -264,6 +264,13 @@
     "heading": "## Scenario: plan-artifact persistence warning on a bare assistant turn",
     "test": "TODO",
     "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; the Stop hook is already exercised by tests/hooks/test_warn_plan_persistence.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: installed Driver refuses Playwright calls from a governed primary checkout",
+    "test": "tests.hooks.test_primary_checkout_playwright_guard.test_primary_checkout_playwright_guard_realizes_contract",
+    "reason": "The integration-tier test exercises both scenario arms through the real hook subprocess: denial before Playwright at the governed primary checkout and silent allowance from its linked worktree."
   },
   {
     "spec_root": "SPECIFICATION",
