@@ -4,7 +4,7 @@ Every plugin-shipped hook body under `.claude-plugin/hooks/` MUST expose an
 importable `main() -> int` that owns stdin/stdout at the hook boundary,
 returns 0 on every path (fail-open), and does nothing at module import — so
 the body is measurable in-process for real per-file coverage. These tests pin
-that contract for all three hooks in one place.
+that contract for the shared hook set in one place.
 """
 
 from __future__ import annotations
@@ -22,7 +22,12 @@ _HOOKS_DIR = Path(__file__).resolve().parent.parent.parent / ".claude-plugin" / 
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
-_HOOK_MODULES = ("block_auto_memory", "warn_plan_persistence", "no_shadow_ledger")
+_HOOK_MODULES = (
+    "block_auto_memory",
+    "warn_plan_persistence",
+    "no_shadow_ledger",
+    "primary_checkout_playwright_guard",
+)
 
 
 def _reload_hook(*, module_name: str) -> ModuleType:
@@ -69,3 +74,20 @@ def test_github_rate_limit_guard_allows_sleeping_single_mutation(monkeypatch, ca
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
+
+
+def test_primary_guard_fails_open_for_missing_path_and_linked_worktree(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    hook = _reload_hook(module_name="primary_checkout_playwright_guard")
+    linked_worktree = _HOOKS_DIR.parent.parent
+    for cwd in (tmp_path / "missing", linked_worktree):
+        payload = {
+            "tool_name": "mcp__playwright__browser_snapshot",
+            "cwd": str(cwd),
+        }
+        monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+        assert hook.main() == 0
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
