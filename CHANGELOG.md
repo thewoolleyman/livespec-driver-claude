@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.9...v0.5.0) (2026-08-05)
+
+
+### Features
+
+* guard repeated github api calls ([776827d](https://github.com/thewoolleyman/livespec-driver-claude/commit/776827d6da5ce646cc814c51f1c6dacfb79e571b))
+
 ## [0.4.9](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.8...v0.4.9) (2026-08-01)
 
 
