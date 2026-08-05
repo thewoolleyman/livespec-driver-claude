@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.0...v0.5.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* refuse Playwright at primary checkouts ([30ce7dc](https://github.com/thewoolleyman/livespec-driver-claude/commit/30ce7dcb8aa8ce155cf66f6cea29bbe9c362e830))
+
 ## [0.5.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.4.9...v0.5.0) (2026-08-05)
 
 
