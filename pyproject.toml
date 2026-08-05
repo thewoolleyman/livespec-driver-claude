@@ -279,6 +279,7 @@ supervisor_entry_files = [
     # because the bindings invoke it as `python3 <path>`.
     ".claude-plugin/lib/resolve_core_root.py",
     ".claude-plugin/hooks/block_auto_memory.py",
+    ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
@@ -317,6 +318,7 @@ include = [
     ".claude-plugin/hooks/_result.py",
     ".claude-plugin/hooks/_tmux_hazard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
+    ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
