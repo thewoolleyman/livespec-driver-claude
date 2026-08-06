@@ -295,6 +295,22 @@ jobs:
           # $GITHUB_WORKSPACE (env) is the in-container mount, so derive the core
           # plugin root from it to stay container-correct.
           export LIVESPEC_CORE_PLUGIN_ROOT="${GITHUB_WORKSPACE}/.livespec-core/.claude-plugin"
+          # Expose the SAME pinned core checkout as a sibling CLONE so
+          # cross-repo citation resolution works on the runner.
+          # `.livespec.jsonc` `cross_repo_targets.livespec.local_clone` is the
+          # host-absolute /data/projects/livespec, which cannot exist here.
+          # That matters more than it looks: an unreadable clone file is NOT
+          # treated as "clone unavailable" — no_cross_spec_reference maps it to
+          # an EMPTY heading set, and _validated_external_references then DROPS
+          # every external_references entry for that repo, failing allowlisted
+          # citations with the misleading "is not allowlisted". Pointing
+          # LIVESPEC_SIBLING_CLONES_ROOT at a real checkout (it takes precedence
+          # over local_clone) makes CI validate citations against core's ACTUAL
+          # headings instead — strictly stronger than the allowlist fallback.
+          mkdir -p "${GITHUB_WORKSPACE}/.livespec-siblings"
+          ln -sfn "${GITHUB_WORKSPACE}/.livespec-core" \
+            "${GITHUB_WORKSPACE}/.livespec-siblings/livespec"
+          export LIVESPEC_SIBLING_CLONES_ROOT="${GITHUB_WORKSPACE}/.livespec-siblings"
           just check-doctor-static
 
   # check-red-green-replay runs in its OWN job (separate from the
