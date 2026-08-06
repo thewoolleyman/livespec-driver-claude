@@ -38,13 +38,18 @@
   // exists to prevent (livespec-dev-tooling-e01t).
   "external_references": {
     "livespec": [
-      "SPECIFICATION/contracts.md §\"Install verification\""
+      "SPECIFICATION/contracts.md §\"Plugin distribution\""
     ]
   },
   // Planning/work-item-resolution registry. These targets are the repo slugs
   // accepted by cross-tenant DependsOnEntry refs (`sibling_work_item`,
   // `pull_request`, and `branch`).
   "cross_repo_targets": {
+    "livespec": {
+      "github_url": "https://github.com/thewoolleyman/livespec",
+      "local_clone": "/data/projects/livespec",
+      "default_branch": "master"
+    },
     "livespec-dev-tooling": {
       "github_url": "https://github.com/thewoolleyman/livespec-dev-tooling",
       "local_clone": "/data/projects/livespec-dev-tooling",
