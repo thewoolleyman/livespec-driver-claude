@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.1...v0.5.2) (2026-08-06)
+
+
+### Bug Fixes
+
+* **ci:** resolve livespec as a sibling clone in check-doctor-static ([dc1c9c7](https://github.com/thewoolleyman/livespec-driver-claude/commit/dc1c9c776138fe8055acb1b2968aba6060470b06))
+
 ## [0.5.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.0...v0.5.1) (2026-08-05)
 
 
