@@ -23,4 +23,4 @@ terminal. The tenant migration task
 (`2bf1cf47f8b5a50ead5776fde00c6de4802c93d4`), and the parent epic
 `livespec-driver-claude-wqyfbj` later closed at the fleet exit gate. If
 old handoff prose conflicts with live tenant state, treat the live tenant
-as authoritative and the plan thread as historical record.
+as authoritative and the plan as historical record.
