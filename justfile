@@ -196,6 +196,7 @@ check:
         check-hooks
         check-e2e-cli
         check-doctor-static
+        check-spec-governance-default-block
     )
     failed=()
     for target in "${targets[@]}"; do
@@ -282,6 +283,9 @@ check-heading-coverage:
 # heals the track; on a clean tree it never fires.
 check-doctor-static:
     bash dev-tooling/just/check-doctor-static.sh
+
+check-spec-governance-default-block:
+    uv run --with 'livespec-runtime @ git+https://github.com/thewoolleyman/livespec-runtime.git@v0.18.0' python dev-tooling/bin/check_spec_governance_default_block.py
 
 # ---------------------------------------------------------------
 # Applies-to-all structural coverage checks (fleet-check-coverage,
