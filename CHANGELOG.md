@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.3...v0.5.4) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ci:** unshallow self-hosted checkout so origin/master..HEAD ranges resolve ([6d82bbc](https://github.com/thewoolleyman/livespec-driver-claude/commit/6d82bbc658b62585c639946955427fad529e8097))
+
 ## [0.5.3](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.2...v0.5.3) (2026-08-13)
 
 
