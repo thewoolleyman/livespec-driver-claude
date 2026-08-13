@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.2...v0.5.3) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ci:** add MISE_HTTP_RETRIES alongside UV_HTTP_RETRIES ([751b297](https://github.com/thewoolleyman/livespec-driver-claude/commit/751b2971a5b107bf0fb8a8d83630bd004fb411f2))
+
 ## [0.5.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.1...v0.5.2) (2026-08-06)
 
 
