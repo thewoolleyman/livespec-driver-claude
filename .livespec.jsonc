@@ -74,6 +74,16 @@
     "claude": { "status": "supported", "canonical_command": "livespec:next" },
     "codex":  { "status": "exempt", "reason": "livespec-driver-claude is the Claude Driver; the Codex /livespec:* surface ships from livespec-driver-codex" }
   },
+  // ACTIVE spec_governance overrides. Only the entries this repo
+  // intentionally moves off their safe defaults appear here; every
+  // unlisted key keeps the shipped default documented in the block below.
+  // `propose_change_mode: "batch"` arms non-interactive
+  // /livespec:propose-change (maintainer-directed fleet-wide autonomy
+  // lever rollout, Increment 1 of the livespec-core spec-side-autonomy
+  // design).
+  "spec_governance": {
+    "propose_change_mode": "batch"
+  },
   // Optional — spec_governance: policy levers for livespec's spec-side
   // operations. The commented defaults below are derived from the shipped
   // spec-governance manifest; leaving this block commented arms nothing, so
