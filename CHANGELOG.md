@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.4...v0.5.5) (2026-08-14)
+
+
+### Bug Fixes
+
+* narrow github rate-limit select matcher ([1f565cf](https://github.com/thewoolleyman/livespec-driver-claude/commit/1f565cf7b99073528f89c01757743ac1ed7a6e9d))
+
 ## [0.5.4](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.3...v0.5.4) (2026-08-13)
 
 
