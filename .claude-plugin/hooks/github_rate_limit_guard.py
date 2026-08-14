@@ -41,8 +41,15 @@ _MUTATION_DENY_REASON = (
     "at least one second between mutations is required."
 )
 
-_LOOP_OR_SLEEP = re.compile(r"\b(?:for|while|until|select)\b|\bsleep\b", re.IGNORECASE)
-_LOOP_OR_XARGS = re.compile(r"\b(?:for|while|until|select|xargs)\b", re.IGNORECASE)
+_SHELL_SELECT = r"(?:^|[;&|]\s*)select\s+[A-Z_][A-Z0-9_]*(?=\s+(?:in|do)\b|\s*;)"
+_LOOP_OR_SLEEP = re.compile(
+    rf"\b(?:for|while|until)\b|{_SHELL_SELECT}|\bsleep\b",
+    re.IGNORECASE,
+)
+_LOOP_OR_XARGS = re.compile(
+    rf"\b(?:for|while|until|xargs)\b|{_SHELL_SELECT}",
+    re.IGNORECASE,
+)
 _GH_READ = re.compile(r"\bgh\s+(?:run|pr)\b", re.IGNORECASE)
 _GH_API = re.compile(r"\bgh\s+api\b(?P<args>[^\n;&|]*)", re.IGNORECASE)
 _MUTATING_METHOD = re.compile(
