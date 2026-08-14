@@ -110,6 +110,18 @@ def test_allows_single_ordinary_gh_pr_view() -> None:
     _assert_allowed(result=result)
 
 
+def test_allows_gh_read_with_jq_select_filter() -> None:
+    result = _run(
+        stdin=_bash_input(
+            command=(
+                "gh pr list --json number,headRefName "
+                "--jq '.[] | select(.headRefName == \"feature\") | .number'"
+            )
+        )
+    )
+    _assert_allowed(result=result)
+
+
 @pytest.mark.parametrize(
     "stdin",
     [
