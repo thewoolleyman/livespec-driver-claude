@@ -142,8 +142,6 @@ jobs:
           - check-partition-completeness
           - check-pbt-coverage-pure-modules
           - check-per-file-coverage
-          - check-plan-thread-anchor-declared
-          - check-plan-thread-no-tombstone
           - check-plan-anchor-declared
           - check-plan-no-tombstone
           - check-plugin-resolution
