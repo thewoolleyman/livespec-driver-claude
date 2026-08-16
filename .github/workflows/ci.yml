@@ -76,7 +76,7 @@ jobs:
     # red-in-sandbox drift this epic exists to remove, on either lane.
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.24.1
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.24.2
     env:
       # The image installs the pinned tools under /root (build-time HOME), but
       # container-hooks run steps with a DIFFERENT HOME — so mise's default data
@@ -305,7 +305,7 @@ jobs:
     name: check-doctor-static
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.24.1
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.24.2
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -419,7 +419,7 @@ jobs:
     name: check-red-green-replay
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.24.1
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.24.2
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
