@@ -15,7 +15,7 @@
 # integer ids (deterministic, unique, valid hex).
 #
 # Required environment:
-#   REPO    - owner/name (e.g. thewoolleyman/livespec)
+#   REPO    - owner/name (e.g. thewoolleyman/livespec-driver-claude)
 #   RUN_ID  - this workflow run's id (github.run_id)
 #   GH_TOKEN - gh auth token with actions:read (the workflow's GITHUB_TOKEN)
 #   HONEYCOMB_GITHUB_CI_INGEST_KEY_LIVESPEC - write-only Honeycomb ingest key
@@ -46,13 +46,17 @@ run_concl="$(jq -r '.conclusion // ""' <<<"$run_json")"
 run_code=2; [ "$run_concl" = "success" ] && run_code=1
 
 # `$run_json` carries the whole `jobs` array and MUST reach jq on stdin, never
-# as a `--argjson` value: it grows without bound with the job count, and past
-# the runner's argv+envp budget the exec dies with "jq: Argument list too long"
-# (E2BIG, exit 126) — reddening master and, with it, hard-gating every
-# dark-factory dispatch that reads `check-master-ci-green`. That failure fired
-# for real in livespec-driver-codex (fixed there in PR #249, which this
-# mirrors); stdin has no argv limit, so routing the value there removes the
-# whole class rather than moving the threshold.
+# as a `--argjson` value. Passing it on argv died with "jq: Argument list too
+# long" (E2BIG, exit 126) on runs 30052264761 and 30052356388, reddening master
+# and with it every dark-factory dispatch gated on `check-master-ci-green`.
+#
+# The exact runner-side threshold was NOT reproducible off-runner: the failing
+# payload is ~84 KB (63 jobs) against a ~83 KB green run (62 jobs), both far
+# under MAX_ARG_STRLEN, and the same call succeeds locally on the exact failing
+# payload — so step env size or a runner-image change is likely also in play.
+# What is certain is that this value grows without bound as the job count grows
+# and it is the only such argv entry here. stdin has no argv limit, so routing
+# it there removes the whole class rather than moving the threshold.
 run_span="$(jq -c \
   --arg trace "$trace_id" --arg span "$run_span_id" \
   --arg start "$run_start" --arg end "$run_end" \
