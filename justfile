@@ -467,8 +467,12 @@ check-pbt-coverage-pure-modules:
 check-per-file-coverage:
     #!/usr/bin/env bash
     set -uo pipefail
-    uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing || exit $?
-    uv run python -m livespec_dev_tooling.checks.per_file_coverage
+    # Clean-env producer (livespec-dev-tooling-yilyxr.8, dev-tooling PR #1462
+    # design): COVERAGE_FILE unset so the measurement matches a clean CI job
+    # by construction; the serial aggregate runs check-coverage after this,
+    # consuming the repo-root .coverage once (consume-once, no stale reports).
+    env -u COVERAGE_FILE uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing || exit $?
+    env -u COVERAGE_FILE uv run python -m livespec_dev_tooling.checks.per_file_coverage
 
 # Pyright type gate (tool-backed; a literal member of BOTH the `just check`
 # array AND the CI matrix per check-tool-backed-check-completeness). Scoped to
