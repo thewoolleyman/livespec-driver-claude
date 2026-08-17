@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.5...v0.5.6) (2026-08-17)
+
+
+### Bug Fixes
+
+* **check:** coverage dedup hardening — clean-env producer + consume-once consumer ([f362e6a](https://github.com/thewoolleyman/livespec-driver-claude/commit/f362e6a19c1b178f0c6dba29140df32b69c7807a))
+
 ## [0.5.5](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.4...v0.5.5) (2026-08-14)
 
 
