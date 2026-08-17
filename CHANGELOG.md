@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.7](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.6...v0.5.7) (2026-08-17)
+
+
+### Bug Fixes
+
+* **ci:** make export-ci-telemetry.sh ARG_MAX-safe ([5ed9878](https://github.com/thewoolleyman/livespec-driver-claude/commit/5ed9878eb81fa8625dfea6a65a9763a3f1d07275))
+
 ## [0.5.6](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.5...v0.5.6) (2026-08-17)
 
 
