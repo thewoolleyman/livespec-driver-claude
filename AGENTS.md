@@ -193,3 +193,15 @@ action in the relevant handoff document.
 - `livespec-dev-tooling` — shared enforcement + testing library; this
   repo consumes its `testing.cli_e2e` harness via a pinned uv git
   dependency.
+
+## CI runner routing
+
+`CI_RUNNER_LABELS` (a repo variable, never a `.github/workflows/` edit —
+`check-no-workflow-edits` forbids that here) routes this repo's gating
+`pull_request`/`push` CI matrix. As of 2026-08-17 it points at the ARC k3s
+scale set `livespec-driver-claude-k3s` (livespec-s43svm.16's per-repo
+real-traffic cutover), proven by this changeset's own required checks. The
+podman pool alternative stays configured but idle for this repo. See
+`livespec/plan/fleet-ci-runner-pool/research/k3s-arc-kueue-migration.md`
+("Real-traffic cutover log") and the `livespec-s43svm.16` ledger comments for
+the full cross-repo cutover record.
