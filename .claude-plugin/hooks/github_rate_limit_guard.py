@@ -41,14 +41,26 @@ _MUTATION_DENY_REASON = (
     "at least one second between mutations is required."
 )
 
-_SHELL_SELECT = r"(?:^|[;&|]\s*)select\s+[A-Z_][A-Z0-9_]*(?=\s+(?:in|do)\b|\s*;)"
+# A loop keyword only starts a loop in COMMAND POSITION: at the beginning of
+# a line, after a `;`/`&`/`|` separator, or after `do`/`then`. Matching the
+# bare word anywhere denied any `gh pr`/`gh run` command whose text merely
+# contained "for", "while", "until" or "sleep" -- ordinary English that turns
+# up constantly in PR titles, paths and jq filters.
+#
+# MULTILINE is load-bearing rather than incidental: requiring command position
+# without it would stop matching a real loop that begins on any line after the
+# first, which is the common shape for a multi-line command.
+_CMD_POS = r"(?:^|[;&|]\s*|\bdo\s+|\bthen\s+)"
+_SHELL_SELECT = rf"{_CMD_POS}select\s+[A-Z_][A-Z0-9_]*(?=\s+(?:in|do)\b|\s*;)"
+_SHELL_LOOP = rf"{_CMD_POS}(?:for|while|until)\b"
+_SHELL_SLEEP = rf"{_CMD_POS}sleep\b"
 _LOOP_OR_SLEEP = re.compile(
-    rf"\b(?:for|while|until)\b|{_SHELL_SELECT}|\bsleep\b",
-    re.IGNORECASE,
+    rf"{_SHELL_LOOP}|{_SHELL_SELECT}|{_SHELL_SLEEP}",
+    re.IGNORECASE | re.MULTILINE,
 )
 _LOOP_OR_XARGS = re.compile(
-    rf"\b(?:for|while|until|xargs)\b|{_SHELL_SELECT}",
-    re.IGNORECASE,
+    rf"{_SHELL_LOOP}|{_CMD_POS}xargs\b|{_SHELL_SELECT}",
+    re.IGNORECASE | re.MULTILINE,
 )
 _GH_READ = re.compile(r"\bgh\s+(?:run|pr)\b", re.IGNORECASE)
 _GH_API = re.compile(r"\bgh\s+api\b(?P<args>[^\n;&|]*)", re.IGNORECASE)

@@ -174,3 +174,61 @@ def test_hook_manifest_loads_rate_limit_guard_for_bash_pre_tool_use() -> None:
             ],
         }
     ]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # The English word "for" in a PR title is not a shell loop. This exact
+        # command shape was refused three times while landing a plan-thread PR.
+        'gh pr create --title "parameterize provisioning for the second host"',
+        'gh pr create --title "a note on while-loops in the installer"',
+        'gh pr create --title "hold until the ruling lands"',
+        'gh pr create --title "raise the sleep budget on the healthcheck"',
+        # Paths and flags that merely contain the tokens.
+        "gh pr view 12 --json body --jq .body > /tmp/sleep-notes.txt",
+        'gh run view 5 --log --jq "waiting for the scheduler"',
+    ],
+)
+def test_allows_gh_calls_whose_prose_contains_loop_words(command: str) -> None:
+    """A loop KEYWORD must sit in shell command position, not merely appear.
+
+    `_SHELL_SELECT` was already narrowed this way by an earlier fix; the
+    remaining tokens (`for`, `while`, `until`, `sleep`) stayed bare `\\b`
+    matches, so any `gh pr` / `gh run` command whose text happened to contain
+    those very ordinary English words was denied.
+    """
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # A real loop that does not start at string position 0. Narrowing the
+        # keyword match to command position must not lose these.
+        'cd /repo\nfor id in 1 2; do gh run view "$id" --json status; done',
+        "cd /repo\nwhile true; do gh pr view 7 --json state; done",
+        "echo start\nuntil gh api repos/acme/project/actions/runs; do sleep 2; done",
+    ],
+)
+def test_denies_multiline_polling_github_reads(command: str) -> None:
+    """A loop on its own line is still a loop."""
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cd /repo\nfor ref in a b; do gh api --method post repos/acme/p/git/refs; done",
+        "cd /repo\nwhile read id; do gh api -X DELETE repos/acme/p/issues/comments/$id; done",
+    ],
+)
+def test_denies_multiline_looped_github_mutations(command: str) -> None:
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "mutations cost five points" in str(event)
