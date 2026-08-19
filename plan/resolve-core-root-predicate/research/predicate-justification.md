@@ -20,6 +20,14 @@ propose-change.md  prune-history.md  revise.md  seed.md
 Four objections were raised against it when the plan was opened. Each was
 checked; all four fail.
 
+**A FIFTH consideration, found later by trying to refute this note rather than
+confirm it, does NOT fail** — see `partial-core-checkout-hole.md`. A bare
+all-eight boolean silently falls through to rule 3 when core's own checkout
+carries a partial prose set, resolving to the installed cache instead of the
+working tree. The marker below is still the right base, but rule 2 must treat
+the 1-7 band as an ERROR rather than a decline. Read that note alongside this
+one.
+
 ## Objection 1 — "this needs a new core contract"
 
 It does not, and this is the strongest argument for this marker over any other.

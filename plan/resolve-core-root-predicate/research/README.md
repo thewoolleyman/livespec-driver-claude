@@ -25,6 +25,15 @@ Rule 2 should match only when `prose/` carries the complete core operation-prose
 set: `critique.md`, `doctor.md`, `help.md`, `next.md`, `propose-change.md`,
 `prune-history.md`, `revise.md`, `seed.md`.
 
+**Amended 2026-08-19** — see `partial-core-checkout-hole.md`. The marker alone is
+NOT sufficient: rule 2 must treat a partial core prose set (1-7 of the eight) as
+an ERROR, not as a decline. A bare all-eight boolean silently falls through to
+rule 3 when core's own checkout is mid-rename or partial, and because
+`/data/projects/livespec` holds an install record, that resolves to the installed
+cache instead of the working tree — trading a loud common defect for a silent
+rarer one. The 1-7 band is empty across all 314 measured roots, so arming it as
+an error costs nothing.
+
 Four objections were raised and all four fail on measurement — see
 `predicate-justification.md`. The one that decides it: this needs NO new core
 contract. Core is deliberately agnostic about how a Driver finds it, so there is
@@ -119,6 +128,7 @@ their own tenants. Routing is the foreman's call; nothing was filed there.
 | `post-fix-operational-impact.md` | what changes for operators at merge, and why it is not a regression |
 | `implementation-constraints.md` | the three repo gates that bind the fix |
 | `draft-spec-text.md` | drafted scenario + contract wording, pre-validated, NOT filed |
+| `partial-core-checkout-hole.md` | the refutation that amended the recommendation: arm the 1-7 band as an error |
 
 ## Corrections already folded in
 
