@@ -123,6 +123,32 @@ is nothing in the other two runtimes for it to select over. Conversely, a
 reviewer who finds the codex `break` and files it as "the same positional defect"
 would be filing a non-defect.
 
+## The marker is valid on all three runtimes' resolved core paths
+
+Checked 2026-08-19. This matters for the SECOND use of the marker — replacing the
+weak `-d <root>/prose` post-resolve guard (the `livespec-driver-claude-tun`
+surface) — which each Driver applies to whatever its own step 3 returned.
+
+| runtime | resolved core path | core prose set |
+|---|---|---|
+| Claude | six distinct `~/.claude/plugins/cache/livespec/livespec/<build>` roots | 8/8 each |
+| Codex | `~/.codex/.tmp/marketplaces/livespec/.claude-plugin` | 8/8 |
+| pi | `<project>/.pi/git/github.com/thewoolleyman/livespec/.claude-plugin` | 8/8 |
+
+So tightening the guard to the eight-file marker produces no false negative on
+any real install on this host, in any of the three runtimes. The pi user-scope
+clone (`$HOME/.pi/agent/...`) is simply absent here, which is the "candidate not
+present" case its resolver already handles.
+
+MEASUREMENT CAVEAT worth recording, because it nearly landed in this note as a
+result: a first pass reported 0/8 for the pi paths. That was an artifact of this
+host's default shell being ZSH, where an unquoted `for f in $CORE` does NOT
+word-split and iterates ONCE over the whole string, so the probe looked for a
+single file whose name was all eight names joined. Sweeps in this plan that used
+a literal `for f in critique doctor ... seed` list were unaffected, and the
+Python re-check confirms 8/8. Any future sweep here should use Python or a
+literal list, never an unquoted variable.
+
 ## What this changes for the plan
 
 Nothing about the fix SHAPE: a core-identity predicate is still the right
