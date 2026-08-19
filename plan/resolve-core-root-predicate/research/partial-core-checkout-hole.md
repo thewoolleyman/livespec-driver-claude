@@ -97,6 +97,50 @@ That also makes the earlier "separation is total" result do double duty: it is
 not only evidence that the marker discriminates, it is evidence that the
 error-state band is safe to arm.
 
+## Refinement: arm the band on CORE-EXCLUSIVE names only
+
+The amendment above was itself stress-tested, and as first written it introduces
+a new fragility. Arming the 1-7 band assumes no consumer repo ships a file whose
+NAME collides with one of the eight. Two of the eight are generic enough to
+collide: `next.md` and `help.md`.
+
+This is not hypothetical. `livespec-orchestrator-beads-fabro` ALREADY has a
+`next` operation — `.claude-plugin/skills/next/` exists — and ships no
+`prose/next.md` today only because that skill is thin-transport and prose-less.
+The moment it gains prose, which is the natural evolution for any operation, that
+repo scores 1/8 and the rule as written above turns it into a HARD ERROR for
+every `/livespec:*` spec-side operation run there. That converts "correctly
+declines" into "hard error" on a single filename collision — a worse outcome than
+the defect being fixed.
+
+The fix is to separate the two jobs the file set is doing:
+
+- **MATCHING core** stays on all eight. 8/8 means the project IS core.
+- **ARMING the error band** keys only on the CORE-EXCLUSIVE six:
+  `critique.md`, `doctor.md`, `propose-change.md`, `prune-history.md`,
+  `revise.md`, `seed.md`. These name spec-lifecycle operations that no
+  orchestrator or control-plane plugin has any reason to own. `next.md` and
+  `help.md` are excluded from the arming set precisely because they are generic.
+
+So rule 2 reads:
+
+| checkout state | behavior |
+|---|---|
+| all eight present | IS core — use the checkout |
+| none of the core-exclusive six present | ordinary consumer repo — decline to rule 3 |
+| some core-exclusive six present, but not all eight | ERROR: name the missing files and stop |
+
+Checked against the two live consumer repos: `livespec-orchestrator-beads-fabro`
+ships `capture-impl-gaps`, `capture-spec-drift`, `capture-work-item`, `groom`,
+`implement`, `plan`; `livespec-overseer` ships `foreman`, `overseer`,
+`supervise-plan`. Neither collides with any of the six, so both still decline
+cleanly. A hypothetical future `prose/next.md` in fabro also declines cleanly,
+because `next.md` is not in the arming set.
+
+And the partial-core case still errors loudly: a core checkout missing
+`revise.md` still carries five of the core-exclusive six, so it lands in the
+error band rather than silently falling through to the installed cache.
+
 ## What this changes for the implementation
 
 - The predicate is no longer a bare boolean. It returns three-way, which is a
