@@ -105,6 +105,13 @@ host:
 
 Exactly one match, and it is core.
 
+Re-checked 2026-08-19 against the full host sweep rather than these five: across
+**291** candidate project roots that ship their own `.claude-plugin/prose/`, every
+non-core one scores 0/8 and core scores 8/8. No near-miss at any point in the
+larger sample. One candidate ships eight prose files of its own and still scores
+0/8 — same count as core, no overlap in names — which is why the predicate must
+name the eight files rather than count them.
+
 ## Rule 3 is already correct — confirm before touching it
 
 Worth stating so the fix does not widen: rule 3 needs no change. Run from

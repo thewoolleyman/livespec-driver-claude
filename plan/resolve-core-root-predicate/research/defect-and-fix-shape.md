@@ -54,7 +54,9 @@ Repos under `/data/projects` that ship `.claude-plugin/prose/`:
 | `livespec-orchestrator-beads-fabro` | yes | no | **false match** |
 | `livespec-driver-claude` | no | no | not reached (unaffected) |
 
-Two of the three `prose/`-shipping repos are broken. Every spec-side
+Two of the three `prose/`-shipping repos are broken. That counts REPOS; counted
+as PROJECT ROOTS (a git worktree is its own), the affected set is 291 — see
+`post-fix-operational-impact.md` for the corrected sweep. Every spec-side
 `/livespec:*` operation (seed, propose-change, critique, revise, doctor,
 prune-history, next, help) driven from such a repo misresolves.
 

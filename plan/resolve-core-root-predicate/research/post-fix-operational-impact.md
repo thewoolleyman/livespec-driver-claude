@@ -18,28 +18,46 @@ earlier table was complete for repos.
 
 It was NOT complete for project roots. A git worktree is its own project root,
 and a worktree of an affected repo carries the same `.claude-plugin/prose/`.
-Seven live `livespec-overseer` worktrees are affected today:
 
-```
-.worktrees/livespec-overseer-revert-v017
-.worktrees/livespec-overseer-winddown-revise
-.worktrees/livespec-overseer-27ug3t-revert
-.worktrees/livespec-overseer-foreman-arm-crondirect
-.worktrees/livespec-overseer-archive-supervisor-scratch-discipline
-.worktrees/livespec-overseer-archive-winddown
-.worktrees/overseer-2607
-```
+**CORRECTED 2026-08-19, after this note first landed.** The original sweep used
+`find -maxdepth 3`, which reaches `~/.worktrees/<name>/.claude-plugin/prose` but
+NOT the nested `~/.worktrees/<repo>/<branch>/.claude-plugin/prose` layout that
+most of this host's worktrees actually use. It reported SEVEN affected worktrees.
+Re-swept at `-maxdepth 5`:
 
-All seven score 0/8 on the marker, so the fix correctly declines rule 2 in each.
-The discrimination is absolute rather than marginal everywhere it was measured:
-every non-core candidate scores 0/8 and core scores 8/8. There is no near-miss
-anywhere on this host.
+    affected project roots : 291
+      with install record  :   3
+      without              : 288
+
+The three with records are `/data/projects/livespec-orchestrator-beads-fabro`,
+`/data/projects/livespec-overseer`, and one worktree
+(`.worktrees/livespec-overseer/spec-parked-delivery-routing`). Everything else —
+288 project roots, overwhelmingly `livespec-overseer` and
+`livespec-orchestrator-beads-fabro` worktrees — has none.
+
+Every one of the 291 scores 0/8 on the marker, so the fix correctly declines rule
+2 in each. The discrimination result is unchanged and in fact strengthened by the
+larger sample: still zero near-misses across 291 candidates.
+
+One of those roots is a natural adversarial case worth keeping:
+`.worktrees/livespec-orchestrator-beads-fabro/janitor-bd-ib-n94z` ships EIGHT
+files in its own `.claude-plugin/prose/` and still scores 0/8 — same file COUNT
+as core, zero overlap in file NAMES. A predicate that counted prose files rather
+than naming them would match it. That is a live argument for naming the eight.
+
+### A vendoring convention that does NOT false-match
+
+The same sweep found ~50 directories carrying a complete 8/8 core prose set at
+`<project-root>/.livespec-core/.claude-plugin/prose/` — janitor worktrees vendor
+core there. These do NOT affect rule 2, which tests `<project-root>/.claude-plugin/`
+only, and their own top-level `.claude-plugin/prose/` scores 0/8. Recorded so a
+later reader does not rediscover them and mistake them for false positives.
 
 ## The behavior change: none of those worktrees has an install record
 
-Checked against `~/.claude/plugins/installed_plugins.json`: not one of the seven
-worktree paths appears as a `projectPath` under `livespec@livespec`. So for a
-worktree, rule 3 has no record to select.
+Checked against `~/.claude/plugins/installed_plugins.json`: 288 of the 291
+affected project roots have no `projectPath` entry under `livespec@livespec`. So
+for almost every affected root, rule 3 has no record to select.
 
 Simulating the PROPOSED rule 2 plus the SHIPPED rule 3 against live host state
 (the shipped `_record_for(...)` called directly; no repo modification):
@@ -57,8 +75,8 @@ Three things to read off that table:
 1. The dogfooding case is preserved — the whole reason rule 2 exists.
 2. The two broken repos resolve to the correct installed core. The defect is
    fixed at the level it was reported.
-3. Every affected WORKTREE moves from a silent wrong answer to a loud
-   `project_not_installed` diagnostic.
+3. The 288 affected roots with no install record move from a silent wrong
+   answer to a loud `project_not_installed` diagnostic.
 
 ## Why (3) is the fix working, not the fix breaking
 
@@ -91,7 +109,7 @@ Both remedies are already sanctioned and need no new mechanism:
 ## Recommendation for the merge
 
 State this in the fix's own changeset description, not only here. A correct fix
-whose first visible effect is "seven worktrees started failing" is the shape of
+whose first visible effect is "288 project roots started failing" is the shape of
 change that gets reverted by whoever meets it first without context. The
 countermeasure is cheap: name the behavior change, name the two remedies, and
 point at this note.
