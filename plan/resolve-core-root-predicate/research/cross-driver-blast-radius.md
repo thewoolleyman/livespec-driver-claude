@@ -83,6 +83,46 @@ repo's `resolve_core_root.py` docstring and pi's `resolve-core-root.sh` header
 comment cite as the reason they were single-sourced — the codex Driver has not
 yet had that consolidation.
 
+## The fix is NOT uniform across the three Drivers
+
+Added 2026-08-19 after auditing each Driver's step 3. The rule-2 lesson transfers
+to all three; the `projectPath` lesson does NOT, because the three runtimes have
+genuinely different plugin models. Assuming one patch shape for all three is the
+natural mistake here, and it would be wrong.
+
+| Driver | step-3 substrate | positional-selection risk |
+|---|---|---|
+| `livespec-driver-claude` | `installed_plugins.json`, an ARRAY of per-project records | REAL — this is `livespec-driver-claude-6lc`, already fixed by selecting on `projectPath` |
+| `livespec-driver-codex` | `codex plugin list --json`, host-wide | NONE |
+| `livespec-driver-pi` | two filesystem clone paths, project- and user-scope | NONE |
+
+The codex binding reads:
+
+```bash
+for plugin in data.get("installed", []):
+    if plugin.get("pluginId") == "livespec@livespec":
+        sys.stdout.write(plugin.get("source", {}).get("path", ""))
+        break
+```
+
+That takes the FIRST match and breaks, which LOOKS like the positional defect but
+is not one. Codex plugin enablement is HOST-WIDE — livespec core's
+`contracts.md` §"Plugin distribution" states it is persisted in
+`~/.codex/config.toml` and "applies to every project on the host" — so there is
+exactly one `livespec@livespec` record per host and no per-project array to
+select wrongly from. The `break` simply stops after the single match.
+
+The pi resolver likewise consults no registry at all: its candidates 3 and 4 are
+fixed filesystem paths (`$project_root/.pi/git/github.com/thewoolleyman/livespec/.claude-plugin`
+and `$HOME/.pi/agent/...`), which are pi's project- and user-scope package clone
+locations.
+
+CONSEQUENCE. A cross-Driver fix should port the rule-2 CORE-IDENTITY predicate to
+all three, and should NOT port this repo's `projectPath` selection logic — there
+is nothing in the other two runtimes for it to select over. Conversely, a
+reviewer who finds the codex `break` and files it as "the same positional defect"
+would be filing a non-defect.
+
 ## What this changes for the plan
 
 Nothing about the fix SHAPE: a core-identity predicate is still the right
