@@ -18,14 +18,32 @@ Every governed project root on this host — every directory carrying a
 
 | | roots |
 |---|---|
-| governed project roots | 502 |
-| resolve today via their OWN registry record | 16 |
-| would resolve via a primary-checkout walk-up | **420** |
-| unresolvable even with a walk-up | 66 |
+| governed project roots | 499 |
+| **ARE core** — rule 2 resolves them directly | 88 |
+| resolve today via their OWN registry record | 15 |
+| would resolve via a primary-checkout walk-up | **395** |
+| genuinely unresolvable | **1** |
 
-Only 16 of 502 governed roots hold a record of their own. The walk-up recovers
-420. The residual 66 are roots whose primary ALSO holds no record — genuinely
-unprovisioned, and correctly reported as such.
+**CORRECTED after first landing.** The first pass reported 502 / 16 / 420 / 66,
+and described the 66 residual as "roots whose primary ALSO holds no record —
+genuinely unprovisioned". That was wrong, and wrong in the same way the sweep
+this note was written to correct: it asked only "does this root have a record,
+or does its primary" without first asking "would rule 2 resolve it".
+
+Nearly all 66 were `<worktree>/.livespec-core/...` — VENDORED CLONES OF LIVESPEC
+CORE sitting inside janitor worktrees. They carry a `.livespec.jsonc` because
+core itself carries one, and they score 8/8 on the core prose set, so rule 2
+resolves them directly and they never reach rule 3 at all. Counting them as
+unprovisioned overstated the residual by ~65 and would have pointed someone at
+provisioning work that is not needed.
+
+Re-measured with rule 2 evaluated first, exactly ONE governed root on this host
+is genuinely unresolvable after both fixes: `/data/projects/homelab-05-nixrepro-tree`,
+which holds no record and whose primary holds none either.
+
+(Totals drift by a few between sweeps — 502 vs 499 — because other sessions
+create and remove worktrees while work proceeds. The counts are snapshots; the
+SHAPE is the durable finding.)
 
 ## This half is already failing, today, with no fix applied
 
