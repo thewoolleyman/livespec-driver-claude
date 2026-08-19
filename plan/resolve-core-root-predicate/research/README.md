@@ -76,7 +76,13 @@ not — which is what drives the post-fix behavior change described below.
    220 against an ARMED 250 hard ceiling. The predicate fits. Bundling the
    adjacent rule-3 `installPath`-existence hardening does not — keep it out.
 
-3. **The fix will look like a regression on first contact.** 289 project roots
+3. **The fix will look like a regression on first contact — and the worktree case
+   is the NORMAL case.** See `worktree-resolution.md`: spec ops are tracked-file
+   writes run from worktrees by fleet mandate, and worktrees carry no registry
+   record. A primary-checkout walk-up in rule 3 takes the affected set from "3
+   resolve, 288 hard-fail" to "291 resolve, 0 fail", but will not fit the LLOC
+   ceiling alongside the predicate change — so sequencing is an open maintainer
+   decision. 289 project roots
    move from a silent wrong answer to a loud `project_not_installed`. That is
    the fix working: those roots were always mis-provisioned and rule 2 was
    masking it. Name it in the changeset description, with the two sanctioned
@@ -129,6 +135,7 @@ their own tenants. Routing is the foreman's call; nothing was filed there.
 | `implementation-constraints.md` | the three repo gates that bind the fix |
 | `draft-spec-text.md` | drafted scenario + contract wording, pre-validated, NOT filed |
 | `partial-core-checkout-hole.md` | the refutation that amended the recommendation: arm the 1-7 band as an error |
+| `worktree-resolution.md` | the worktree case is the normal case; rule 3 needs a primary walk-up; the scope fork |
 
 ## Corrections already folded in
 

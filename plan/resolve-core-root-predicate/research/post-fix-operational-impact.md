@@ -78,6 +78,26 @@ Three things to read off that table:
 3. The 288 affected roots with no install record move from a silent wrong
    answer to a loud `project_not_installed` diagnostic.
 
+## FRAMING CORRECTED — see `worktree-resolution.md`
+
+The section above, and the "always a provisioning defect" reading below it, are
+too soft. They imply a provisioning backlog somebody could clear. It is
+structural instead: spec-side operations are tracked-file writes, this fleet
+mandates worktree -> PR -> merge for those, so for `revise` and `propose-change`
+the WORKTREE IS THE NORMAL execution context — and worktrees do not acquire
+registry records under normal workflow.
+
+So fixing rule 2 alone converts the NORMAL spec-op path from a silent wrong root
+to a loud failure, rather than exposing a backlog. Still an improvement, but not
+a footnote.
+
+It is also recoverable, which this note did not know: a linked worktree can
+resolve its owning primary checkout via `git rev-parse --git-common-dir`, and the
+primary DOES hold the record. Measured, the walk-up takes the affected set from
+"3 resolve, 288 hard-fail" to "291 resolve, 0 fail" — every remaining case. See
+`worktree-resolution.md` for the numbers, the build-drift second failure mode,
+and the scope fork that follows.
+
 ## Why (3) is the fix working, not the fix breaking
 
 Today a `/livespec:*` operation in one of those worktrees resolves rule 2 to the
