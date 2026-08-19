@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.8](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.7...v0.5.8) (2026-08-19)
+
+
+### Bug Fixes
+
+* require shell command position for rate-limit guard loop keywords ([08fd2d1](https://github.com/thewoolleyman/livespec-driver-claude/commit/08fd2d1de8a8afab9ba5137963a45e8ec2c7325f))
+
 ## [0.5.7](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.6...v0.5.7) (2026-08-17)
 
 
