@@ -109,6 +109,20 @@ Port the PREDICATE to all three; do NOT port this repo's `projectPath` selection
 logic. `livespec-driver-pi` and `livespec-driver-codex` have NOTHING on file in
 their own tenants. Routing is the foreman's call; nothing was filed there.
 
+## Two independent defects, and the bigger one is not the predicate
+
+| defect | roots affected | failure today |
+|---|---|---|
+| rule 2 predicate | 291 | SILENT wrong root |
+| rule 3 worktree gap | 420 | LOUD `project_not_installed` |
+
+They overlap on 288 roots, where rule 2's silent misresolution MASKS the rule-3
+gap. Only 16 of 502 governed project roots on this host hold a registry record of
+their own; a primary-checkout walk-up recovers 420, and 66 are genuinely
+unprovisioned. The rule-2 defect is the worse KIND of failure — a confident wrong
+answer — but the worktree gap is the larger population and is already live. See
+`worktree-gap-scale.md`.
+
 ## Known blockers that are not the fix
 
 - **`d7d` is not admitted by any dispatch surface.** It carries no
@@ -136,6 +150,7 @@ their own tenants. Routing is the foreman's call; nothing was filed there.
 | `draft-spec-text.md` | drafted scenario + contract wording, pre-validated, NOT filed |
 | `partial-core-checkout-hole.md` | the refutation that amended the recommendation: arm the 1-7 band as an error |
 | `worktree-resolution.md` | the worktree case is the normal case; rule 3 needs a primary walk-up; the scope fork |
+| `worktree-gap-scale.md` | the walk-up recovers 420 of 502 governed roots; the gap is already live and larger than the predicate defect |
 
 ## Corrections already folded in
 
