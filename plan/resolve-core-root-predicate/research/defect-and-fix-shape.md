@@ -200,3 +200,75 @@ Prototype only. The eight `SKILL.md` files were patched in a scratch worktree to
 run the gates and then REVERTED; nothing under `.claude-plugin/` is changed by
 this commit. `tun` remains open and unimplemented, and its suggested disposition
 (keep open, retitle to name the surviving guard defect) is unchanged.
+
+
+## A guard test is feasible, and it goes red on today's code
+
+The section above establishes that the eight guards are exercised by NOTHING —
+no test, no gate. That is a finding, but on its own it is only a complaint. The
+follow-up question is whether it is fixable, and it is. Prototyped 2026-08-20.
+
+### It parses, uniformly
+
+The guard is a fenced ```bash block in each `SKILL.md`. Extracting it is
+mechanical: take the fenced block containing `LIVESPEC_CORE_ROOT` and a file
+test, drop the line that invokes the resolver, and bind
+`LIVESPEC_CORE_ROOT="$1"` instead. That succeeds on **8 of 8** bindings with no
+special-casing.
+
+### Three fixture roots, three assertions per binding
+
+- core-shaped (all eight prose files) MUST pass
+- non-core prose (`foreman.md`, `overseer.md`, `supervise-plan.md`) MUST fail
+- partial 7/8 (missing `revise.md`) MUST fail
+
+24 assertions in total. Run against both guard versions:
+
+| guards under test | failures |
+|---|---|
+| **shipped (current) guards** | **16 of 24** |
+| patched eight-file guards | **0 of 24** |
+
+The 16 are exactly two per binding across all eight — the non-core case and the
+partial case. The eight "core-shaped MUST pass" assertions pass under both, which
+is the control: the test is not simply rejecting everything.
+
+So this is a clean Red->Green for a test that does not exist yet, and it answers
+the question the section above raises. The guards CAN be protected, the
+protection is about forty lines of test, and it fails loudly on today's code.
+
+### What it would also catch, beyond this defect
+
+The eight guards are byte-identical today, but nothing enforces that. Running the
+same three assertions per binding catches DRIFT: if one binding's guard is
+edited and seven are not — the exact shape of the defect this plan exists to fix,
+and the shape the resolver was single-sourced to prevent — that binding's
+assertions diverge from the rest.
+
+### Honest limits
+
+- It tests the guard in ISOLATION, with the resolver invocation stripped. It does
+  not prove the binding as a whole resolves correctly; the resolver's own suite
+  covers that half.
+- It cannot verify that the agent actually RUNS the fenced block. Nothing can,
+  from CI — that is a property of the runtime reading the prose, not of the file.
+- Parsing fenced markdown to extract executable shell is unusual, and couples the
+  test to the block's shape. The coupling is mild (a fenced ```bash block
+  containing `LIVESPEC_CORE_ROOT` and a file test) and it is exactly the shape
+  `check-plugin-structure` already assumes when it inspects fenced invocation
+  lines, so the precedent exists in this repo's own tooling.
+
+### Why this belongs with the `tun` decision
+
+The maintainer's open question is whether `tun` lands with the resolver change or
+as a follow-up. The section above showed folding it in costs no gate update and
+gains no gate protection. This section adjusts that: the protection is available
+if the changeset chooses to add it, and it is cheap. That does not decide the
+call, but "no protection" was previously a fixed property of the option and is
+not.
+
+### Scope
+
+Prototype only, run from a scratch directory against the shipped bindings and
+against a patched copy. No test was added to `tests/`, nothing under
+`.claude-plugin/` was changed, and `tun` remains open and unimplemented.
