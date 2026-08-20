@@ -285,3 +285,61 @@ Routing is still the foreman's call and nothing was filed in either sibling
 tenant. The recommendation is unchanged: port the PREDICATE to all three, do NOT
 port this repo's `projectPath` selection logic. This section only prices the
 three ports, which the routing decision needs and this note did not have.
+
+
+## The port is now a SHARED DESIGNATION, not three independent ports (2026-08-21)
+
+This note has said throughout: port the PREDICATE to all three Drivers, do NOT
+port this repo's `projectPath` selection logic. That is still right and still the
+recommendation. But it is now insufficient, and the gap was found by core's seat
+reviewing the contract amendment rather than by anything measured here.
+
+The predicate has two halves and they do not port the same way.
+
+**MATCHING** — the complete operation-prose set — is a subset test over a set
+core already ratifies at `SPECIFICATION/spec.md` line 238. Three Drivers reading
+that set independently cannot disagree about it, because core owns it and a
+rename goes through a propose-change cycle. Porting it three times is safe.
+
+**ARMING** — which names constitute EVIDENCE that a checkout is core-in-progress
+— is a designation, and core does not own it today. If each Driver designates its
+own, the same partial core checkout hard-errors on Claude and falls silently
+through to rule 3 on Codex, resolving the installed cache. That is the exact
+failure this plan exists to remove, reintroduced on whichever runtime designates
+loosely.
+
+And the failure is unfalsifiable from either seat: the operator who reports the
+error and the operator who cannot reproduce it are both correct, and nothing in
+either repository explains why. A diagnostic reproducible on only some runtimes
+is worse than no diagnostic, because it consumes the investigation that a missing
+one would at least leave to the resolver's own message.
+
+### So the routing requirement is stronger than "port it"
+
+The designation must be made ONCE and bind every realization — identical across
+Drivers. `draft-spec-text.md` now carries that wording, using core's established
+pattern from `spec.md` line 378: a reference realization is where a thing is
+written down, not who gets to choose it. Note core has THREE reference
+realizations (`spec.md` line 424), which is precisely why "the reference
+realization decides" was the wrong formulation.
+
+Practical consequence for whoever routes this: the three ports are NOT
+independent work items that can land in any order by different hands. They share
+a fact. Either the designation lands in core's contract first and all three
+realize it, or the three ports must be coordinated so they cannot diverge. Filing
+them as three unrelated tenant items — which is the obvious shape, and what this
+note's earlier framing invites — is the thing that produces the divergence.
+
+### The fail-safe that must port with it
+
+Also from core, and easy to lose in a port: **adding an operation to core's set
+must NOT add its name to the evidence set.** Growth is safe for matching (subset
+test) and unsafe for arming (it decides whether a stranger's repository errors).
+So the two lists must stay independent in every Driver, and the tempting
+refactor — derive the evidence set from the operation set by excluding the
+generic names — is forbidden in all three, not just here. This repo's
+implementation now carries that prohibition as a comment and pins it with a test;
+a port that copies the predicate but not the prohibition reintroduces the slow
+failure on that runtime.
+
+Routing remains the foreman's call and nothing is filed in either sibling tenant.
