@@ -162,3 +162,61 @@ That stands for those four. This is a FIFTH consideration that was not tested
 there, and it does not fail — it required an amendment. The eight-file marker
 remains the right base, but only with the 1-7 band armed as an error; the bare
 all-eight boolean trades a loud, common defect for a silent, rarer one.
+
+## Core's second opinion: ruling, and one binding condition
+
+Added 2026-08-20. Routed via the `livespec-overseer-foreman` seat from livespec
+core's report-only valve; core filed nothing. Core's readable record:
+`/data/projects/livespec/tmp/overseer/foreman/records/core-root-discriminator-second-opinion.md`.
+
+**Core ADOPTS the amendment**: 1-7 is an error, not a decline. Its reasoning is
+independent of the argument above and stronger on one point.
+
+Core has never shipped a partial set — all eight prose files landed in a single
+commit (`85f795f9`, 2026-06-11) with no adds, renames or deletes to
+`.claude-plugin/prose/*.md` since. So there is no HISTORICAL 1-7 state to protect
+against. The exposure is prospective, and it comes from core's own contract:
+`contracts.md` admits the rename path in terms — "Renaming any operation's
+command surface requires a propose-change cycle" (verified in core's live
+contract, in the paragraph that also enumerates the eight operations).
+
+The bite is that such a rename is executed by core's maintainers in a WORKTREE of
+`/data/projects/livespec`, driving `propose-change` and `revise` — the very
+operations the predicate gates. During that worktree's life the set is seven
+canonical names plus one new name. Under a bare all-eight boolean that worktree
+falls through to rule 3; `/data/projects/livespec` holds an install record; and
+resolution lands on the installed CACHE. The maintainer then drives the OLD
+RELEASED prose while editing the new prose — silently, guard clean. Core reports
+having already paid for that serving-versus-editing failure once this week.
+
+### The condition, and it applies to the REFINED rule too
+
+Core's scenario was argued against the bare all-eight boolean. Checked against
+the three-way rule above, it still lands in the error band, both ways:
+
+- rename one of the core-exclusive six (e.g. `revise` -> `amend`): five of six
+  present, not all eight -> **ERROR**.
+- rename `next` or `help`: all six present, not all eight -> **ERROR**.
+
+So the refined rule does not dodge this. Core's condition stands as stated:
+
+> **The 1-7 diagnostic MUST name `LIVESPEC_CORE_PLUGIN_ROOT` and state that it
+> is consulted BEFORE the predicate.**
+
+Without that sentence, the amendment HARD-BLOCKS core's own ratified rename path
+using the rename's intermediate state as the trigger — the maintainer could not
+run the `revise` that completes the rename. With it, the error is recoverable in
+one step.
+
+The escape is real and already implemented: in `resolve_core_root(...)` the
+override branch returns `source="override"` before the checkout test is reached.
+Verified in this repo's source. So this is one sentence of diagnostic text, not a
+design change — but it is not optional, and the test for the 1-7 branch should
+assert the diagnostic MENTIONS the override, not merely that it errors.
+
+### Do not over-design the band for growth
+
+Core's other correction, which removes work: adding a NINTH operation needs no
+amendment. An all-eight-present test is a SUBSET test, so a superset still scores
+8/8 and matches. Only RENAME or REMOVAL of a canonical name can produce a 1-7
+score. That branch is unreachable by growth, so it needs no headroom for it.

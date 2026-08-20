@@ -87,9 +87,13 @@ than an obvious default:
   eliminates drift by construction. But it overrides an explicit per-worktree
   install, which someone may have created deliberately.
 
-The plan takes no position. One case is not enough evidence to choose, and the
-existing contract language points at the first option while the failure it
-produces points at the second.
+**Superseded 2026-08-20 — the plan now takes a position: primary always.** See
+`worktree-record-staleness.md`. When this note was written the drift above was a
+single SNAPSHOT, which is consistent with a deliberate pin. Re-measured a day
+later, that worktree's primary had advanced while the worktree record had not,
+and BOTH worktree records that exist host-wide (2 of 2) are stale while both
+their owning primaries are current. A record that fossilizes cannot be read as
+intent, and rule 1 already covers the deliberate-pin case without rotting.
 
 ## Scope consequences
 

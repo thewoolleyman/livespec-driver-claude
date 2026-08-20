@@ -34,6 +34,18 @@ cache instead of the working tree — trading a loud common defect for a silent
 rarer one. The 1-7 band is empty across all 314 measured roots, so arming it as
 an error costs nothing.
 
+**Ratified 2026-08-20 by livespec core's report-only second opinion, with ONE
+BINDING CONDITION**: the 1-7 diagnostic MUST name `LIVESPEC_CORE_PLUGIN_ROOT` and
+state that it is consulted BEFORE the predicate. Otherwise the amendment
+hard-blocks core's OWN ratified rename path — a rename is executed in a worktree
+of core, which transits the 1-7 state precisely while driving the
+`propose-change`/`revise` operations the predicate gates. The override branch
+already returns before the checkout test, so this is one sentence of diagnostic
+text; the 1-7 test should assert the diagnostic MENTIONS the override, not merely
+that it errors. Core also removed work here: adding a NINTH operation needs no
+amendment, because an all-eight-present test is a SUBSET test — only rename or
+removal can score 1-7.
+
 Four objections were raised and all four fail on measurement — see
 `predicate-justification.md`. The one that decides it: this needs NO new core
 contract. Core is deliberately agnostic about how a Driver finds it, so there is
@@ -82,7 +94,8 @@ not — which is what drives the post-fix behavior change described below.
    record. A primary-checkout walk-up in rule 3 takes the affected set from "3
    resolve, 288 hard-fail" to "291 resolve, 0 fail", but will not fit the LLOC
    ceiling alongside the predicate change — so sequencing is an open maintainer
-   decision. 289 project roots
+   decision. Its PRECEDENCE rule is no longer open: use the primary always
+   (`worktree-record-staleness.md`). 289 project roots
    move from a silent wrong answer to a loud `project_not_installed`. That is
    the fix working: those roots were always mis-provisioned and rule 2 was
    masking it. Name it in the changeset description, with the two sanctioned
@@ -135,6 +148,12 @@ answer — but the worktree gap is the larger population and is already live. Se
   match the defective code) in all 8/8 bindings, so a reader may wrongly close it
   as stale. Its real weakness — the directory-only guard that cannot catch a
   misresolved root — is still live in all eight.
+  **No core drift to hunt** (verified 2026-08-20): core's prose and spec carry
+  ZERO hits for `LIVESPEC_CORE_PLUGIN_ROOT`, `resolve_core_root`, or core-root
+  language, so the rewritten-to-match-the-defect text is entirely Driver-owned
+  `SKILL.md` content. Nobody needs to sweep core. The mis-title finding belongs
+  as a COMMENT ON THE ITEM rather than in session messages, precisely because the
+  failure mode is a reader checking the title against the source.
 - **`6lc` is already fixed** and should be closed as such, not reworked. Rule 3
   selects by `projectPath` today, proven with a control.
 
@@ -151,6 +170,7 @@ answer — but the worktree gap is the larger population and is already live. Se
 | `partial-core-checkout-hole.md` | the refutation that amended the recommendation: arm the 1-7 band as an error |
 | `worktree-resolution.md` | the worktree case is the normal case; rule 3 needs a primary walk-up; the scope fork |
 | `worktree-gap-scale.md` | the walk-up recovers 420 of 502 governed roots; the gap is already live and larger than the predicate defect |
+| `worktree-record-staleness.md` | worktree install records fossilize (2 of 2 stale); resolves the walk-up precedence fork to **primary always** |
 
 ## Corrections already folded in
 
@@ -175,3 +195,35 @@ pi's package-clone paths was a ZSH artifact (an unquoted `for f in $VAR` does no
 word-split in zsh; it iterates once over the joined string). Any future sweep
 here should use Python or a literal list. Shipped scripts are unaffected — every
 `.sh` under `.claude-plugin/` and `dev-tooling/` is `#!/usr/bin/env bash`.
+
+## The 2026-08-20 cross-seat exchange
+
+The `livespec-overseer-foreman` seat routed this defect here rather than filing a
+seventh duplicate in this tenant, and carried a second opinion back from livespec
+core. Three things entered the plan through it, all recorded in the notes above:
+
+- **Core's ruling on the 1-7 amendment, with its one binding condition** (the
+  diagnostic must name the override). See `partial-core-checkout-hole.md`.
+- **The clause-lockstep hazard** in the cross-driver port, plus the refinement
+  that `contracts.md` already rename-gates the eight-name set, so the minimal fix
+  is one appended sentence rather than a new contract section. See
+  `cross-driver-blast-radius.md`.
+- **The prose-only marker result** from the `unknown` cache build, which also
+  retired a proposed `scripts/livespec/schemas/` discriminator. See
+  `predicate-justification.md`.
+
+Two claims from that exchange were checked and did NOT survive as stated, which
+is worth recording because both were reported confidently:
+
+- A count of "4 of 281 worktrees hold install records" came from a substring grep
+  over the whole registry file, which counts paths across EVERY plugin key. Only
+  `livespec@livespec` governs core-root resolution, and under that key exactly
+  ONE worktree path holds a record. The affected population is 280 of 281.
+- A `prose/revise.md` + `scripts/livespec/schemas/` discriminator was offered
+  with a passing three-way control. The control was sound and irrelevant: it
+  proved separation on TODAY's population, which is exactly what an almost-right
+  discriminator does. The schemas half additionally false-negatives on a real
+  cache build.
+
+The generalizable lesson, in the routing seat's own words: a grep over a file is
+not a query against the structure the code actually reads.

@@ -173,3 +173,45 @@ not make silently:
 
 This plan's scope event deliberately did NOT admit cross-repo children, and
 this note does not change that. Cross-repo routing is the foreman's call.
+
+## The lockstep hazard, sharpened by core (2026-08-20)
+
+Scope question 1 above — "whether the predicate is ratified ONCE in livespec
+core's contract" — was raised here as an open maintainer decision. Core's
+report-only second opinion sharpens it into a concrete failure mode and raises it
+as CORE'S OWN gap rather than this plan's.
+
+The predicate reads a core-ratified set, but nothing in core states that anything
+DEPENDS on it for resolution. Verified 2026-08-20: core's live prose and live
+`SPECIFICATION/` carry no mention of `LIVESPEC_CORE_PLUGIN_ROOT`, of
+`resolve_core_root`, or of the core-root resolution algorithm at all. The single
+grep hit in core is an ARCHIVED history artifact
+(`SPECIFICATION/history/v166/proposed_changes/`), not a live surface.
+
+So if the eight names become a PRIVATE LITERAL in each of three Drivers, then on
+the day a rename lands under the `contracts.md` rename clause, all three Drivers
+must move in lockstep or the predicate silently mis-scores core — and every
+Driver falls through to rule 3 at once. This repo's own resolver docstring
+already names the ancestor of this failure: "Eight independently-maintained
+copies of a resolution rule are kept". Three independently-maintained copies of
+the SET is the same shape one level up. Core names this the clause-lockstep class
+from its `.ai/spec-proposal-review.md`.
+
+### One refinement that makes the fix cheaper than core framed it
+
+Core's suggested outs were (a) derive the list from a core-shipped artifact, or
+(b) get the dependency written into core's contract so a propose-change cycle is
+forced to touch it.
+
+But (b) is already half-done. `contracts.md` ALREADY enumerates the eight
+operations by name in the same paragraph that ratifies the rename gate, and that
+paragraph already says "core supplies the harness-neutral prose, wrapper CLIs,
+templates, and schemas that each Driver binds." The set is ratified and
+rename-gated TODAY; what is missing is only a statement that Driver core-root
+RESOLUTION keys off it. So the minimal out is one sentence appended at that
+existing clause, not a new contract section — a materially smaller
+propose-change than "write the dependency into core's contract" implies.
+
+Option (a) remains the stronger fix (it removes the copies rather than
+documenting them), and the two are not exclusive. Routing is still the foreman's
+call; nothing was filed in core, whose valve is report-only.
