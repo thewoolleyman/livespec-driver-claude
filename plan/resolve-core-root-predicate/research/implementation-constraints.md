@@ -236,3 +236,69 @@ suite does not yet have).
 Measured against the scratch prototype from the section above. Nothing in
 `.claude-plugin/` or `tests/` was changed; the modified suites were copies in a
 scratch directory. `d7d` remains unimplemented and untriaged.
+
+
+## The coverage gate IS satisfiable, with four tests (2026-08-20)
+
+Section 2 above says the `fail_under = 100` gate makes the negative test
+required rather than optional, and the section above works out that three
+predicate branches need exercising. Neither statement was checked against an
+actual coverage run. Measured now, against the prototype.
+
+### The four tests
+
+1. **8/8 matches** — core-shaped fixture (the line-128 test, fixture repaired).
+2. **0/8 declines** — a consumer repo shipping its own non-core prose reaches
+   rule 3. This is the clean red.
+3. **1-7 errors** — a 7/8 checkout returns `core_checkout_incomplete` and names
+   the missing file.
+4. **the diagnostic names the override** — core's BINDING CONDITION, asserted
+   directly on `_diagnostic(...)`. Test 3 alone does not cover it: a diagnostic
+   that errors silently without naming `LIVESPEC_CORE_PLUGIN_ROOT` passes test 3
+   and still hard-blocks core's rename path, which is the whole failure the
+   condition exists to prevent.
+
+All 21 tests (18 shipped + 3 net new) pass against the prototype.
+
+### The number, and the control that makes it readable
+
+An isolated coverage run over the prototype reports **94%**, 7 statements missed.
+Taken alone that reads as a shortfall against a gate armed at 100. It is not, and
+the control is what shows it:
+
+| run | Stmts | Miss | Cover | Missing |
+|---|---|---|---|---|
+| SHIPPED resolver, SHIPPED suite | 135 | 7 | 94% | `278-279, 310-311, 332-333, 337` |
+| PROTOTYPE, 21-test suite | 149 | 7 | 94% | `317-318, 360-361, 382-383, 387` |
+
+Identical miss COUNT, and the same constructs in both: three
+`case _: assert_never(...)` exhaustiveness guards and the
+`if __name__ == "__main__":` entry block.
+
+`pyproject.toml` then settles it — `[tool.coverage.report] exclude_also` is
+exactly:
+
+    "if __name__ == .__main__.:"
+    "case _:"
+
+So those 7 are excluded by configuration in the real run, and both the shipped
+file and the prototype reach 100% under the gate as configured.
+
+**The finding is the PARITY, not the percentage.** The predicate introduces zero
+new uncovered branches: every branch it adds is exercised by the four tests
+above, and the only uncovered statements are the ones the repo already excludes
+by policy. Whoever implements does not need to hunt for extra coverage.
+
+### One trap worth naming
+
+Reading the 94% without the control would have looked like the fix failing the
+coverage gate, and the obvious response — writing more tests to chase it — would
+have chased statements that are excluded by configuration and can never be
+covered. The `case _: assert_never(...)` arms are unreachable by construction;
+that is their purpose.
+
+### Scope
+
+Measured against the scratch prototype and copies of the suite in a scratch
+directory. Nothing in `.claude-plugin/` or `tests/` was changed. `d7d` remains
+unimplemented and untriaged.
