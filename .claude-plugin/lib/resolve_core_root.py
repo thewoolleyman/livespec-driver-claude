@@ -61,6 +61,16 @@ _OVERRIDE_ENV = "LIVESPEC_CORE_PLUGIN_ROOT"
 _PLUGIN_KEY = "livespec@livespec"
 _REGISTRY_PARTS = (".claude", "plugins", "installed_plugins.json")
 
+# Rule 2's marker. `.split()` rather than a literal tuple keeps this inside the
+# file's LLOC ceiling; the names are core's eight operations, which core already
+# ratifies under propose-change control, so this is one governed list rather than
+# a marker each Driver invents.
+_CORE_OPS = "critique doctor help next propose-change prune-history revise seed".split()
+# The ERROR band arms on core-EXCLUSIVE names only. `next` and `help` are generic
+# enough that a consumer plugin may legitimately own them, and arming on those
+# would turn "correctly declines" into "hard error" on one filename collision.
+_CORE_ONLY_OPS = "critique doctor propose-change prune-history revise seed".split()
+
 
 def assert_never(*, value: NoReturn) -> NoReturn:
     """Stdlib-only stand-in for `typing.assert_never`, which lands in 3.11.
@@ -85,6 +95,7 @@ UnresolvedKind: TypeAlias = Literal[
     "plugin_absent",
     "project_not_installed",
     "record_malformed",
+    "core_checkout_incomplete",
 ]
 
 ResolvedSource: TypeAlias = Literal["override", "project_checkout", "install_record"]
@@ -243,6 +254,32 @@ def _resolved_from(*, entry: dict[str, object], project_root: Path) -> CoreRootO
     return CoreRootResolved(path=Path(install_path), source="install_record")
 
 
+def _rule_2_outcome(*, checkout: Path) -> CoreRootOutcome | None:
+    """Three-way: IS core, INCOMPLETE core (an error), or not core (decline).
+
+    The middle branch is not fussiness. A bare all-present boolean falls THROUGH
+    to rule 3 on a core checkout that is mid-rename, and `/data/projects/livespec`
+    holds an install record -- so resolution would land on the installed cache and
+    serve released prose to someone editing its replacement. Silent-and-rare is a
+    worse trade than loud-and-common in a resolver whose whole defect was silence.
+    """
+    prose = checkout / "prose"
+    present: set[str] = {e.name for e in prose.glob("*.md")} if prose.is_dir() else set()
+    missing = [name for name in _CORE_OPS if f"{name}.md" not in present]
+    if not missing:
+        return CoreRootResolved(path=checkout, source="project_checkout")
+    if all(f"{name}.md" not in present for name in _CORE_ONLY_OPS):
+        return None
+    listed = "\n".join(f"    {name}.md" for name in missing)
+    return CoreRootUnresolved(
+        kind="core_checkout_incomplete",
+        detail=(
+            f"{checkout} carries core operation prose, but the set is "
+            f"INCOMPLETE.\n  missing:\n{listed}\n"
+        ),
+    )
+
+
 def resolve_core_root(
     *, project_root: Path, home: Path, environ: Mapping[str, str]
 ) -> CoreRootOutcome:
@@ -251,8 +288,9 @@ def resolve_core_root(
     if override:
         return CoreRootResolved(path=Path(override), source="override")
     checkout = project_root / ".claude-plugin"
-    if (checkout / "prose").is_dir():
-        return CoreRootResolved(path=checkout, source="project_checkout")
+    rule_2 = _rule_2_outcome(checkout=checkout)
+    if rule_2 is not None:
+        return rule_2
     registry_path = home.joinpath(*_REGISTRY_PARTS)
     read = _read_registry(registry_path=registry_path)
     match read:
@@ -271,6 +309,11 @@ def _diagnostic(*, unresolved: CoreRootUnresolved) -> str:
             return (
                 f"livespec core is not installed ({unresolved.detail}). Install it:\n"
                 + _text.INSTALL_INSTRUCTIONS
+            )
+        case "core_checkout_incomplete":
+            return (
+                f"livespec core could not be resolved: {unresolved.detail}"
+                + _text.INCOMPLETE_CORE_GUIDANCE
             )
         case "registry_unreadable":
             return (

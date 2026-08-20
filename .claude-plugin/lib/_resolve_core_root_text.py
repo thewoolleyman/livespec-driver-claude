@@ -22,7 +22,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-__all__: list[str] = ["INSTALL_INSTRUCTIONS", "mismatch_detail"]
+_OVERRIDE_ENV = "LIVESPEC_CORE_PLUGIN_ROOT"
+
+__all__: list[str] = [
+    "INCOMPLETE_CORE_GUIDANCE",
+    "INSTALL_INSTRUCTIONS",
+    "mismatch_detail",
+]
 
 INSTALL_INSTRUCTIONS = (
     "  claude plugin marketplace add thewoolleyman/livespec\n"
@@ -40,3 +46,20 @@ def mismatch_detail(*, project_root: Path, installed_for: list[str]) -> str:
         "`claude plugin update`, which would rewrite a record this project does "
         "not have. Install core for THIS project:\n" + INSTALL_INSTRUCTIONS
     )
+
+
+# Named here rather than inline because it is operator-facing text, and because
+# its final sentence is a BINDING CONDITION from livespec core's review of this
+# predicate: a rename of any operation is executed in a WORKTREE of core, which
+# transits the incomplete state precisely while driving the propose-change and
+# revise operations this predicate gates. Without naming the override, the error
+# band would hard-block core's own ratified rename path.
+INCOMPLETE_CORE_GUIDANCE = (
+    "A partial core prose set is a checkout mid-rename or mid-fetch, NOT a "
+    "consumer project -- so resolution stops here rather than falling through "
+    "to the installed cache, which would serve the OLD released prose while "
+    "you edit its replacement.\n"
+    f"If this checkout IS the core you mean to drive, set {_OVERRIDE_ENV} to it "
+    "and retry: that override is consulted BEFORE this check, so it recovers "
+    "the rename path in one step.\n"
+)
