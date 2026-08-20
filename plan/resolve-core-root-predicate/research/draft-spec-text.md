@@ -141,8 +141,8 @@ To sit directly after Draft 1's negative scenario:
 
 ```gherkin
 Given LIVESPEC_CORE_PLUGIN_ROOT is unset
-And <project-root>/.claude-plugin/prose/ holds SOME but not all of the core
-    operation prose set
+And <project-root>/.claude-plugin/prose/ holds CORE-EXCLUSIVE operation prose
+    but NOT the complete core operation prose set
 And installed_plugins.json holds a livespec@livespec record whose projectPath
     equals the project root
 When a binding resolves <core-root>
@@ -189,13 +189,19 @@ complete set...") with:
 > The reference realization requires the complete set of core operation prose
 > files — one per operation named in livespec core's `contracts.md` §"Plugin
 > distribution" — which is a change-controlled core contract rather than a marker
-> each Driver invents separately. A checkout carrying SOME of that set but not
-> all of it MUST be reported as an error naming the missing files, and MUST NOT
-> be treated as a non-core project: falling through to step 3 there resolves a
-> mid-rename core checkout to its own installed cache, serving released prose to
-> a maintainer who is editing its replacement. Because that error is reachable
-> during core's own ratified rename cycle, its diagnostic MUST name the step-1
-> override and state that the override is consulted first.
+> each Driver invents separately. MATCHING core requires the COMPLETE set. A
+> checkout that carries evidence of being core — operation prose whose names no
+> non-core plugin has reason to own — while NOT carrying the complete set MUST be
+> reported as an error naming the missing files, and MUST NOT be treated as a
+> non-core project: falling through to step 3 there resolves a mid-rename core
+> checkout to its own installed cache, serving released prose to a maintainer who
+> is editing its replacement. Which names carry that evidence is the reference
+> realization's to designate, and MAY be a proper subset of the operation set:
+> names generic enough that a consumer plugin might legitimately own one MUST NOT
+> arm the error, or a single filename collision turns "correctly declines" into
+> "hard error". Because that error is reachable during core's own ratified rename
+> cycle, its diagnostic MUST name the step-1 override and state that the override
+> is consulted first.
 
 ## Handling note, revised
 
@@ -206,3 +212,48 @@ subset — and Draft 5 stands unchanged, since it constrains the diagnostic rath
 than the predicate. Only Draft 2's Given-line and Draft 3's closing sentence are
 marker-specific. That is one more argument for keeping the arming detail (the
 core-exclusive six) in the reference realization rather than in the contract.
+
+
+## The count trap, and why this wording is what it is
+
+Added 2026-08-20, reported by livespec core's seat while reviewing the matching
+contract amendment — before either side was filed.
+
+The earlier drafts said a checkout "carrying SOME of that set but not all of it"
+must error. The implementation arms the error band on the CORE-EXCLUSIVE six, not
+on all eight. Those disagree, and the disagreement is demonstrable: a checkout
+shipping only `help.md` and `next.md` DECLINES to rule 3 in code, while that
+sentence says it must error.
+
+Why it would have survived review, which is the part worth remembering. Core's
+`contracts.md` paragraph enumerates THE EIGHT and already says renaming an
+operation requires a propose-change cycle. A sentence appended there stating that
+resolution keys off "the eight" is true in its own right. The Driver keying off
+six is true in its own right. No reviewer comparing either sentence against its
+neighbours finds a contradiction — **it is not a wrong claim, it is two right
+claims that must move together, recorded as if independent.** That is the
+clause-lockstep defect this whole amendment exists to prevent, reintroduced by
+its own fix.
+
+So the drafts above hardcode NO COUNT. They say the error arms on EVIDENCE OF
+CORE — names no non-core plugin has reason to own — and explicitly delegate which
+names those are to the reference realization, while stating the constraint that
+generic names must not arm it. A rename, or a ninth operation, then moves the
+implementation without stranding the contract.
+
+Two corollaries core supplied, so nobody spends measurement on them:
+
+- **Adding a ninth operation needs no amendment.** An all-present test over a
+  fixed name set is a SUBSET test, so a superset still scores full marks. Only
+  RENAME or REMOVAL of a discriminating name can produce a partial score. The
+  band is unreachable by growth; do not design it for growth.
+- **Core carries no live resolution text.** Zero occurrences of
+  `LIVESPEC_CORE_PLUGIN_ROOT` or `resolve_core_root` anywhere under core's
+  `SPECIFICATION/`, and zero across all eight `prose/*.md`. The only loose
+  "core root" hits are two non-contract artifacts. So no core sweep is owed.
+
+Core also confirmed the SET is ratified at its `SPECIFICATION/spec.md` line 238,
+not merely in `contracts.md` — "livespec defines eight spec-side sub-commands ...
+Each sub-command has a core-owned operation prose artifact under
+`.claude-plugin/prose/<name>.md`". That is the sentence the marker actually
+reads, and it is why the marker reads a contract rather than a coincidence.
