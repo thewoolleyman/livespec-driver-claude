@@ -59,6 +59,17 @@ def _load_module() -> ModuleType:
     return module
 
 
+_CORE_PROSE_FILES = (
+    "critique.md",
+    "doctor.md",
+    "help.md",
+    "next.md",
+    "propose-change.md",
+    "prune-history.md",
+    "revise.md",
+    "seed.md",
+)
+
 _resolver = _load_module()
 
 
@@ -137,7 +148,13 @@ def test_empty_override_falls_through(tmp_path: Path) -> None:
 def test_governed_project_that_is_core_uses_its_own_checkout(tmp_path: Path) -> None:
     home = tmp_path / "home"
     project = tmp_path / "core-repo"
-    (project / ".claude-plugin" / "prose").mkdir(parents=True)
+    prose = project / ".claude-plugin" / "prose"
+    prose.mkdir(parents=True)
+    # Core-SHAPED, not merely present. The previous fixture created an EMPTY
+    # prose/ and still asserted project_checkout, which is exactly the defect
+    # this suite now pins against.
+    for name in _CORE_PROSE_FILES:
+        (prose / name).write_text("core prose")
 
     outcome = _resolver.resolve_core_root(project_root=project, home=home, environ={})
 
@@ -354,3 +371,82 @@ def test_main_writes_the_diagnostic_to_stderr_and_exits_nonzero(
     assert code != 0
     assert captured.out == ""
     assert "livespec core is not installed" in captured.err
+
+
+def test_non_core_project_shipping_its_own_prose_falls_through_to_rule_3(
+    tmp_path: Path,
+) -> None:
+    """The regression pin: a `prose/` directory is not evidence the project IS core.
+
+    Every plugin-shipping repo in this family carries `.claude-plugin/prose/`, so
+    a rule 2 that tests the directory matches all of them and SHADOWS rule 3 --
+    which holds the correct answer. This fixture is a control-plane plugin: it
+    ships prose, none of it core's, and it has an install record of its own.
+    """
+    home = tmp_path / "home"
+    project = tmp_path / "consumer"
+    prose = project / ".claude-plugin" / "prose"
+    prose.mkdir(parents=True)
+    for name in ("foreman.md", "overseer.md", "supervise-plan.md"):
+        (prose / name).write_text("not core prose")
+    install_path = tmp_path / "cache" / "build"
+    install_path.mkdir(parents=True)
+    _write_registry(
+        home=home,
+        payload={
+            "plugins": {
+                "livespec@livespec": [
+                    {"projectPath": str(project), "installPath": str(install_path)}
+                ]
+            }
+        },
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=project, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootResolved)
+    assert outcome.source == "install_record"
+    assert outcome.path == install_path
+
+
+def test_incomplete_core_prose_set_errors_rather_than_falling_through(
+    tmp_path: Path,
+) -> None:
+    """A core checkout mid-rename must ERROR, not decline to rule 3.
+
+    Declining is the silent failure this band exists to prevent: core's own
+    repo holds an install record, so falling through would resolve a mid-rename
+    checkout to the installed CACHE and serve the OLD released prose to whoever
+    is editing its replacement.
+    """
+    project = tmp_path / "core-mid-rename"
+    prose = project / ".claude-plugin" / "prose"
+    prose.mkdir(parents=True)
+    for name in _CORE_PROSE_FILES:
+        if name != "revise.md":
+            (prose / name).write_text("core prose")
+
+    outcome = _resolver.resolve_core_root(project_root=project, home=tmp_path / "home", environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootUnresolved)
+    assert outcome.kind == "core_checkout_incomplete"
+    assert "revise.md" in outcome.detail
+
+
+def test_incomplete_core_diagnostic_names_the_override() -> None:
+    """livespec core's BINDING CONDITION on this predicate.
+
+    A rename of any operation is executed in a WORKTREE of core, which transits
+    the incomplete state precisely while driving the propose-change and revise
+    operations this predicate gates. If the diagnostic does not name the
+    override, the error band hard-blocks core's own ratified rename path: the
+    maintainer could not run the revise that completes the rename. This is a
+    SEPARATE assertion from the test above on purpose -- a diagnostic that errors
+    correctly while saying nothing satisfies that one completely.
+    """
+    text = _resolver._diagnostic(
+        unresolved=_resolver.CoreRootUnresolved(kind="core_checkout_incomplete", detail="detail\n")
+    )
+
+    assert "LIVESPEC_CORE_PLUGIN_ROOT" in text
+    assert "BEFORE" in text
