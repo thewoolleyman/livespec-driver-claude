@@ -172,3 +172,67 @@ implementation. Nothing was changed in `.claude-plugin/`. The existing unit test
 were NOT run against the prototype — the three checks above are behavioural smoke
 tests plus LLOC counts, which is what the question ("does it fit?") required.
 `d7d` remains unimplemented and untriaged.
+
+
+## The Red->Green ritual, executed against the prototype (2026-08-20)
+
+The plan, the epic scope event and both ledger handoff entries all give the same
+red-green guidance: `test_governed_project_that_is_core_uses_its_own_checkout`
+(line 128) PINS the defect with an empty `prose/` fixture; making that fixture
+core-shaped stays GREEN under the OLD predicate, so the clean red is the NEW
+negative test. That was reasoned, not run. It has now been run, against the
+prototype measured in the section above.
+
+### 1. The existing suite under the new predicate: exactly one failure
+
+Running the shipped `tests/hooks/test_resolve_core_root.py` UNCHANGED against the
+prototype:
+
+    17 passed, 1 failed
+
+The single failure is `test_governed_project_that_is_core_uses_its_own_checkout`
+— the test the plan identifies. Its empty-`prose/` fixture now correctly scores
+0/8, declines rule 2, falls through to rule 3, and lands on `registry_absent`
+because the fixture builds no registry.
+
+**17 of 18 pass unchanged**, which is the assurance the plan did not have: the
+predicate change has no collateral effect on registry reading, `projectPath`
+selection, the positional control, or any diagnostic branch. The blast radius
+inside the suite is exactly the one test that pins the defect.
+
+### 2. The guidance is correct — demonstrated in both directions
+
+With the fixture made core-shaped (all eight prose files written) AND a new
+negative test added (a consumer repo shipping `foreman.md`, `overseer.md`,
+`supervise-plan.md`, plus a matching install record, asserting
+`source == "install_record"`):
+
+| suite | against SHIPPED (old) | against PROTOTYPE (new) |
+|---|---|---|
+| core-shaped fixture + new negative test | **18 passed, 1 failed** | **19 passed** |
+
+The one failure under the old predicate is the NEW negative test, and it fails on
+exactly the defect:
+
+    - install_record
+    + project_checkout
+
+So the ritual is clean and the plan's advice holds precisely:
+
+- Making the fixture core-shaped is a NO-OP under the old code — it passes
+  either way, and is therefore not the red.
+- The new negative test is the ONLY red, and it is red for the right reason.
+- Adding the predicate turns it green with nothing else to fix.
+
+Whoever implements can stage the negative test alone, confirm one failure,
+commit, then `--amend` with the resolver change and confirm 19 green. That
+satisfies `check-red-green-replay` and the `fail_under = 100` coverage gate needs
+the three predicate branches exercised: 8/8 matches (the core-shaped fixture),
+0/8 declines (the new negative test), and 1-7 errors (a third test, which the
+suite does not yet have).
+
+### Scope
+
+Measured against the scratch prototype from the section above. Nothing in
+`.claude-plugin/` or `tests/` was changed; the modified suites were copies in a
+scratch directory. `d7d` remains unimplemented and untriaged.
