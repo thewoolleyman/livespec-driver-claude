@@ -126,3 +126,53 @@ Cross-repo routing likewise stays the foreman's, unchanged.
    the fourth is what pins core's binding condition).
 5. Replace the eight guards; add the guard test.
 6. File the propose-change.
+
+
+## Postscript: triage is DOWNSTREAM of the directive, not a second decision
+
+Every handoff on this plan has listed two things waiting on the maintainer:
+triage `d7d`, and choose the changeset shape. The shape is decided above. The
+triage item turns out not to be independent, and the reason is mechanical rather
+than procedural.
+
+`.livespec.jsonc` §`dispatcher` on master:
+
+    "auto_approve_ready": true,
+    "acceptance_mode": "ai-only",
+    "wip_cap": 10,
+    "factories": { "hp": ..., "vps": ... },
+    "default_factory": "hp"
+
+Two of the three policy levers are deliberately off their safe defaults, and the
+block's own comment says so in terms: ready work is "ADMITTED and ACCEPTED
+without a human valve".
+
+So labelling `d7d` `intake:triaged` does not merely make it visible to `next`. It
+makes it admissible, `auto_approve_ready` carries it pending-approval -> ready
+with no human, and the dispatcher can hand it to the `hp` factory. That is
+precisely the outcome the standing directive forbids: the ledger records `d7d` as
+factory-ineligible BY DIRECTIVE because the maintainer stated they intend to
+drive this track personally.
+
+**Triage would therefore route the work away from the person who reserved it, by
+configured automation, without anyone deciding to.** That is not a gate this plan
+invented for caution; it is a real coupling in this repo's configuration.
+
+Three consequences worth stating plainly:
+
+1. **There is ONE open decision on this plan, not two.** The directive is
+   upstream; triage follows from it mechanically. Any handoff listing them as
+   separate items is overstating what is outstanding.
+2. **Triage is safe the moment the directive is lifted, and not before.** If the
+   maintainer lifts it, `d7d` becomes "an ordinary `drive` dispatch" exactly as
+   the epic already says — triage is then the enabling step rather than a
+   separate judgement.
+3. **This is why the earlier deferral was right, retroactively.** The epic said
+   "triage is an intake decision and was deliberately left to the maintainer"
+   without saying why. The why is this coupling. Recording it means the next
+   session does not have to re-derive it, and does not mistake it for excess
+   caution under a decision-authority rule that would otherwise say self-resolve.
+
+Researched rather than assumed: the dispatcher block was read on master, and the
+`auto_approve_ready` / `acceptance_mode` semantics are the ones its own inline
+comment documents, citing livespec `contracts.md` §"The three policy settings".

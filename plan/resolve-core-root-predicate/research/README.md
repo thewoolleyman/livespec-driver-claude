@@ -161,8 +161,13 @@ answer — but the worktree gap is the larger population and is already live. Se
 - **`d7d` is not admitted by any dispatch surface.** It carries no
   `intake:triaged` label, so the intake Definition-of-Ready gate never ran and
   `next` ranks nothing. Hand-driving is unaffected; any ranked route is blocked
-  until it is triaged. Triage is an intake decision and was left to the
-  maintainer.
+  until it is triaged. **Triage is DOWNSTREAM of the drive-personally directive,
+  not a separate decision** — this repo's dispatcher runs
+  `auto_approve_ready: true` with `acceptance_mode: "ai-only"` and a default
+  factory, so triaging would route the work to a factory by configured
+  automation, which is exactly what the directive forbids. See
+  `changeset-shape-decision.md` §Postscript. There is ONE open decision on this
+  plan, not two.
 - **`tun`'s title has drifted.** Its stated-file-vs-tested-directory
   contradiction was resolved in the WRONG direction (the prose was rewritten to
   match the defective code) in all 8/8 bindings, so a reader may wrongly close it
