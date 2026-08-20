@@ -130,6 +130,41 @@ So rule 2 reads:
 | none of the core-exclusive six present | ordinary consumer repo — decline to rule 3 |
 | some core-exclusive six present, but not all eight | ERROR: name the missing files and stop |
 
+### Full-host validation of the ARMING BAND (2026-08-20)
+
+The rule above was originally checked against two live consumer repos. That is
+thin for a rule whose failure mode is a FALSE HARD ERROR, so it was re-run across
+every candidate on the host — the same sweep shape as
+`predicate-justification.md`, in Python per this plan's zsh caveat, `-maxdepth 5`
+over `/data/projects` and `~/.worktrees`, excluding `*/.git/*`, `*/.pi/*` and
+`*/.livespec-core/*`.
+
+| measurement | value |
+|---|---|
+| project roots shipping their own `.claude-plugin/prose/` | 333 |
+| all-eight score: 0 / 8 / anything between | 311 / 22 / **0** |
+| core-exclusive-six score: 0 / 6 / anything between | 311 / 22 / **0** |
+| **roots that would HARD-ERROR (six >= 1 and eight < 8)** | **0** |
+
+The last row is the one this section exists to establish. Arming the band costs
+nothing on the current host: no root anywhere is in a state where the error
+branch fires. The six-file and eight-file scores partition the population
+identically — the same 22 score 6/6 and 8/8, the same 311 score 0 on both — so
+the arming refinement does not widen the matching set, it only narrows what the
+ERROR branch can reach.
+
+Two method notes, both upgrades on the earlier sweep:
+
+- **Core identity confirmed by ORIGIN REMOTE, not by path.** All 22 roots scoring
+  8/8 were checked with `git remote get-url origin`; all 22 point at the livespec
+  core remote, none excepted. The earlier claim rested on path and name
+  inspection, which cannot rule out a same-named non-core checkout.
+- **The population moved and the separation did not.** 314 roots on 2026-08-19,
+  333 on 2026-08-20 — the host gains and loses worktrees while work proceeds.
+  This is the README's snapshot-versus-durable distinction actually demonstrated
+  across a re-measure rather than asserted: treat the COUNTS as snapshots and the
+  SEPARATION as the finding.
+
 Checked against the two live consumer repos: `livespec-orchestrator-beads-fabro`
 ships `capture-impl-gaps`, `capture-spec-drift`, `capture-work-item`, `groom`,
 `implement`, `plan`; `livespec-overseer` ships `foreman`, `overseer`,
