@@ -49,6 +49,35 @@ Neither is at the current build. **Both owning primaries ARE** — both
 `/data/projects/livespec-driver-claude` and `/data/projects/livespec-overseer`
 read `ffcd6892e221`.
 
+### The shape is convergence at the primaries, divergence at the worktrees
+
+Sharper than "both stale", and the part that makes the mechanism OBSERVABLE
+rather than inferred. The two primaries agree on ONE build; the two worktrees
+disagree, sitting on TWO DIFFERENT past builds:
+
+```
+primary   /data/projects/livespec-driver-claude          -> ffcd6892e221  }  same
+primary   /data/projects/livespec-overseer               -> ffcd6892e221  }  build
+
+worktree  .../livespec-driver-claude/codex/livespec-nj7d-hook-main -> dfa518239fbf  }  two
+worktree  .../livespec-overseer/spec-parked-delivery-routing       -> ebd39d24cba6  }  builds
+```
+
+Two independent repos CONVERGED on the current build while their worktrees
+DIVERGED to different past ones. That is exactly the signature "records advance
+only for the project a session opens in" predicts: the surfaces that keep getting
+sessions track forward together, and the ones that stopped getting sessions
+freeze wherever they happened to be.
+
+It also rules out the competing explanation. A shared cause — one bad update, one
+registry rewrite, one platform bug — would have left both worktrees on the SAME
+stale build. They are not on the same build, so whatever stopped them acted per
+worktree, at whatever time each was last used. That is abandonment, not an event.
+
+(Observation owed to the `livespec-overseer-foreman` seat, which verified the
+2-of-2 result against the registry rather than accepting it and noticed the
+divergence the first write-up had not used.)
+
 So in 2 of 2 available cases, own-record-first resolves to a stale build and
 primary-always resolves to the current one. The fork does not need a tiebreak;
 the sample is unanimous as far as it goes.
