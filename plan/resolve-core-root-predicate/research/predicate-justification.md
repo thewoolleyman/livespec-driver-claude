@@ -143,3 +143,27 @@ One adjacent gap, noted but NOT proposed as in-scope: rule 3 returns the record'
 post-resolve guard in the bindings is currently the only thing covering a stale
 or half-fetched cache entry, which is an argument for tightening that guard
 rather than leaving it as the weak directory test.
+
+## The marker stays PROSE-ONLY (2026-08-20)
+
+A counterexample offered against the marker turns out to support it, and it
+retires a discriminator that was proposed alongside.
+
+`~/.claude/plugins/cache/livespec/livespec/unknown` was raised as a possible
+false negative. Measured: it ships all eight prose files, scores 8/8, and
+resolves correctly under the marker. It never threatened it.
+
+What it DOES establish is a real, live core shape that carries COMPLETE prose and
+NO `scripts/livespec/` package at all — verified 2026-08-20, the directory is
+absent. That is an argument for keeping the marker prose-only and never reaching
+into the scripts tree to identify core.
+
+It also disposes of the second half of the discriminator proposed by the
+`livespec-overseer-foreman` seat, which paired `prose/revise.md` with
+`scripts/livespec/schemas/`. The schemas half would have produced a FALSE
+NEGATIVE on this cache build. The prose half is rejected separately as Objection
+4 above. Neither half survives; the eight-file prose set is unaffected by both.
+
+Worth one line in the fixture rationale: a fixture asserting the predicate
+matches a core-shaped root should NOT create a `scripts/` tree, since a real core
+shape exists without one.
