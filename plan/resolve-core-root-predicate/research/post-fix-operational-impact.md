@@ -133,3 +133,55 @@ whose first visible effect is "288 project roots started failing" is the shape o
 change that gets reverted by whoever meets it first without context. The
 countermeasure is cheap: name the behavior change, name the two remedies, and
 point at this note.
+
+## Re-simulation on live host state, 2026-08-20
+
+The figures above come from the first corrected sweep. They were re-derived by
+SIMULATING the proposed rule 2 (three-way, arming on the core-exclusive six)
+against the SHIPPED rule 3, over every governed root on the host. "Governed" here
+means the root carries `.livespec.jsonc` — the earlier population keyed on
+shipping a `.claude-plugin/`, which admits repos that are not livespec-governed at
+all (`beads` and `claude-code-ntfy` both ship one and carry no livespec config).
+
+| | count |
+|---|---|
+| governed roots (`.livespec.jsonc`) | 453 |
+| of those, live git checkouts | 452 |
+| not a git repository at all | 1 |
+
+Outcome under the proposed rule, over the 452 live checkouts:
+
+| outcome | count |
+|---|---|
+| rule 2 — IS core, use the checkout (dogfooding preserved) | 22 |
+| rule 3 — `projectPath`-matched install record | 15 |
+| hard-fail `project_not_installed` | 415 |
+| **1-7 ERROR band** | **0** |
+
+Then applying the primary walk-up from `worktree-resolution.md` to the 415:
+
+| | count |
+|---|---|
+| rescued by the walk-up | **415** |
+| **residual** | **0** |
+
+Three things this establishes that the earlier figures did not:
+
+1. **The walk-up closes the set completely on today's state.** Not "nearly all" —
+   every one of the 415. The plan's corrected residual of 1 is reconciled: that
+   one root, `/data/projects/homelab-05-nixrepro-tree`, carries `.livespec.jsonc`
+   but is NOT A GIT REPOSITORY (`git rev-parse` fails outright). The walk-up is
+   inapplicable to it because there is no owning checkout to walk up to. It is a
+   provisioning anomaly, not a resolver residual, and no predicate or walk-up can
+   or should rescue it.
+2. **Dogfooding survives, measured rather than argued.** All 22 core checkouts
+   still take rule 2, so `--plugin-dir .` dev mode is untouched by the fix.
+3. **The error band stays empty end-to-end.** Zero of 452 governed roots land in
+   the 1-7 branch, which is the same result the standalone arming sweep in
+   `partial-core-checkout-hole.md` reports over a differently-derived population.
+   Two independent populations, same answer.
+
+The recommendation above is UNCHANGED and is if anything more urgent: 415 roots
+move from a silent wrong answer to a loud diagnostic, and 416 of the 452 governed
+roots are worktrees, so this is the normal execution path rather than an edge.
+Name the behavior change in the changeset, name both remedies, and point here.
