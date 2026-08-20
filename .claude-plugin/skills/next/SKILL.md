@@ -42,11 +42,16 @@ doing any work.
    livespec core repo itself (`--plugin-dir .` dev mode / dogfooding).
    A `prose/` directory alone is NOT the test: every plugin in this
    family ships its own, so testing the directory matches any consumer
-   and pre-empts step 3, which holds that consumer's correct answer. A
-   checkout carrying SOME of the set but not all of it is an ERROR that
-   names the missing files, not a decline — falling through there would
-   resolve a mid-rename core checkout to its own installed cache and
-   serve the OLD released prose while you edit its replacement.
+   and pre-empts step 3, which holds that consumer's correct answer.
+   Between "is core" and "is not core" lies a third state: a checkout
+   carrying CORE-EXCLUSIVE operation prose — names no non-core plugin
+   has reason to own — yet not the complete set. That is a core checkout
+   mid-rename or mid-fetch, and it is an ERROR naming the missing files,
+   not a decline: falling through there would resolve it to its own
+   installed cache and serve the OLD released prose while you edit its
+   replacement. Which names are core-exclusive is the resolver's to
+   define; the rule is that the error arms on evidence of core, not on
+   the mere absence of completeness.
 3. Else the `livespec@livespec` install record in
    `~/.claude/plugins/installed_plugins.json` **whose `projectPath` is
    the project root**. That key holds an ARRAY of records, one per
