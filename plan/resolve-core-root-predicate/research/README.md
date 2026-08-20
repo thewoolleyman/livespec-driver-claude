@@ -112,8 +112,10 @@ not — which is what drives the post-fix behavior change described below.
    record. A primary-checkout walk-up in rule 3 takes the affected set from "3
    resolve, 288 hard-fail" to "291 resolve, 0 fail", but will not fit the LLOC
    ceiling alongside the predicate change — so sequencing is an open maintainer
-   decision. Its PRECEDENCE rule is no longer open: use the primary always
-   (`worktree-record-staleness.md`). 289 project roots
+   decision. **Both are now decided** — the precedence rule is primary always
+   (`worktree-record-staleness.md`), and the changeset shape is one changeset
+   carrying the split, the predicate, its tests, the eight `tun` guards and the
+   guard test, with the walk-up as a child (`changeset-shape-decision.md`). 289 project roots
    move from a silent wrong answer to a loud `project_not_installed`. That is
    the fix working: those roots were always mis-provisioned and rule 2 was
    masking it. Name it in the changeset description, with the two sanctioned
@@ -189,6 +191,7 @@ answer — but the worktree gap is the larger population and is already live. Se
 | `worktree-resolution.md` | the worktree case is the normal case; rule 3 needs a primary walk-up; the scope fork |
 | `worktree-gap-scale.md` | the walk-up recovers 420 of 502 governed roots; the gap is already live and larger than the predicate defect |
 | `worktree-record-staleness.md` | worktree install records fossilize (2 of 2 stale); resolves the walk-up precedence fork to **primary always** |
+| `changeset-shape-decision.md` | the changeset shape, DECIDED: split + predicate + tests + tun + guard test in one; walk-up as a child |
 
 ## Corrections already folded in
 

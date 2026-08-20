@@ -119,6 +119,16 @@ So this is a genuine fork, and it is the maintainer's:
 Option 3 is the shape the plan's own constraints point at, but the interval in
 option 3 is not free and the maintainer may not want it.
 
+**DECIDED 2026-08-20 — see `changeset-shape-decision.md`.** The fork collapsed
+once the LLOC measurement landed: option 1's advantage ("smallest, fits the
+ceiling") does not exist, because the ratified three-way predicate overruns the
+hard ceiling BY ITSELF and the file split is the entry price for every option.
+The decision is one changeset carrying the split, the predicate, its four tests,
+all eight `tun` guards and the guard test, with the walk-up as a child. The
+interval named above is accepted deliberately: a loud, correctly-diagnosed
+failure with two documented remedies beats the silent wrong answer those roots
+get today.
+
 ## Note on the reporting thread
 
 They asked whether to file the worktree half separately in this repo. I asked
