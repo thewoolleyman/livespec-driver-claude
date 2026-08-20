@@ -28,6 +28,21 @@ That is not merely a wider gap. It is a different KIND of fact. A snapshot is
 consistent with "somebody pinned this deliberately"; a time series in which the
 primary advances while the worktree record never moves is not.
 
+**A THIRD POINT, observed live later the same day.** While this plan's other
+measurements were running, that primary advanced AGAIN — `ffcd6892e221` ->
+`4262e3e1899c` — and the worktree record still read `ebd39d24cba6`. The full
+series for one worktree:
+
+| when | primary `/data/projects/livespec-overseer` | worktree record |
+|---|---|---|
+| 2026-08-19 | `1768d10c92c5` | `ebd39d24cba6` |
+| 2026-08-20, earlier | `ffcd6892e221` | `ebd39d24cba6` |
+| 2026-08-20, later | `4262e3e1899c` | `ebd39d24cba6` |
+
+Three primary advances, zero worktree movement, the last one watched happening
+rather than reconstructed from a prior reading. Whatever else a per-worktree
+record is, it is not tracking the repository it belongs to.
+
 ## The full population, and it is unanimous
 
 `~/.claude/plugins/installed_plugins.json`, key `livespec@livespec`, 16 records.
