@@ -195,13 +195,16 @@ complete set...") with:
 > reported as an error naming the missing files, and MUST NOT be treated as a
 > non-core project: falling through to step 3 there resolves a mid-rename core
 > checkout to its own installed cache, serving released prose to a maintainer who
-> is editing its replacement. Which names carry that evidence is the reference
-> realization's to designate, and MAY be a proper subset of the operation set:
-> names generic enough that a consumer plugin might legitimately own one MUST NOT
-> arm the error, or a single filename collision turns "correctly declines" into
-> "hard error". Because that error is reachable during core's own ratified rename
-> cycle, its diagnostic MUST name the step-1 override and state that the override
-> is consulted first.
+> is editing its replacement. Which names carry that evidence is designated ONCE
+> and binds every realization; the designation MUST be identical across Drivers,
+> and MAY be a proper subset of the operation set. Names generic enough that a
+> consumer plugin might legitimately own one MUST NOT be designated, or a single
+> filename collision turns "correctly declines" into "hard error" in a repository
+> that has nothing to do with livespec. The designation MAY be changed only by a
+> propose-change cycle, and adding an operation to the set above does NOT add its
+> name to the designation. Because that error is reachable during core's own
+> ratified rename cycle, its diagnostic MUST name the step-1 override and state
+> that the override is consulted first.
 
 ## Handling note, revised
 
@@ -257,3 +260,55 @@ not merely in `contracts.md` — "livespec defines eight spec-side sub-commands 
 Each sub-command has a core-owned operation prose artifact under
 `.claude-plugin/prose/<name>.md`". That is the sentence the marker actually
 reads, and it is why the marker reads a contract rather than a coincidence.
+
+
+## Correction: ONE designation, not one per Driver (2026-08-20)
+
+Reported by core's seat on review of the wording above, and it is not a nit.
+
+The previous clause said the evidence names were "the reference realization's to
+designate". **Core has THREE reference realizations**, stated at its
+`SPECIFICATION/spec.md` line 424: "Three per-runtime Driver plugin repositories
+are current reference work ... `livespec-driver-claude` (Claude Code),
+`livespec-driver-codex` ... and `livespec-driver-pi`". Verified. So in core's own
+vocabulary that phrase reads as a PER-DRIVER designation.
+
+Follow it through and the consequence is worse than ambiguity. Three Drivers may
+designate three different evidence sets, so the SAME partial core checkout
+hard-errors on Claude and falls silently through to rule 3 on Codex — resolving
+the installed cache, which is the exact silent failure this predicate exists to
+eliminate. The result is a diagnostic reproducible only on some runtimes: the
+operator who reports it and the operator who cannot reproduce it are both right,
+and neither can settle it from their own seat.
+
+This is NOT the clause-lockstep defect returning. That was two true statements of
+a number that had to move together. This is one designation with three owners.
+Different failure, same root cause: a fact recorded where nothing makes its
+holders agree.
+
+**The fix keeps `MAY be a proper subset` intact — only the OWNERSHIP moves**, from
+per-Driver choice to a single binding designation. Core's established pattern for
+this shape is `spec.md` line 378, where a reference realization is named
+concretely and then bound at SPEC level rather than at implementation level: the
+reference realization is where a thing is written down, not who gets to choose it.
+
+### And two fail-safes, because the evidence set is a claim about the world
+
+"Names no non-core plugin has reason to own" is a DERIVED fact, recorded where
+nothing re-derives it. It is true of the six today. If some plugin later ships a
+`revise.md`, nothing notices and the contract quietly asserts something false. So:
+
+- the designation may be changed only by a propose-change cycle, which makes
+  narrowing deliberate and records the reasoning beside the change;
+- **adding an operation to core's set does NOT add its name to the designation.**
+
+The second is load-bearing, and it is the MIRROR of the ninth-operation argument
+recorded above. Adding a name is safe for MATCHING precisely because matching is
+a subset test. It is NOT automatically safe for ARMING, because arming is what
+decides whether a stranger's repository gets a hard error. Without this sentence,
+core adds a ninth operation with a generic name, it joins the evidence set by
+default, and every unrelated plugin shipping that filename begins hard-erroring.
+
+Two questions that sound identical — "is adding a ninth operation safe?" — with
+opposite correct answers depending on which half of the predicate is asking. That
+is exactly the kind of thing that is easy to miss and expensive to discover.
