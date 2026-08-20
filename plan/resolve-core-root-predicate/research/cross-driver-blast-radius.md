@@ -215,3 +215,73 @@ propose-change than "write the dependency into core's contract" implies.
 Option (a) remains the stronger fix (it removes the copies rather than
 documenting them), and the two are not exclusive. Routing is still the foreman's
 call; nothing was filed in core, whose valve is report-only.
+
+
+## The port surface, counted per Driver (2026-08-20)
+
+This note establishes that all three Drivers carry the defect and that the fix is
+not uniform. It does not say how MUCH work each port is. Re-verified against
+current checkouts (`livespec-driver-codex` at `cf0ea77`, `livespec-driver-pi` at
+`37649c3`) and counted.
+
+| Driver | resolver shape | rule-2 sites | guard sites | doc sites | edit sites |
+|---|---|---|---|---|---|
+| claude | shared Python (`lib/resolve_core_root.py`) | 1 | 8 `SKILL.md` | 0 | **9** |
+| codex | **INLINE in all 8** `livespec/skills/<op>/SKILL.md` | 8 | 8 | 0 | **8 files, 16 edits** |
+| pi | shared **shell** (`lib/resolve-core-root.sh`) | 1 | 1 | 1 `README.md` | **3** |
+
+### pi is the cheapest port, and it is NOT what this note implied
+
+This note says pi "consults fixed clone paths", which is true of its rules 3 and
+4 and is why it has no `projectPath` concern. But it left the impression that pi
+is structurally unlike the other two. It is not: **pi single-sources its resolver
+exactly as this repo does**, in `lib/resolve-core-root.sh`. Its rule-2 defect is
+one line:
+
+    line 64:  if [ -d "$candidate/prose" ]; then
+
+One further detail with real consequences: pi applies that predicate to EVERY
+candidate in its chain, not only to rule 2. So tightening it to the eight-file
+marker also hardens pi's two clone-path branches — a partial or half-fetched
+clone would be caught rather than silently accepted. That aligns pi with the 1-7
+amendment for free, and is an argument for porting the THREE-WAY rule to pi
+rather than a bare boolean.
+
+pi's override guard is also centralized (line 78, "carries no prose/"), so pi's
+equivalent of this repo's `tun` surface is one line in the same file rather than
+eight copies.
+
+### pi has a NINTH surface the plan did not record: its README
+
+`livespec-driver-pi/README.md:57` restates the rule in prose:
+
+    `.claude-plugin/` when it carries `prose/` (the project IS core), else the
+    project-scope pi clone, else the user-scope pi clone.
+
+Note the shape: the stated INTENT is correct ("the project IS core") while the
+stated TEST is the defective one. That is the same stated-versus-tested gap
+`livespec-driver-claude-tun` describes, appearing in documentation rather than
+code. A port that fixes only the resolver leaves pi's README documenting the old
+rule. Neither codex's nor this repo's README carries equivalent text — checked.
+
+### codex is the expensive one, and single-sourcing should come first
+
+codex has no shared resolver — confirmed, nothing matching `resolve*core*` exists
+outside its venv. Each of its eight bindings carries BOTH halves inline:
+
+    line 41:  if [ -z "$LIVESPEC_CORE_ROOT" ] && [ -d "./.claude-plugin/prose" ]
+    line 55:  if [ -z "$LIVESPEC_CORE_ROOT" ] || [ ! -d "$LIVESPEC_CORE_ROOT/prose" ]
+
+So codex needs sixteen edits across eight files, and scope question 3 above —
+whether to consolidate codex's resolver first — is answered by the count rather
+than by preference. Applying a three-way predicate plus an error diagnostic
+sixteen times, by hand, in eight files, re-creates precisely the
+defect-in-all-eight-at-once condition that motivated single-sourcing in the other
+two Drivers.
+
+### What this does not change
+
+Routing is still the foreman's call and nothing was filed in either sibling
+tenant. The recommendation is unchanged: port the PREDICATE to all three, do NOT
+port this repo's `projectPath` selection logic. This section only prices the
+three ports, which the routing decision needs and this note did not have.
