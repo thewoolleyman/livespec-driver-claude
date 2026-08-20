@@ -86,6 +86,52 @@ weak `[ -d "$LIVESPEC_CORE_ROOT/prose" ]` post-resolve guard in the eight
 bindings (the `livespec-driver-claude-tun` surface) without producing a single
 false negative on a real cache. One marker, both places.
 
+### That claim rested on SIX builds. Swept all 130 (2026-08-20)
+
+The cache holds far more builds than the six sampled above —
+`~/.claude/plugins/cache/livespec/livespec/` currently carries **130**
+directories, hash-named plus a few version-named (`0.30.3`, `0.33.6`, `0.35.0`)
+and one literal `unknown`. Six is a thin base for a claim about "a real cache",
+especially for `tun`, whose whole fix depends on it. Swept all of them:
+
+| all-eight score | builds |
+|---|---|
+| 8 | **127** |
+| 1-7 | **0** |
+| no `prose/` directory at all | 3 |
+
+**No build anywhere scores 1-7.** The plan's claim that core has never shipped a
+partial set — argued from `85f795f9` being the single commit that created
+`prose/` — is now confirmed empirically across 130 independent build artifacts,
+not just from commit history.
+
+The three exceptions carry no `prose/` at all, and they are exactly what that
+history predicts: builds from 2026-06-09/10, before `85f795f9` (2026-06-11)
+created `prose/`. They ship the pre-prose architecture — `skills/`, `scripts/`,
+`specification-templates/` — and each carries an `.orphaned_at` marker, so the
+platform already considers them collectable.
+
+**This is what `tun` needs, and it is decisive.** Replacing the directory guard
+with the eight-file marker introduces NO false negative anywhere in this cache:
+
+- on the 127 8/8 builds, both the old directory guard and the new marker PASS;
+- on the 3 pre-prose builds, both the old directory guard and the new marker
+  REJECT — the directory does not exist, so the current guard already fails them.
+
+The two guards therefore agree on all 130 builds. Tightening `tun` cannot break a
+root that works today.
+
+And **zero install records point at any of the three** — checked across every
+plugin key in `installed_plugins.json`, not just `livespec@livespec`. So no live
+provisioning depends on a prose-less build, and the case is archival rather than
+operational.
+
+Read together with the 333-root project sweep in
+`partial-core-checkout-hole.md`, the 1-7 band has now been shown empty across two
+large, independently-derived populations: 130 real core build artifacts and 333
+governed project roots. Its only known trigger remains core's own rename path,
+which core's binding condition makes recoverable in one step.
+
 ## Objection 4 — "a single marker file is simpler"
 
 It is, and it is the shape the original source report suggested
