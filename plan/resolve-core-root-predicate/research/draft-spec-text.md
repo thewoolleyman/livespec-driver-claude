@@ -106,3 +106,103 @@ If the maintainer ratifies a different marker, Draft 1 stands unchanged
 (predicate-independent), Draft 2 needs its Given-line reworded to name the chosen
 marker, and Draft 3's final sentence needs replacing. Drafts 1 and 2 are the ones
 worth keeping regardless.
+
+## STALENESS NOTICE (2026-08-20) — read before pasting any of the above
+
+Drafts 1-3 were written 2026-08-19, BEFORE two things that are now part of the
+ratified design:
+
+1. `partial-core-checkout-hole.md` amended the rule from a two-way boolean to a
+   THREE-WAY outcome: 8/8 matches, none-of-the-core-exclusive-six declines, and
+   anything in between is an ERROR rather than a decline.
+2. livespec core's second opinion RATIFIED that amendment with one BINDING
+   CONDITION: the 1-7 diagnostic MUST name `LIVESPEC_CORE_PLUGIN_ROOT` and state
+   that it is consulted BEFORE the predicate.
+
+Neither appears in Drafts 1-3. Checked: the only occurrences of
+`LIVESPEC_CORE_PLUGIN_ROOT` above are the "is unset" Given-lines, which are a
+different use.
+
+**Consequence if pasted as-is.** The filed proposed change would pin the positive
+and negative cases correctly and say NOTHING about the error band or the
+override sentence. Core's condition would then exist only in this plan's notes
+and in core's own report-only record — nothing in either repo's spec would
+require it, nothing would stop a later revision from dropping it, and the
+implementation could satisfy every ratified scenario while still hard-blocking
+core's rename path. That is the failure the condition exists to prevent, arriving
+by a different route.
+
+Drafts 1 and 2 remain correct and paste-ready. Draft 3's closing sentence needs
+the replacement below. Drafts 4 and 5 are new and cover the gap.
+
+## Draft 4 — the 1-7 error scenario (NEW)
+
+To sit directly after Draft 1's negative scenario:
+
+```gherkin
+Given LIVESPEC_CORE_PLUGIN_ROOT is unset
+And <project-root>/.claude-plugin/prose/ holds SOME but not all of the core
+    operation prose set
+And installed_plugins.json holds a livespec@livespec record whose projectPath
+    equals the project root
+When a binding resolves <core-root>
+Then resolution FAILS and names the missing prose files
+And it does NOT fall through to that record's installPath
+```
+
+Heading: `## Scenario: an incomplete core checkout fails rather than falling back`
+
+Why the last line carries the weight: falling through is the SILENT failure the
+amendment exists to prevent. A core checkout mid-rename would otherwise resolve
+to the installed cache and serve the OLD released prose while the maintainer
+edits the new. Stating only "resolution fails" would leave a conforming
+implementation free to decline instead of error.
+
+## Draft 5 — core's binding condition (NEW)
+
+```gherkin
+Given resolution has failed because the core prose set is incomplete
+When the diagnostic is emitted
+Then it names LIVESPEC_CORE_PLUGIN_ROOT
+And it states that the override is consulted BEFORE the completeness check
+```
+
+Heading: `## Scenario: the incomplete-checkout diagnostic names the recovery`
+
+This is the scenario that must not be dropped. Without it the error band
+hard-blocks core's OWN ratified rename path: a rename is executed in a worktree
+of core, which transits the incomplete state precisely while driving the
+`propose-change` and `revise` operations the predicate gates, and the maintainer
+could not run the `revise` that completes the rename. The override already
+returns before the checkout test, so the recovery exists — the requirement is
+that the diagnostic SAYS so.
+
+Note this is deliberately a separate scenario from Draft 4 rather than another
+`And` on it. A diagnostic that errors correctly but says nothing satisfies Draft
+4 completely; only a separate assertion pins the text.
+
+## Draft 3, replacement closing sentence
+
+Replace the final sentence of Draft 3 ("The reference realization requires the
+complete set...") with:
+
+> The reference realization requires the complete set of core operation prose
+> files — one per operation named in livespec core's `contracts.md` §"Plugin
+> distribution" — which is a change-controlled core contract rather than a marker
+> each Driver invents separately. A checkout carrying SOME of that set but not
+> all of it MUST be reported as an error naming the missing files, and MUST NOT
+> be treated as a non-core project: falling through to step 3 there resolves a
+> mid-rename core checkout to its own installed cache, serving released prose to
+> a maintainer who is editing its replacement. Because that error is reachable
+> during core's own ratified rename cycle, its diagnostic MUST name the step-1
+> override and state that the override is consulted first.
+
+## Handling note, revised
+
+If the maintainer ratifies a different marker: Draft 1 stands unchanged
+(predicate-independent), Draft 4 stands unchanged for the same reason — it says
+"some but not all of the core operation prose set" without naming the arming
+subset — and Draft 5 stands unchanged, since it constrains the diagnostic rather
+than the predicate. Only Draft 2's Given-line and Draft 3's closing sentence are
+marker-specific. That is one more argument for keeping the arming detail (the
+core-exclusive six) in the reference realization rather than in the contract.
