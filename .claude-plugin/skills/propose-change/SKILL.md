@@ -37,9 +37,16 @@ doing any work.
 1. `LIVESPEC_CORE_PLUGIN_ROOT`, when set and non-empty (explicit
    operator override; covers nonstandard dev setups, e.g. driving a
    sibling checkout's core).
-2. Else `<project-root>/.claude-plugin/` when it carries `prose/` — the
-   governed project IS the livespec core repo itself (`--plugin-dir .`
-   dev mode / dogfooding).
+2. Else `<project-root>/.claude-plugin/` when its `prose/` carries the
+   COMPLETE core operation-prose set — the governed project IS the
+   livespec core repo itself (`--plugin-dir .` dev mode / dogfooding).
+   A `prose/` directory alone is NOT the test: every plugin in this
+   family ships its own, so testing the directory matches any consumer
+   and pre-empts step 3, which holds that consumer's correct answer. A
+   checkout carrying SOME of the set but not all of it is an ERROR that
+   names the missing files, not a decline — falling through there would
+   resolve a mid-rename core checkout to its own installed cache and
+   serve the OLD released prose while you edit its replacement.
 3. Else the `livespec@livespec` install record in
    `~/.claude/plugins/installed_plugins.json` **whose `projectPath` is
    the project root**. That key holds an ARRAY of records, one per
@@ -51,10 +58,11 @@ Canonical Bash form (`<project-root>` defaults to the cwd):
 
 ```bash
 LIVESPEC_CORE_ROOT="$(python3 "${CLAUDE_PLUGIN_ROOT}/lib/resolve_core_root.py" --project-root .)" || exit 1
-if [ ! -d "$LIVESPEC_CORE_ROOT/prose" ]; then
-  echo "resolved livespec core root carries no prose/: $LIVESPEC_CORE_ROOT" >&2
+for op in critique doctor help next propose-change prune-history revise seed; do
+  [ -f "$LIVESPEC_CORE_ROOT/prose/$op.md" ] && continue
+  echo "resolved root is not livespec core: no prose/$op.md in $LIVESPEC_CORE_ROOT" >&2
   exit 1
-fi
+done
 echo "$LIVESPEC_CORE_ROOT"
 ```
 
