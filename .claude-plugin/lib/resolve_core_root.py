@@ -68,7 +68,28 @@ _REGISTRY_PARTS = (".claude", "plugins", "installed_plugins.json")
 _CORE_OPS = "critique doctor help next propose-change prune-history revise seed".split()
 # The ERROR band arms on core-EXCLUSIVE names only. `next` and `help` are generic
 # enough that a consumer plugin may legitimately own them, and arming on those
-# would turn "correctly declines" into "hard error" on one filename collision.
+# would turn "correctly declines" into "hard error" in a repository that has
+# nothing to do with livespec.
+#
+# This list is a DESIGNATION, not a derivation, and the distinction is
+# load-bearing in two directions.
+#
+# It is single-sourced ACROSS DRIVERS: codex and pi must arm on the same names.
+# If they diverged, the same partial core checkout would hard-error on one
+# runtime and fall silently through to rule 3 on another -- resolving the
+# installed cache, which is the failure this whole predicate exists to remove.
+# A diagnostic reproducible on only some runtimes cannot be settled from either
+# operator's seat.
+#
+# ⛔ DO NOT derive it from `_CORE_OPS` by excluding the generic names. That is
+# the tidy-looking refactor, and it silently changes the DEFAULT: every
+# operation added to core's set would join the evidence set automatically. Then
+# the day core adds a ninth operation with a generic name, every unrelated
+# plugin shipping that filename begins hard-erroring, with nobody having decided
+# anything. Growth is safe for MATCHING because matching is a subset test; it is
+# NOT safe for ARMING, because arming is what decides whether a stranger's repo
+# gets an error. The two halves need opposite defaults, which is why these are
+# two independent lists and must stay that way.
 _CORE_ONLY_OPS = "critique doctor propose-change prune-history revise seed".split()
 
 

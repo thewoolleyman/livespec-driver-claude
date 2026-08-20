@@ -450,3 +450,23 @@ def test_incomplete_core_diagnostic_names_the_override() -> None:
 
     assert "LIVESPEC_CORE_PLUGIN_ROOT" in text
     assert "BEFORE" in text
+
+
+def test_evidence_set_is_a_designated_proper_subset_of_the_operation_set() -> None:
+    """Pins the designation so any change to it is deliberate and visible in a diff.
+
+    The evidence set that arms the error band is DESIGNATED, not derived. This
+    test exists because the natural-looking refactor -- deriving it from the
+    operation set by excluding the generic names -- would flip the default, so
+    that a future ninth operation joined the evidence set automatically and every
+    unrelated plugin shipping that filename began hard-erroring.
+
+    Growth is safe for MATCHING, because matching is a subset test. It is not
+    safe for ARMING. The two halves need opposite defaults, so the two lists are
+    independent and this test says so out loud.
+    """
+    operations = set(_resolver._CORE_OPS)
+    evidence = set(_resolver._CORE_ONLY_OPS)
+
+    assert evidence < operations
+    assert operations - evidence == {"next", "help"}
