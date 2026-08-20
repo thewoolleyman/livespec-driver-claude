@@ -117,3 +117,86 @@ carries the fullest measurements. `zgqrta`, `4xc` and `zeh4ft` are duplicates.
 still live. `6lc` (2026-07-19) reported the `entries[0]` POSITIONAL defect,
 which is already fixed — the resolver selects by `projectPath` today — so it
 is stale and should be dispositioned as such rather than reworked.
+
+
+## The `tun` guard fix, prototyped and gate-tested (2026-08-20)
+
+Surface 3 above — the eight `SKILL.md` post-resolve guards — is the
+`livespec-driver-claude-tun` carrier. The resolver half was prototyped and
+measured (`implementation-constraints.md`). The guard half never was. Done now.
+
+### The eight guards are byte-identical
+
+Checked: the guard block in all eight bindings hashes identically. So the port is
+a single uniform substitution, not eight judgement calls.
+
+### The proposed guard, and what it catches that the current one does not
+
+    for op in critique doctor help next propose-change prune-history revise seed; do
+      [ -f "$LIVESPEC_CORE_ROOT/prose/$op.md" ] && continue
+      echo "resolved root is not livespec core: no prose/$op.md in $LIVESPEC_CORE_ROOT" >&2
+      exit 1
+    done
+
+Run against real roots on this host:
+
+| root | current guard | proposed guard |
+|---|---|---|
+| real core checkout | PASS | PASS |
+| real installed cache build | PASS | PASS |
+| cache build with prose and NO `scripts/` | PASS | PASS |
+| **non-core repo shipping its own `prose/`** | **PASS** | **FAIL** |
+| **partial 7/8 core checkout** | **PASS** | **FAIL**, names `revise.md` |
+| pre-prose orphaned build | FAIL | FAIL |
+
+The two rows in bold are the whole item. The current guard PASSES on both failure
+cases — the misresolved root `d7d` describes, and the mid-rename checkout the
+1-7 amendment exists for. A guard that passes on every case it exists to catch is
+not a weak guard; it is an absent one.
+
+Note the third row: the guard must stay PROSE-ONLY. A real cache build ships the
+complete prose set and no `scripts/livespec/` package at all, so a guard reaching
+into the scripts tree would false-negative on it.
+
+### "Costs no gate update" — confirmed, by running it
+
+All eight guards were replaced in a scratch worktree and the full aggregate run:
+
+    just check-plugin-structure   -> exit 0
+    just check                    -> green, no failures
+
+So `tun` can land as a pure eight-file substitution with no test change and no
+gate change. The reason is precise: `check-plugin-structure` delegates to
+`_plugin_structure_claude.fenced_invocation_violations`, which constrains only
+fenced lines that INVOKE a `bin/<name>.py` wrapper (they must use
+`$LIVESPEC_CORE_ROOT`, they must not use `uv run`). The guard is a `[ -f ... ]`
+test, not a wrapper invocation, so the gate does not look at it. That module
+contains zero occurrences of `prose`.
+
+This also confirms the standing claim that `tests/e2e-cli` needs no fixture
+change — it passed unmodified.
+
+### The uncomfortable half: gate-clean is not tested
+
+The same measurement establishes something the plan should not celebrate.
+Nothing under `tests/` or `dev-tooling/` references the guard text at all —
+grepped for both `LIVESPEC_CORE_ROOT/prose` and the current failure message,
+zero hits. The guards are shell inside markdown, executed by the agent at
+runtime, exercised by no test.
+
+So `just check` passing after the substitution does not mean the new guard is
+correct. It means no gate looked. A BROKEN guard would pass equally, which is
+part of how the current one survived: it has been wrong in all eight copies for
+as long as it has existed, and nothing in CI could ever have said so.
+
+Folding `tun` in therefore costs no gate update AND gains no gate protection. The
+behavioural table above is the only verification this change can have today,
+which is an argument for putting those six cases in the changeset description
+rather than leaving them here.
+
+### Scope
+
+Prototype only. The eight `SKILL.md` files were patched in a scratch worktree to
+run the gates and then REVERTED; nothing under `.claude-plugin/` is changed by
+this commit. `tun` remains open and unimplemented, and its suggested disposition
+(keep open, retitle to name the surviving guard defect) is unchanged.
