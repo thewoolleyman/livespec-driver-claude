@@ -67,7 +67,16 @@ and `~/.worktrees`, excluding `*/.git/*`, `*/.pi/*` and `*/.livespec-core/*`:
 
 The separation is total, not merely good. All 22 that score 8/8 are genuine core
 checkouts — `/data/projects/livespec` plus 21 worktrees OF livespec core — so the
-marker matches core across 22 independent checkouts and nothing else. All 292
+marker matches core across 22 independent checkouts and nothing else.
+
+**Re-measured 2026-08-20 (333 roots) and the separation held**, with two method
+upgrades: core identity is now confirmed by `git remote get-url origin` on all 22
+rather than by path inspection, and the ARMING BAND was swept full-host for the
+first time — 311 score 0 on the core-exclusive six, 22 score 6, nothing between,
+and **zero** roots would hard-error. The count moved 314 -> 333 while the
+separation did not, which demonstrates the snapshot-versus-durable distinction
+this file asserts below rather than merely claiming it. See
+`partial-core-checkout-hole.md` §"Full-host validation of the ARMING BAND". All 292
 that score 0/8 are non-core. No candidate anywhere on this host lands in
 between, so there is no threshold to tune and no near-miss to worry about.
 
