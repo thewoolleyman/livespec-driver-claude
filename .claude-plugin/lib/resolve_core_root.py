@@ -47,6 +47,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, NoReturn, TypeAlias, cast
 
+import _resolve_core_root_text as _text
+
 __all__: list[str] = [
     "CoreRootOutcome",
     "CoreRootResolved",
@@ -58,11 +60,6 @@ __all__: list[str] = [
 _OVERRIDE_ENV = "LIVESPEC_CORE_PLUGIN_ROOT"
 _PLUGIN_KEY = "livespec@livespec"
 _REGISTRY_PARTS = (".claude", "plugins", "installed_plugins.json")
-
-_INSTALL_INSTRUCTIONS = (
-    "  claude plugin marketplace add thewoolleyman/livespec\n"
-    "  claude plugin install livespec@livespec --scope project\n"
-)
 
 
 def assert_never(*, value: NoReturn) -> NoReturn:
@@ -229,7 +226,7 @@ def _record_for(*, records: tuple[object, ...], project_root: Path) -> CoreRootO
             return _resolved_from(entry=entry, project_root=project_root)
     return CoreRootUnresolved(
         kind="project_not_installed",
-        detail=_mismatch_detail(project_root=project_root, installed_for=installed_for),
+        detail=_text.mismatch_detail(project_root=project_root, installed_for=installed_for),
     )
 
 
@@ -244,18 +241,6 @@ def _resolved_from(*, entry: dict[str, object], project_root: Path) -> CoreRootO
             ),
         )
     return CoreRootResolved(path=Path(install_path), source="install_record")
-
-
-def _mismatch_detail(*, project_root: Path, installed_for: list[str]) -> str:
-    listed = "\n".join(f"    {other}" for other in installed_for)
-    return (
-        f"livespec core is installed on this host, but NOT for this project.\n"
-        f"  this project root : {project_root}\n"
-        f"  records exist for :\n{listed}\n"
-        "This is a provisioning defect, NOT a stale plugin -- do not run "
-        "`claude plugin update`, which would rewrite a record this project does "
-        "not have. Install core for THIS project:\n" + _INSTALL_INSTRUCTIONS
-    )
 
 
 def resolve_core_root(
@@ -285,7 +270,7 @@ def _diagnostic(*, unresolved: CoreRootUnresolved) -> str:
         case "registry_absent" | "plugin_absent":
             return (
                 f"livespec core is not installed ({unresolved.detail}). Install it:\n"
-                + _INSTALL_INSTRUCTIONS
+                + _text.INSTALL_INSTRUCTIONS
             )
         case "registry_unreadable":
             return (

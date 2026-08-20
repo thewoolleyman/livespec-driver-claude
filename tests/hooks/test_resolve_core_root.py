@@ -37,6 +37,15 @@ _MODULE_PATH = _REPO_ROOT / ".claude-plugin" / "lib" / "resolve_core_root.py"
 
 
 def _load_module() -> ModuleType:
+    # The resolver imports its sibling `_resolve_core_root_text` by bare name.
+    # That works under direct script invocation -- which is how the bindings
+    # call it, and which puts the script's own directory on `sys.path` -- but
+    # NOT under `spec_from_file_location`, which puts nothing on the path. Add
+    # the lib directory so the sibling resolves here the same way it does at
+    # runtime, rather than making the shipped module manipulate its own path.
+    lib_dir = str(_MODULE_PATH.parent)
+    if lib_dir not in sys.path:
+        sys.path.insert(0, lib_dir)
     spec = importlib.util.spec_from_file_location("resolve_core_root", _MODULE_PATH)
     assert spec is not None
     assert spec.loader is not None
