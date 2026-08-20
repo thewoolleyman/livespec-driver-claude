@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.9](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.8...v0.5.9) (2026-08-20)
+
+
+### Bug Fixes
+
+* **skill:** carry --only-topic in the revise invocation forms ([4eb563b](https://github.com/thewoolleyman/livespec-driver-claude/commit/4eb563ba746a1b6f65a7662b12d9c0c166d214c3))
+
 ## [0.5.8](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.7...v0.5.8) (2026-08-19)
 
 
