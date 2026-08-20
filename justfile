@@ -175,6 +175,7 @@ check:
         check-required-role-keys-declared
         check-rop-pipeline-shape
         check-self-hosted-routing
+        check-self-hosted-uv-lane
         check-shell-quality
         check-skill-invocation-paths
         check-source-trees-scoped-to-consumer
@@ -561,3 +562,6 @@ check-plan-epic-parity:
 
 check-plan-no-tombstone:
     uv run python -m livespec_dev_tooling.checks.plan_no_tombstone
+
+check-self-hosted-uv-lane:
+    uv run python -m livespec_dev_tooling.checks.self_hosted_uv_lane
