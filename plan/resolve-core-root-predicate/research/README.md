@@ -93,9 +93,18 @@ not — which is what drives the post-fix behavior change described below.
    `.claude-plugin/lib` in `source_trees`, so the negative test is required by
    the gate, not optional.
 
-2. **LLOC headroom is about 30 logical lines.** `resolve_core_root.py` measures
-   220 against an ARMED 250 hard ceiling. The predicate fits. Bundling the
-   adjacent rule-3 `installPath`-existence hardening does not — keep it out.
+2. **LLOC: the amended predicate does NOT fit. Measured 2026-08-20.**
+   `resolve_core_root.py` measures 220 against an ARMED 250 hard ceiling. A
+   prototype of the RATIFIED three-way design measures **266** — and **255 even
+   without core's required 1-7 diagnostic**, so the predicate does not fit by
+   itself either. Extracting the operator-facing text (`_diagnostic`,
+   `_mismatch_detail`, `_INSTALL_INSTRUCTIONS`) to a sibling module recovers the
+   main file to 213 and was built and RUN, not just counted. Consequence: "land
+   the predicate alone as the smallest changeset" is not available at the current
+   file size — the split is the entry price for every option, not a cost specific
+   to bundling. See `implementation-constraints.md` §"MEASURED: the amended
+   predicate does NOT fit". Bundling the adjacent rule-3 `installPath`-existence
+   hardening still does not fit — keep it out.
 
 3. **The fix will look like a regression on first contact — and the worktree case
    is the NORMAL case.** See `worktree-resolution.md`: spec ops are tracked-file
