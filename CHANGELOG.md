@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.10](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.9...v0.5.10) (2026-08-21)
+
+
+### Bug Fixes
+
+* **lib:** rule 2 must identify livespec core, not any repo shipping prose/ ([515a7c8](https://github.com/thewoolleyman/livespec-driver-claude/commit/515a7c84b66647b2de25c135313030d160fcac24))
+* **skills:** the post-resolve guard must identify core, not a prose dir ([a41ee99](https://github.com/thewoolleyman/livespec-driver-claude/commit/a41ee993eaeb0c2726e6c687deb3b2ed607e974e))
+
+
+### Refactoring
+
+* **lib:** extract core-root operator text to a sibling module ([225adff](https://github.com/thewoolleyman/livespec-driver-claude/commit/225adff1d92a7de388f3384ea5e4374ff81917e7))
+
 ## [0.5.9](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.8...v0.5.9) (2026-08-20)
 
 
