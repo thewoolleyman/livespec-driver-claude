@@ -198,6 +198,27 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: core-root resolution rejects a non-core project checkout",
+    "test": "TODO",
+    "reason": "Added by the core-root-predicate-identifies-livespec-core revision, which replaced rule 2's prose-DIRECTORY test with the three-way predicate over the designated core-exclusive operation-prose evidence set. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py, whose fixtures include a worktree shipping EIGHT prose files of its own that share zero names with core's set \u2014 the case that fails count-based and size-based implementations the naive empty-prose/ fixture lets through. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an incomplete core checkout fails rather than falling back",
+    "test": "TODO",
+    "reason": "Added by the core-root-predicate-identifies-livespec-core revision. This is the ERROR band: a checkout carrying core-exclusive prose without the complete set stops here rather than falling through to the install record, which on a mid-rename core checkout would serve the OLD released prose while the maintainer edits its replacement. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: the incomplete-checkout diagnostic names the recovery",
+    "test": "TODO",
+    "reason": "Added by the core-root-predicate-identifies-livespec-core revision. This scenario pins livespec core's BINDING ratification condition and is deliberately separate from the error-band scenario: a diagnostic that errors correctly while saying nothing about recovery satisfies that one completely, so only a separate assertion pins the text. Without it the error band hard-blocks core's own ratified rename path, which transits the incomplete state while driving the very operations this predicate gates. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the guidance text is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution selects the install record for this project",
     "test": "TODO",
     "reason": "Renamed from '## Scenario: core-root resolution falls back to the installed cache' by the core-root-project-path-selection revision (livespec-dev-tooling-e01t), which replaced positional selection with projectPath selection. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the selection logic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, including the multi-project POSITIVE CONTROL whose FIRST record belongs to a different project \u2014 without which an implementation still reading entries[0] would satisfy every other assertion. Replace TODO with the integration-tier test node ID via a governed revise."
