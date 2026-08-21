@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.11](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.10...v0.5.11) (2026-08-21)
+
+
+### Bug Fixes
+
+* **lib:** rule 3 must walk up to the primary checkout ([512a1c2](https://github.com/thewoolleyman/livespec-driver-claude/commit/512a1c2eb36f51de525138c657e598ab1c578e62))
+
 ## [0.5.10](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.9...v0.5.10) (2026-08-21)
 
 
