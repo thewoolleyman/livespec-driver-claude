@@ -60,6 +60,12 @@ __all__: list[str] = [
 _OVERRIDE_ENV = "LIVESPEC_CORE_PLUGIN_ROOT"
 _PLUGIN_KEY = "livespec@livespec"
 _REGISTRY_PARTS = (".claude", "plugins", "installed_plugins.json")
+# A linked worktree's `.git` is a FILE holding `gitdir: <primary>/.git/worktrees/
+# <name>`; a primary checkout's `.git` is a DIRECTORY. That difference is the whole
+# discriminator, so the walk-up is a filesystem read rather than a `git` subprocess:
+# no PATH dependency, no missing-binary handling, and fixtures that need no git.
+_GITDIR_PREFIX = "gitdir:"
+_WORKTREES_SEGMENT = "/.git/worktrees/"
 
 # Rule 2's marker. `.split()` rather than a literal tuple keeps this inside the
 # file's LLOC ceiling; the names are core's eight operations, which core already
@@ -301,6 +307,33 @@ def _rule_2_outcome(*, checkout: Path) -> CoreRootOutcome | None:
     )
 
 
+def _registry_lookup_root(*, project_root: Path) -> Path:
+    """The root whose install record governs `project_root` -- PRIMARY ALWAYS.
+
+    Worktrees never acquire a record of their own, so without this the mandated
+    workflow -- spec-side writes from `git worktree add` secondaries, because the
+    primary refuses direct commits -- lands in a directory rule 3 cannot resolve.
+
+    The primary wins even when the worktree DOES hold a record. Both worktree
+    records available when this was measured were stale while both owning
+    primaries were current, and the two stale ones read two DIFFERENT builds --
+    which falsifies a shared cause and shows records fossilize per worktree at
+    whatever time each was last used. Own-record-first assumes the record tracks
+    intent; it does not. A deliberate pin is served by rule 1, which is explicit
+    at the call site and does not rot.
+    """
+    pointer = project_root / ".git"
+    try:
+        text = pointer.read_text(encoding="utf-8") if pointer.is_file() else ""
+    except (OSError, UnicodeDecodeError):
+        return project_root
+    if not text.startswith(_GITDIR_PREFIX):
+        return project_root
+    gitdir = text[len(_GITDIR_PREFIX) :].strip()
+    primary, separator, _ = gitdir.partition(_WORKTREES_SEGMENT)
+    return Path(primary) if separator and primary else project_root
+
+
 def resolve_core_root(
     *, project_root: Path, home: Path, environ: Mapping[str, str]
 ) -> CoreRootOutcome:
@@ -318,7 +351,8 @@ def resolve_core_root(
         case _NoRecords():
             return read.unresolved
         case _PluginRecords():
-            return _record_for(records=read.records, project_root=project_root)
+            lookup_root = _registry_lookup_root(project_root=project_root)
+            return _record_for(records=read.records, project_root=lookup_root)
         case _:
             assert_never(value=read)
 
