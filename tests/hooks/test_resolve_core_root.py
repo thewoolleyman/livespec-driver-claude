@@ -470,3 +470,154 @@ def test_evidence_set_is_a_designated_proper_subset_of_the_operation_set() -> No
 
     assert evidence < operations
     assert operations - evidence == {"next", "help"}
+
+
+def _link_worktree(*, worktree: Path, primary: Path) -> None:
+    """Make `worktree` look like a linked git worktree owned by `primary`.
+
+    A linked worktree's `.git` is a FILE holding
+    `gitdir: <primary>/.git/worktrees/<name>`, where a primary checkout's `.git`
+    is a DIRECTORY. That difference is the whole discriminator, so these fixtures
+    need no `git` binary and the resolver needs no subprocess.
+    """
+    worktree.mkdir(parents=True, exist_ok=True)
+    _ = (worktree / ".git").write_text(
+        f"gitdir: {primary}/.git/worktrees/{worktree.name}\n", encoding="utf-8"
+    )
+
+
+def test_worktree_resolves_through_its_primary_checkouts_record(tmp_path: Path) -> None:
+    """THE POPULATION THIS EXISTS FOR: worktrees never acquire registry records.
+
+    Spec-side operations are tracked-file writes, and this fleet mandates they run
+    from `git worktree add` secondaries because the primary refuses direct commits.
+    So the resolver's own workflow puts it in a directory rule 3 cannot resolve.
+    """
+    home = tmp_path / "home"
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    (primary / ".git").mkdir()
+    worktree = tmp_path / "wt" / "feature"
+    _link_worktree(worktree=worktree, primary=primary)
+    _ = _write_registry(
+        home=home,
+        payload=_records(entries=[{"projectPath": str(primary), "installPath": "/cache/CORE"}]),
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=worktree, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootResolved)
+    assert outcome.path == Path("/cache/CORE")
+    assert outcome.source == "install_record"
+
+
+def test_the_primary_record_wins_over_the_worktrees_own(tmp_path: Path) -> None:
+    """PRECEDENCE IS PRIMARY ALWAYS -- a worktree's own record is not a pin.
+
+    Measured: 2 of 2 worktree records on the host were STALE while both owning
+    primaries were current, and the two stale ones read two DIFFERENT builds --
+    which falsifies a shared cause and shows records fossilize per worktree at
+    whatever time each was last used. Own-record-first assumes the record tracks
+    intent; it does not. A deliberate pin is served by rule 1, which is explicit
+    at the call site and does not rot.
+    """
+    home = tmp_path / "home"
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    (primary / ".git").mkdir()
+    worktree = tmp_path / "wt" / "feature"
+    _link_worktree(worktree=worktree, primary=primary)
+    _ = _write_registry(
+        home=home,
+        payload=_records(
+            entries=[
+                {"projectPath": str(worktree), "installPath": "/cache/STALE"},
+                {"projectPath": str(primary), "installPath": "/cache/CURRENT"},
+            ]
+        ),
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=worktree, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootResolved)
+    assert outcome.path == Path("/cache/CURRENT")
+
+
+def test_worktree_whose_primary_holds_no_record_still_reports_the_mismatch(
+    tmp_path: Path,
+) -> None:
+    """THE RESIDUAL: the walk-up rescues the provisioned, never the unprovisioned."""
+    home = tmp_path / "home"
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    (primary / ".git").mkdir()
+    worktree = tmp_path / "wt" / "feature"
+    _link_worktree(worktree=worktree, primary=primary)
+    other = tmp_path / "some-other"
+    other.mkdir()
+    _ = _write_registry(
+        home=home,
+        payload=_records(entries=[{"projectPath": str(other), "installPath": "/cache/OTHER"}]),
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=worktree, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootUnresolved)
+    assert outcome.kind == "project_not_installed"
+    assert str(primary) in _resolver._diagnostic(unresolved=outcome)
+
+
+def test_a_primary_checkout_is_unaffected_by_the_walk_up(tmp_path: Path) -> None:
+    """A `.git` DIRECTORY is not a worktree pointer, so nothing walks anywhere."""
+    home = tmp_path / "home"
+    project = tmp_path / "primary"
+    project.mkdir()
+    (project / ".git").mkdir()
+    _ = _write_registry(
+        home=home,
+        payload=_records(entries=[{"projectPath": str(project), "installPath": "/cache/OWN"}]),
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=project, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootResolved)
+    assert outcome.path == Path("/cache/OWN")
+
+
+def test_a_git_file_that_is_not_a_worktree_pointer_does_not_walk_up(tmp_path: Path) -> None:
+    """Garbage in `.git` must not silently redirect resolution somewhere else."""
+    home = tmp_path / "home"
+    project = tmp_path / "odd"
+    project.mkdir()
+    _ = (project / ".git").write_text("not a gitdir pointer\n", encoding="utf-8")
+    _ = _write_registry(
+        home=home,
+        payload=_records(entries=[{"projectPath": str(project), "installPath": "/cache/OWN"}]),
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=project, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootResolved)
+    assert outcome.path == Path("/cache/OWN")
+
+
+def test_an_unreadable_git_pointer_falls_back_rather_than_raising(tmp_path: Path) -> None:
+    """A `.git` we cannot decode says nothing, so resolution stays where it was.
+
+    Undecodable bytes rather than a chmod, for the same reason the registry
+    fixtures avoid one: a chmod-based unreadability does not fail for a root-run
+    suite, so the guard it is meant to exercise would go untested in CI.
+    """
+    home = tmp_path / "home"
+    project = tmp_path / "odd"
+    project.mkdir()
+    _ = (project / ".git").write_bytes(b"gitdir: \xff\xfe not utf-8")
+    _ = _write_registry(
+        home=home,
+        payload=_records(entries=[{"projectPath": str(project), "installPath": "/cache/OWN"}]),
+    )
+
+    outcome = _resolver.resolve_core_root(project_root=project, home=home, environ={})
+
+    assert isinstance(outcome, _resolver.CoreRootResolved)
+    assert outcome.path == Path("/cache/OWN")
