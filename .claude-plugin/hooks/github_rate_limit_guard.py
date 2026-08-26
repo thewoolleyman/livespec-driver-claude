@@ -5,7 +5,8 @@ Declared in hooks.json on the `Bash` tool. This hook denies only the
 load-bearing conjunctions that exhaust GitHub budgets quickly:
 
 - shell loops or sleeps combined with repeated `gh run`, `gh pr`, or
-  read-only `gh api` calls;
+  UNCACHED read-only `gh api` calls (a `gh api --cache <duration>` read
+  is the remedy this hook prescribes, so it is exempt);
 - shell loops or `xargs` combined with mutating `gh api` calls.
 
 Hook protocol: hook-input JSON on stdin (`tool_name`, `tool_input.command`).
@@ -68,6 +69,15 @@ _MUTATING_METHOD = re.compile(
     r"(?:\s|^)(?:-X|--method)(?:=|\s+)(?P<method>delete|post|patch|put)\b",
     re.IGNORECASE,
 )
+# `gh api --cache <duration>` is the very remedy _READ_DENY_REASON prescribes:
+# a cache hit answers 304, which spends no primary rate-limit budget. Counting
+# it as a rate-limited read denied the agent for obeying the instruction it was
+# just given -- 96 of 615 denials over the 7 days to 2026-08-26 were commands
+# already in the sanctioned cached form.
+#
+# The duration is REQUIRED, not optional: a bare `--cache` is not valid `gh`,
+# so a value that is absent or is the next flag buys no exemption.
+_CACHED_READ = re.compile(r"(?:\s|^)--cache(?:=|\s+)(?!-)(?P<duration>[^\s]+)", re.IGNORECASE)
 
 
 def _utc_timestamp() -> str:
@@ -112,11 +122,14 @@ def _has_mutating_gh_api(*, command: str) -> bool:
 
 
 def _has_read_gh_call(*, command: str) -> bool:
+    # `gh run` / `gh pr` have no response cache, so no flag exempts them.
     if _GH_READ.search(command):
         return True
     for match in _GH_API.finditer(command):
-        if not _MUTATING_METHOD.search(match.group("args")):
-            return True
+        args = match.group("args")
+        if _MUTATING_METHOD.search(args) or _CACHED_READ.search(args):
+            continue
+        return True
     return False
 
 
