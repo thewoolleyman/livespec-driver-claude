@@ -323,3 +323,120 @@ def test_cache_flag_does_not_exempt_a_looped_mutation() -> None:
     event = _stderr_event(result=result)
     assert result.returncode == 2
     assert "mutations cost five points" in str(event)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # A Python heredoc. `for run in runs:` starts a line, which under
+        # MULTILINE reads exactly like shell command position, and `gh pr view`
+        # is text the script PRINTS rather than a command the shell RUNS.
+        "python3 - <<'PY'\nfor run in runs:\n    print(\"gh pr view\", run)\nPY",
+        # The live instance hit while measuring this defect: a heredoc body
+        # carrying both a loop and the guard's own matching regex as a literal.
+        (
+            "python3 - <<'PY'\n"
+            "for c in denied:\n"
+            '    if re.search(r"gh\\s+(?:run|pr|api)", c):\n'
+            '        print("gh pr view", c)\n'
+            "PY"
+        ),
+        # An unquoted delimiter, and a `<<-` terminator indented with a tab.
+        (
+            "cat > /tmp/note.md <<-EOF\n"
+            "for each PR we run gh pr view once, which is the burst to avoid.\n"
+            "\tEOF"
+        ),
+        # A second heredoc opened after the first one closes.
+        (
+            "cat <<A > /tmp/a\nfor a in 1; do gh pr view 1; done\nA\n"
+            "cat <<B > /tmp/b\nsleep 5; gh api repos/acme/p\nB"
+        ),
+    ],
+)
+def test_allows_heredoc_bodies_that_only_look_like_shell_loops(command: str) -> None:
+    """A heredoc body is DATA the shell hands to a program, not commands it runs.
+
+    `_CMD_POS` anchors loop keywords to command position, but every line of a
+    heredoc body begins a line, so under MULTILINE the whole body reads as
+    command position. 31 of the 109 no-`gh`-at-command-position false denials
+    over the 7 days to 2026-08-26 were bodies of exactly this shape.
+    """
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # A multi-line `python3 -c` script: the interpreter is not a shell, so
+        # its `for` is a Python loop and its `gh pr view` is a printed string.
+        "python3 -c \"\nfor run in runs:\n    print('gh pr view', run)\n\"",
+        # `-c` on a non-shell interpreter is a quoted argument like any other.
+        "node -e \"\nfor (const id of ids) {\n  log('gh run view ' + id)\n}\n\"",
+        # A `grep` whose SEARCH PATTERN spells both signals. This exact shape
+        # was refused twice while the defect was being measured.
+        'grep -rnE "gh api|for loop" .',
+        "rg -nE 'sleep 5|gh pr view' .",
+        # A real shell loop whose only `gh` is inside the grep PATTERN it reads
+        # from: the loop runs, but it spends no GitHub budget.
+        "grep -rn 'gh api' logs | while read -r line; do echo \"$line\"; done",
+    ],
+)
+def test_allows_quoted_bodies_and_search_patterns_that_merely_spell_the_tokens(
+    command: str,
+) -> None:
+    """A token inside a quoted string is an ARGUMENT, not a command.
+
+    109 of 615 denials over the 7 days to 2026-08-26 carried no `gh` invocation
+    at command position at all -- `gh` appeared only inside a string, a path or
+    a regex.
+    """
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # A shell interpreter's `-c` payload IS shell, so it is re-read rather
+        # than masked: this is a genuine polling loop over uncached reads.
+        "bash -c 'while true; do gh pr view 7 --json state; sleep 5; done'",
+        'sh -lc "for id in 1 2 3; do gh run view $id; done"',
+        "/bin/bash -c 'for r in a b; do gh api repos/acme/p/pulls/$r; done'",
+        # The mutation-burst shape that hides a `gh api -X PATCH` one quoting
+        # level down from the `xargs` that drives it.
+        "cat ids | xargs -I{} bash -c 'gh api -X PATCH repos/acme/p/issues/{}'",
+        # `<<<` is a HERE-STRING, not a heredoc: nothing after it is a body.
+        "while true; do gh api repos/acme/p <<<'{}'; sleep 5; done",
+        # An escaped quote is a literal character; it must not open a span that
+        # swallows the real loop behind it.
+        'echo \\" ; while true; do gh pr view 1; sleep 5; done',
+        # A trailing backslash must not run the scanner off the end.
+        "while true; do gh pr view 1; sleep 5; done \\",
+    ],
+)
+def test_still_denies_real_loops_over_uncached_reads_after_masking(command: str) -> None:
+    """Masking removes data, never behavior: every true positive still denies."""
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "DENIED by github_rate_limit_guard.py" in str(event)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # An unterminated quote and an unterminated heredoc are shell syntax
+        # errors. The guard resolves them the way the shell reads them -- as an
+        # open span running to the end -- which is the fail-OPEN direction.
+        "echo 'oops ; while true; do gh pr view 1; sleep 5; done",
+        'echo "oops ; while true; do gh pr view 1; sleep 5; done',
+        "cat <<EOF\nfor i in 1 2; do gh pr view $i; done",
+        # An escaped quote INSIDE a double-quoted span does not close it.
+        'echo "say \\"hi\\"; while true; do gh pr view 1; sleep 5; done"',
+    ],
+)
+def test_unbalanced_quoting_fails_open(command: str) -> None:
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)

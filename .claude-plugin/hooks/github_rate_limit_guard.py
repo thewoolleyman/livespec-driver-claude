@@ -9,6 +9,10 @@ load-bearing conjunctions that exhaust GitHub budgets quickly:
   is the remedy this hook prescribes, so it is exempt);
 - shell loops or `xargs` combined with mutating `gh api` calls.
 
+Both verdicts read a MASKED copy of the command in which quoted spans and
+heredoc bodies have been removed, so a token that is data rather than a
+command cannot convict. See `_mask_command` for what survives masking and why.
+
 Hook protocol: hook-input JSON on stdin (`tool_name`, `tool_input.command`).
 Exit 2 denies the tool call and puts the reason on stderr. Exit 0 allows it.
 Every error path returns 0 (fail-open), including crashes and unparseable
@@ -79,6 +83,27 @@ _MUTATING_METHOD = re.compile(
 # so a value that is absent or is the next flag buys no exemption.
 _CACHED_READ = re.compile(r"(?:\s|^)--cache(?:=|\s+)(?!-)(?P<duration>[^\s]+)", re.IGNORECASE)
 
+# A heredoc redirection: `<<EOF`, `<<-EOF`, `<<'PY'`, `<<"PY"`. `<<<` is a
+# HERE-STRING, not a heredoc, and is excluded for free -- its third `<` cannot
+# start the delimiter word.
+_HEREDOC_START = re.compile(
+    r"<<-?\s*(?P<quote>['\"]?)(?P<delimiter>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)"
+)
+# The text immediately before a quoted span, when that span is the script
+# argument of a SHELL interpreter (`sh`, `bash`, `dash`, `ksh`, `zsh`, by bare
+# name or by path) reached through `-c` or a combined form such as `-lc`.
+_SHELL_C_PAYLOAD = re.compile(
+    r"(?:^|[\s;&|(])(?:[\w./-]*/)?(?:ba|da|k|z)?sh\s+(?:-\w+\s+)*-\w*c\s*$",
+    re.IGNORECASE,
+)
+_QUOTES = "'\""
+# A masked span collapses to one WORD character rather than to nothing or to a
+# space. Nothing would JOIN the neighbouring text into a token the author never
+# wrote; a space would erase the fact that an argument stood there at all, so
+# `gh api --cache "10m"` would read as a bare `--cache` -- an UNCACHED read,
+# denied for using the very form the deny message prescribes.
+_MASKED_SPAN = "_"
+
 
 def _utc_timestamp() -> str:
     return datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
@@ -109,6 +134,95 @@ def _load_hook_input(*, raw: str) -> dict[str, object] | None:
         return None
 
 
+def _strip_heredoc_bodies(*, command: str) -> str:
+    """Drop every heredoc body, and its terminator, from the command text.
+
+    A body runs from the line after the redirection to the line whose stripped
+    content is the delimiter. An UNTERMINATED heredoc runs to the end, which is
+    how the shell itself reads it.
+    """
+    lines = command.split("\n")
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        kept.append(line)
+        index += 1
+        for match in _HEREDOC_START.finditer(line):
+            delimiter = match.group("delimiter")
+            while index < len(lines) and lines[index].strip() != delimiter:
+                index += 1
+            index += 1
+    return "\n".join(kept)
+
+
+def _closing_quote_index(*, text: str, quote: str, start: int) -> int:
+    """Index of the quote closing this span, or -1 when the span is unterminated.
+
+    A single-quoted span has no escapes; inside a double-quoted span a
+    backslash escapes the character after it, `"` included.
+    """
+    if quote == "'":
+        return text.find(quote, start)
+    index = start
+    while index < len(text):
+        if text[index] == "\\":
+            index += 2
+            continue
+        if text[index] == quote:
+            return index
+        index += 1
+    return -1
+
+
+def _mask_quoted_spans(*, text: str) -> str:
+    """Replace each quoted span with `_MASKED_SPAN`, keeping shell `-c` payloads."""
+    masked: list[str] = []
+    index = 0
+    while index < len(text):
+        character = text[index]
+        if character == "\\":
+            masked.append(text[index : index + 2])
+            index += 2
+            continue
+        if character not in _QUOTES:
+            masked.append(character)
+            index += 1
+            continue
+        end = _closing_quote_index(text=text, quote=character, start=index + 1)
+        body = text[index + 1 :] if end < 0 else text[index + 1 : end]
+        if _SHELL_C_PAYLOAD.search("".join(masked)):
+            masked.append(f"\n{_mask_command(command=body)}\n")
+        else:
+            masked.append(_MASKED_SPAN)
+        index = len(text) if end < 0 else end + 1
+    return "".join(masked)
+
+
+def _mask_command(*, command: str) -> str:
+    """Reduce the command to the text the SHELL will execute.
+
+    `_CMD_POS` anchors a loop keyword to command position, but under MULTILINE
+    every line of a heredoc body and every line of a quoted interpreter script
+    begins a line, so the whole body reads as command position. The guard could
+    not tell a shell loop from a Python loop, nor a command from a quoted
+    argument: 109 of 615 denials over the 7 days to 2026-08-26 carried NO `gh`
+    invocation at command position at all -- `gh` appeared only inside a string,
+    a path or a regex -- and 31 of those were heredoc or quoted-script bodies.
+    A `grep` whose SEARCH PATTERN spelled `gh api|for loop` was denied for the
+    pattern it was searching FOR.
+
+    The ONE quoted span that survives is a shell interpreter's `-c` payload:
+    `cat ids | xargs -I{} bash -c 'gh api -X PATCH ...'` is a genuine mutation
+    burst hiding one quoting level down, so that body is masked recursively and
+    spliced back between newlines, where its own command positions read
+    normally. A heredoc fed to a shell is NOT re-read: the measured population
+    is Python, jq and Markdown bodies, and treating a heredoc body as data is
+    the contract this guard is held to.
+    """
+    return _mask_quoted_spans(text=_strip_heredoc_bodies(command=command))
+
+
 def _has_loop_or_sleep(*, command: str) -> bool:
     return bool(_LOOP_OR_SLEEP.search(command))
 
@@ -134,9 +248,10 @@ def _has_read_gh_call(*, command: str) -> bool:
 
 
 def _deny_reason(*, command: str) -> str | None:
-    if _has_loop_or_xargs(command=command) and _has_mutating_gh_api(command=command):
+    masked = _mask_command(command=command)
+    if _has_loop_or_xargs(command=masked) and _has_mutating_gh_api(command=masked):
         return _MUTATION_DENY_REASON
-    if _has_loop_or_sleep(command=command) and _has_read_gh_call(command=command):
+    if _has_loop_or_sleep(command=masked) and _has_read_gh_call(command=masked):
         return _READ_DENY_REASON
     return None
 
