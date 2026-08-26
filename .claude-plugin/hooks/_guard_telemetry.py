@@ -161,20 +161,24 @@ def post_span(
     surface into the guard's verdict: `OSError` covers connection-refused, DNS
     and timeout, `URLError` its urllib wrapper, and `ValueError` a malformed
     endpoint. On success or failure it returns None.
+
+    The `Request` CONSTRUCTION is inside the suppression, not above it. An
+    endpoint with no scheme -- `LIVESPEC_SANDBOX_OTEL_ENDPOINT=collector:4318`,
+    say -- raises `ValueError: unknown url type` right there, before any
+    connection is attempted. Built outside, that raise escapes to the hook's
+    fail-open boundary, which exits 0: a misspelt environment variable would
+    silently turn every DENY into an ALLOW. Measured, not hypothesised -- the
+    pass-through test caught exactly this.
     """
-    # The endpoint is a fixed http(s) receiver URL taken from the environment,
-    # never a caller-supplied scheme, so no non-http handler is reachable here.
-    request = urllib.request.Request(
-        url=f"{endpoint}/v1/traces",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with (
-        contextlib.suppress(urllib.error.URLError, OSError, ValueError),
-        urllib.request.urlopen(request, timeout=timeout) as response,
-    ):
-        _ = response.read()
+    with contextlib.suppress(urllib.error.URLError, OSError, ValueError):
+        request = urllib.request.Request(
+            url=f"{endpoint}/v1/traces",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            _ = response.read()
 
 
 def emit_verdict(

@@ -687,9 +687,9 @@ _REPLAY_VECTORS = _replay_vectors()
 def _observed_verdict(*, vector: ReplayVector) -> str:
     """Replay one vector through the real hook boundary and name what it did.
 
-    The verdict is read off the hook's EXIT STATUS rather than off
-    `_deny_reason`, so the fixture pins the behaviour a governed repo actually
-    sees -- a deny that never reaches exit 2 is not a deny.
+    The verdict is read off the hook's EXIT STATUS rather than off the
+    decision function, so the fixture pins the behaviour a governed repo
+    actually sees -- a deny that never reaches exit 2 is not a deny.
     """
     result = _run(stdin=_bash_input(command=vector.command))
     if result.returncode == 0:
@@ -787,3 +787,135 @@ def test_replay_corpus_carries_no_credentials_session_ids_or_private_paths() -> 
     text = _CORPUS_PATH.read_text(encoding="utf-8")
     assert _UNREDACTED_SECRET.search(text) is None
     assert _UNREDACTED_PRIVATE_PATH.search(text) is None
+
+
+# ---------------------------------------------------------------------------
+# Verdict telemetry. The 40.5% figure above had to be derived by replaying the
+# decision function over a week of local transcripts, because the guard emitted
+# nothing on the ALLOW path and nothing at all off the machine. The guard now
+# emits one structured verdict record per Bash call, so the false-positive
+# signature -- a `rate_limited` verdict that found no `gh` at command position
+# -- is a query rather than an investigation.
+# ---------------------------------------------------------------------------
+
+_ENDPOINT_ENV = "LIVESPEC_SANDBOX_OTEL_ENDPOINT"
+
+
+@dataclass(frozen=True, kw_only=True)
+class VerdictRecord:
+    matched_rule: str | None
+    gh_cached: bool
+    gh_at_command_position: bool
+
+
+def _recorded_verdicts(
+    *, monkeypatch: pytest.MonkeyPatch, command: str
+) -> tuple[HookResult, list[VerdictRecord]]:
+    hook = _load_hook()
+    assert hasattr(hook, "emit_verdict"), "the guard does not emit a verdict record at all"
+    records: list[VerdictRecord] = []
+
+    def _capture(
+        *, matched_rule: str | None, gh_cached: bool, gh_at_command_position: bool
+    ) -> None:
+        records.append(
+            VerdictRecord(
+                matched_rule=matched_rule,
+                gh_cached=gh_cached,
+                gh_at_command_position=gh_at_command_position,
+            )
+        )
+
+    monkeypatch.setattr(hook, "emit_verdict", _capture)
+    return _run_loaded(hook=hook, stdin=_bash_input(command=command)), records
+
+
+@pytest.mark.parametrize(
+    ("command", "matched_rule"),
+    [
+        ("while true; do gh pr view 7 --json headRefOid; done", "loop+read"),
+        ('for id in $(seq 1 20); do gh run view "$id" --json status; done', "loop+read"),
+        ("for id in 1 2; do gh run view $id --json status; sleep 5; done", "sleep+read"),
+        (
+            "printf '%s\\n' 1 2 | xargs -I{} gh api --method PATCH repos/acme/project/issues/{}",
+            "loop+mutation",
+        ),
+    ],
+    ids=["unbounded-loop", "unreadable-bound", "sleeping-loop", "xargs-mutation"],
+)
+def test_a_denied_command_emits_the_rule_that_convicted_it(
+    monkeypatch: pytest.MonkeyPatch, command: str, matched_rule: str
+) -> None:
+    result, records = _recorded_verdicts(monkeypatch=monkeypatch, command=command)
+
+    assert result.returncode == 2
+    assert [record.matched_rule for record in records] == [matched_rule]
+    assert records[0].gh_at_command_position is True
+
+
+def test_an_allowed_command_emits_a_verdict_record_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without the allow half there is no denominator, and no near-miss visibility."""
+    result, records = _recorded_verdicts(
+        monkeypatch=monkeypatch, command="gh pr view 123 --json headRefOid"
+    )
+
+    _assert_allowed(result=result)
+    assert len(records) == 1
+    assert records[0].matched_rule is None
+    assert records[0].gh_at_command_position is True
+
+
+def test_the_record_reports_a_read_already_in_the_sanctioned_cached_form(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, records = _recorded_verdicts(
+        monkeypatch=monkeypatch,
+        command="for r in $(cat refs); do gh api --cache 10m repos/acme/project/pulls; done",
+    )
+
+    _assert_allowed(result=result)
+    assert records[0].gh_cached is True
+    assert records[0].matched_rule is None
+
+
+def test_the_false_positive_signature_is_a_command_with_no_gh_at_command_position(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`gh` spelled inside a search pattern is text, not an invocation.
+
+    This is bucket b2 of the replay corpus -- the largest false-positive family.
+    The guard no longer denies it, and the record now SAYS why: no `gh` ran.
+    """
+    result, records = _recorded_verdicts(
+        monkeypatch=monkeypatch,
+        command="for f in a b; do grep -n gh_api_helper $f; done",
+    )
+
+    _assert_allowed(result=result)
+    assert records[0].gh_at_command_position is False
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["http://127.0.0.1:1", "not-a-url", ""],
+    ids=["refused", "malformed", "empty"],
+)
+def test_a_telemetry_failure_is_a_silent_pass_through_that_never_moves_the_verdict(
+    monkeypatch: pytest.MonkeyPatch, endpoint: str
+) -> None:
+    """The real emit path, against a receiver that cannot answer.
+
+    No mock: the guard builds a real payload and attempts a real POST. The
+    verdict, the exit code and the stderr deny record must all be exactly what
+    they are when the receiver is healthy.
+    """
+    monkeypatch.setenv(_ENDPOINT_ENV, endpoint)
+
+    denied = _run(stdin=_bash_input(command=_UNCACHED_LOOPED_READ))
+    allowed = _run(stdin=_bash_input(command="gh pr view 123 --json headRefOid"))
+
+    assert denied.returncode == 2
+    assert "gh api --cache <duration>" in str(_stderr_event(result=denied))
+    _assert_allowed(result=allowed)
