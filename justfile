@@ -112,6 +112,18 @@ ensure-plugins:
 ensure-codex-plugins:
     bash dev-tooling/just/ensure-codex-plugins.sh
 
+# Confirm the shipped `github_rate_limit_guard.py` is IN FORCE — not merely
+# released — in every governed repo this host installed the Driver into.
+# Reads `~/.claude/plugins/installed_plugins.json` (the install RECORD, never a
+# provisioning command's exit status, per livespec contracts.md "Install
+# verification") and replays the committed regression corpus through the hook
+# body each record's `installPath` actually carries. Deliberately NOT in the
+# `check` aggregate: its subject is host install state, which CI does not have,
+# and it fails closed when there is no record to read.
+[positional-arguments]
+verify-guard-rollout *args:
+    python3 dev-tooling/bin/verify_guard_rollout.py "$@"
+
 # ---------------------------------------------------------------
 # Enforcement aggregate.
 # ---------------------------------------------------------------

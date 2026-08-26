@@ -282,6 +282,9 @@ supervisor_entry_files = [
     ".claude-plugin/lib/resolve_core_root.py",
     # Repo-local check entry point invoked from the justfile.
     "dev-tooling/bin/check_spec_governance_default_block.py",
+    # Repo-local rollout verifier entry point invoked from the justfile
+    # (`just verify-guard-rollout`); same entry-point shape as its sibling.
+    "dev-tooling/bin/verify_guard_rollout.py",
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
