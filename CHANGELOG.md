@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.13](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.12...v0.5.13) (2026-08-26)
+
+
+### Bug Fixes
+
+* **hooks:** mask heredoc, quoted and `sh -c` bodies before rate-limit matching ([c0814ac](https://github.com/thewoolleyman/livespec-driver-claude/commit/c0814acb416bed5b390ec4866120ca49c362c5ff))
+
 ## [0.5.12](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.11...v0.5.12) (2026-08-26)
 
 
