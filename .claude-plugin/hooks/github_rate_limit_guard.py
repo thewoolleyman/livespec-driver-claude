@@ -4,14 +4,38 @@
 Declared in hooks.json on the `Bash` tool. This hook denies only the
 load-bearing conjunctions that exhaust GitHub budgets quickly:
 
-- shell loops or sleeps combined with repeated `gh run`, `gh pr`, or
-  UNCACHED read-only `gh api` calls (a `gh api --cache <duration>` read
-  is the remedy this hook prescribes, so it is exempt);
+- `gh run`, `gh pr`, or UNCACHED read-only `gh api` calls driven by a loop
+  whose iteration count is NOT readable off the command text, or by a loop
+  that sleeps between iterations (a `gh api --cache <duration>` read is the
+  remedy this hook prescribes, so it is exempt);
 - shell loops or `xargs` combined with mutating `gh api` calls.
 
 Both verdicts read a MASKED copy of the command in which quoted spans and
 heredoc bodies have been removed, so a token that is data rather than a
 command cannot convict. See `_mask_command` for what survives masking and why.
+
+The read verdict EXEMPTS a bounded literal loop: a `for NAME in <items>` whose
+items are plain literal words -- no parameter expansion, no command
+substitution, no glob, no brace expansion -- and which lists at most 10 of
+them. `for id in 1 2 3 4 5 6` is six calls, and a read costs one point against
+the same 900-point-per-minute primary ceiling the mutation verdict cites, so
+ten reads spend about one percent of it even when the shell issues them all in
+the same second. Ten is the threshold because it sits far below the point
+where the count could matter AND about where a hand-typed list stops: past it
+an author reaches for `$(seq ...)`, a glob, or a variable, whose sizes are NOT
+readable from the text and which therefore stay denied at any apparent size.
+The load-bearing property is that the iteration count is LEGIBLE, not the
+exact number, so the threshold is a judgement call rather than a derived
+constant.
+
+The exemption covers ENUMERATION, not POLLING. A `sleep` inside a loop body
+means the loop is waiting for state to change rather than fetching a known
+list, so it denies at any size. Conversely a `sleep` OUTSIDE every loop body
+-- `sleep 30; gh api ...`, one polite poll -- no longer denies at all: 44 of
+615 denials over the 7 days to 2026-08-26 were exactly that shape. `while`,
+`until` and `select` carry no readable bound and are denied unchanged, as is
+the whole mutation verdict -- a mutation costs five points, so even a
+two-iteration literal loop over mutations stays denied.
 
 Hook protocol: hook-input JSON on stdin (`tool_name`, `tool_input.command`).
 Exit 2 denies the tool call and puts the reason on stderr. Exit 0 allows it.
@@ -34,9 +58,11 @@ from typing import cast
 __all__: list[str] = []
 
 _READ_DENY_REASON = (
-    "DENIED by github_rate_limit_guard.py: looped or sleeping GitHub reads "
+    "DENIED by github_rate_limit_guard.py: GitHub reads driven by a loop with "
+    "no readable iteration bound, or by a loop that sleeps between iterations, "
     "must use the cached alternative `gh api --cache <duration>`; a 304 "
-    "response costs no primary rate-limit budget."
+    "response costs no primary rate-limit budget. A loop over a literal list of "
+    "at most ten items, with no sleep in its body, needs no change."
 )
 _MUTATION_DENY_REASON = (
     "DENIED by github_rate_limit_guard.py: looped or xargs-fed mutating "
@@ -59,14 +85,30 @@ _CMD_POS = r"(?:^|[;&|]\s*|\bdo\s+|\bthen\s+)"
 _SHELL_SELECT = rf"{_CMD_POS}select\s+[A-Z_][A-Z0-9_]*(?=\s+(?:in|do)\b|\s*;)"
 _SHELL_LOOP = rf"{_CMD_POS}(?:for|while|until)\b"
 _SHELL_SLEEP = rf"{_CMD_POS}sleep\b"
-_LOOP_OR_SLEEP = re.compile(
-    rf"{_SHELL_LOOP}|{_SHELL_SELECT}|{_SHELL_SLEEP}",
-    re.IGNORECASE | re.MULTILINE,
-)
 _LOOP_OR_XARGS = re.compile(
     rf"{_SHELL_LOOP}|{_CMD_POS}xargs\b|{_SHELL_SELECT}",
     re.IGNORECASE | re.MULTILINE,
 )
+# A loop whose iteration count cannot be read off the command text at all:
+# `while` and `until` run until a condition flips, and `select` re-prompts
+# until the user breaks out. No apparent size makes any of them bounded.
+_UNBOUNDED_LOOP = re.compile(
+    rf"{_CMD_POS}(?:while|until)\b|{_SHELL_SELECT}",
+    re.IGNORECASE | re.MULTILINE,
+)
+# A `for` loop and the header text between the keyword and the `do`.
+_FOR_LOOP = re.compile(rf"{_CMD_POS}for\b(?P<header>[^\n;]*)", re.IGNORECASE | re.MULTILINE)
+# `for NAME in <items>` is the ONE loop header that writes its own iteration
+# count out in full. A C-style `for ((...))` header and the argument-less
+# `for NAME; do` (which iterates the positional parameters) both fail to match.
+_FOR_IN_HEADER = re.compile(r"^\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+(?P<items>\S.*?)\s*$")
+# One item of a literal list. A `$`, a backtick, a glob metacharacter or a
+# brace makes the shell expand the word into an unknown number of words, so it
+# disqualifies the whole list.
+_LITERAL_ITEM = re.compile(r"^[A-Za-z0-9_@%+=:,./^-]+$")
+_SLEEP = re.compile(_SHELL_SLEEP, re.IGNORECASE | re.MULTILINE)
+_DO_OR_DONE = re.compile(rf"{_CMD_POS}(?P<word>do|done)\b", re.IGNORECASE | re.MULTILINE)
+_MAX_LITERAL_ITERATIONS = 10
 _GH_READ = re.compile(r"\bgh\s+(?:run|pr)\b", re.IGNORECASE)
 _GH_API = re.compile(r"\bgh\s+api\b(?P<args>[^\n;&|]*)", re.IGNORECASE)
 _MUTATING_METHOD = re.compile(
@@ -223,8 +265,58 @@ def _mask_command(*, command: str) -> str:
     return _mask_quoted_spans(text=_strip_heredoc_bodies(command=command))
 
 
-def _has_loop_or_sleep(*, command: str) -> bool:
-    return bool(_LOOP_OR_SLEEP.search(command))
+def _is_bounded_literal_for(*, header: str) -> bool:
+    """Whether a `for` header enumerates a short, fully literal word list.
+
+    A masked span is rejected outright: `"$@"` and `"${refs[@]}"` mask to the
+    same single token as `"main"` yet expand to as many words as the caller
+    supplied, so the guard cannot count what it deliberately cannot see.
+    """
+    match = _FOR_IN_HEADER.match(header)
+    if match is None:
+        return False
+    items = match.group("items").split()
+    return len(items) <= _MAX_LITERAL_ITERATIONS and all(
+        item != _MASKED_SPAN and _LITERAL_ITEM.match(item) for item in items
+    )
+
+
+def _loop_body_spans(*, command: str) -> list[tuple[int, int]]:
+    """Character ranges of every `do ... done` body, innermost range first.
+
+    An unterminated `do` runs to the end of the command, which is how far the
+    shell would read it. A `done` with no open `do` is a shell syntax error; it
+    closes nothing, so it is skipped rather than opening a range backwards.
+    """
+    opened: list[int] = []
+    spans: list[tuple[int, int]] = []
+    for match in _DO_OR_DONE.finditer(command):
+        if match.group("word").lower() == "do":
+            opened.append(match.end())
+        elif opened:
+            spans.append((opened.pop(), match.start()))
+    spans.extend([(start, len(command)) for start in opened])
+    return spans
+
+
+def _has_sleep_in_loop_body(*, command: str) -> bool:
+    spans = _loop_body_spans(command=command)
+    return any(
+        any(start <= match.start() < end for start, end in spans)
+        for match in _SLEEP.finditer(command)
+    )
+
+
+def _has_read_hazard(*, command: str) -> bool:
+    """Whether the command drives GitHub reads at a rate the guard denies."""
+    if _UNBOUNDED_LOOP.search(command):
+        return True
+    if any(
+        not _is_bounded_literal_for(header=match.group("header"))
+        for match in _FOR_LOOP.finditer(command)
+    ):
+        return True
+    return _has_sleep_in_loop_body(command=command)
 
 
 def _has_loop_or_xargs(*, command: str) -> bool:
@@ -251,7 +343,7 @@ def _deny_reason(*, command: str) -> str | None:
     masked = _mask_command(command=command)
     if _has_loop_or_xargs(command=masked) and _has_mutating_gh_api(command=masked):
         return _MUTATION_DENY_REASON
-    if _has_loop_or_sleep(command=masked) and _has_read_gh_call(command=masked):
+    if _has_read_hazard(command=masked) and _has_read_gh_call(command=masked):
         return _READ_DENY_REASON
     return None
 
