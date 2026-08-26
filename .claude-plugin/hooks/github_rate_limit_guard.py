@@ -42,9 +42,20 @@ Exit 2 denies the tool call and puts the reason on stderr. Exit 0 allows it.
 Every error path returns 0 (fail-open), including crashes and unparseable
 input, because a failing plugin-shipped hook can wedge every governed repo.
 
+Every Bash call also emits ONE verdict record through the sibling
+`_guard_telemetry` module -- on the allow path as well as the deny path --
+carrying the rule that convicted (`loop+read` / `sleep+read` / `loop+mutation`,
+or `none`), whether the command was already in the sanctioned cached form, and
+whether a `gh` invocation sat where the shell would execute it. That last field
+is the audit: a `rate_limited` verdict that found no `gh` at command position IS
+a false positive by definition, so the rate this guard was last measured at
+becomes a query rather than a transcript replay. Emission happens after the exit
+code is decided and cannot change it; see `_guard_telemetry` for the transport
+decision and the fail-open argument.
+
 Self-contained by contract: the plugin installer ships this file under bare
-system `python3` with no virtualenv and no third-party packages, so every
-import here is from the standard library.
+system `python3` with no virtualenv and no third-party packages, so every import
+here is from the standard library or a sibling module shipped beside it.
 """
 
 from __future__ import annotations
@@ -54,6 +65,8 @@ import re
 import sys
 from datetime import datetime, timezone
 from typing import cast
+
+from _guard_telemetry import emit_verdict
 
 __all__: list[str] = []
 
@@ -71,6 +84,18 @@ _MUTATION_DENY_REASON = (
     "about one hundred eighty per minute trips it regardless of hourly budget; "
     "at least one second between mutations is required."
 )
+# The three conjunctions this guard convicts on, named so a verdict record can
+# say WHICH one fired. The two read rules share one deny message -- the remedy
+# is the same -- but they are different mistakes, and a dataset that cannot
+# separate them cannot say which is over-convicting.
+_LOOP_READ_RULE = "loop+read"
+_SLEEP_READ_RULE = "sleep+read"
+_LOOP_MUTATION_RULE = "loop+mutation"
+_DENY_REASONS = {
+    _LOOP_READ_RULE: _READ_DENY_REASON,
+    _SLEEP_READ_RULE: _READ_DENY_REASON,
+    _LOOP_MUTATION_RULE: _MUTATION_DENY_REASON,
+}
 
 # A loop keyword only starts a loop in COMMAND POSITION: at the beginning of
 # a line, after a `;`/`&`/`|` separator, or after `do`/`then`. Matching the
@@ -124,6 +149,19 @@ _MUTATING_METHOD = re.compile(
 # The duration is REQUIRED, not optional: a bare `--cache` is not valid `gh`,
 # so a value that is absent or is the next flag buys no exemption.
 _CACHED_READ = re.compile(r"(?:\s|^)--cache(?:=|\s+)(?!-)(?P<duration>[^\s]+)", re.IGNORECASE)
+# A `gh` the shell would actually EXECUTE, as opposed to one that is merely
+# spelled: command position, or the command word `xargs` runs. This is NOT the
+# predicate the verdict is computed from -- it is the one the verdict is
+# AUDITED by. A `rate_limited` verdict whose command carried no `gh` here is a
+# false positive by definition, which is the whole point of emitting it: 109 of
+# the 615 denials over the 7 days to 2026-08-26 were of exactly that shape,
+# before masking landed, and it took a transcript replay to find that out.
+# A subcommand is required so a bare word
+# (`gh-pages`, `--author=gh`) cannot read as an invocation.
+_GH_AT_COMMAND_POSITION = re.compile(
+    rf"(?:{_CMD_POS}|\bxargs\s+(?:-\S+\s+)*)(?:[\w./-]*/)?gh\s+(?:api|run|pr)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 # A heredoc redirection: `<<EOF`, `<<-EOF`, `<<'PY'`, `<<"PY"`. `<<<` is a
 # HERE-STRING, not a heredoc, and is excluded for free -- its third `<` cannot
@@ -307,16 +345,14 @@ def _has_sleep_in_loop_body(*, command: str) -> bool:
     )
 
 
-def _has_read_hazard(*, command: str) -> bool:
-    """Whether the command drives GitHub reads at a rate the guard denies."""
+def _has_unbounded_loop(*, command: str) -> bool:
+    """Whether any loop here drives an iteration count the text does not state."""
     if _UNBOUNDED_LOOP.search(command):
         return True
-    if any(
+    return any(
         not _is_bounded_literal_for(header=match.group("header"))
         for match in _FOR_LOOP.finditer(command)
-    ):
-        return True
-    return _has_sleep_in_loop_body(command=command)
+    )
 
 
 def _has_loop_or_xargs(*, command: str) -> bool:
@@ -339,12 +375,27 @@ def _has_read_gh_call(*, command: str) -> bool:
     return False
 
 
-def _deny_reason(*, command: str) -> str | None:
-    masked = _mask_command(command=command)
+def _has_cached_gh_api(*, command: str) -> bool:
+    return any(_CACHED_READ.search(match.group("args")) for match in _GH_API.finditer(command))
+
+
+def _matched_rule(*, masked: str) -> str | None:
+    """Which conjunction convicts this command, or None when none does.
+
+    The rule NAMES the verdict rather than merely producing it, because the
+    name is what the telemetry record carries: `_DENY_REASONS` collapses the
+    two read conjunctions onto one message -- the remedy is the same -- and a
+    dataset that cannot tell an unbounded loop from a polling sleep cannot say
+    which of them is over-convicting.
+    """
     if _has_loop_or_xargs(command=masked) and _has_mutating_gh_api(command=masked):
-        return _MUTATION_DENY_REASON
-    if _has_read_hazard(command=masked) and _has_read_gh_call(command=masked):
-        return _READ_DENY_REASON
+        return _LOOP_MUTATION_RULE
+    if not _has_read_gh_call(command=masked):
+        return None
+    if _has_unbounded_loop(command=masked):
+        return _LOOP_READ_RULE
+    if _has_sleep_in_loop_body(command=masked):
+        return _SLEEP_READ_RULE
     return None
 
 
@@ -365,16 +416,25 @@ def _guard(*, raw_input: str) -> int:
     command = tool_input.get("command")
     if not isinstance(command, str):
         return 0
-    reason = _deny_reason(command=command)
-    if reason is None:
-        return 0
-    _log_event(
-        level="error",
-        check_id="github-rate-limit-guard-deny",
-        event=reason,
-        command=command,
+    masked = _mask_command(command=command)
+    rule = _matched_rule(masked=masked)
+    exit_code = 0 if rule is None else 2
+    if rule is not None:
+        _log_event(
+            level="error",
+            check_id="github-rate-limit-guard-deny",
+            event=_DENY_REASONS[rule],
+            command=command,
+        )
+    # LAST, and after `exit_code` is already decided: the verdict is settled
+    # and the operator-facing deny record is already written, so a telemetry
+    # outage can only cost the record, never the decision.
+    emit_verdict(
+        matched_rule=rule,
+        gh_cached=_has_cached_gh_api(command=masked),
+        gh_at_command_position=bool(_GH_AT_COMMAND_POSITION.search(masked)),
     )
-    return 2
+    return exit_code
 
 
 def main() -> int:
