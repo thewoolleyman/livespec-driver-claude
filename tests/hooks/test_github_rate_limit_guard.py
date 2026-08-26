@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
@@ -18,6 +19,10 @@ __all__: list[str] = []
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _HOOKS_DIR = _REPO_ROOT / ".claude-plugin" / "hooks"
 _HOOK_SCRIPT = _HOOKS_DIR / "github_rate_limit_guard.py"
+
+_BACKTICKED = re.compile(r"`([^`]+)`")
+_PLACEHOLDER = re.compile(r"<[^>]+>")
+_UNCACHED_LOOPED_READ = "while true; do gh api repos/acme/project/pulls/1; sleep 5; done"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -229,6 +234,92 @@ def test_denies_multiline_polling_github_reads(command: str) -> None:
 )
 def test_denies_multiline_looped_github_mutations(command: str) -> None:
     result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "mutations cost five points" in str(event)
+
+
+def _prescribed_remedy(*, message: str) -> str:
+    """Extract the one backticked command the read-deny message prescribes."""
+    quoted = _BACKTICKED.findall(message)
+    assert len(quoted) == 1, f"read-deny message must prescribe exactly one remedy: {message}"
+    return quoted[0]
+
+
+def test_read_deny_message_prescribes_a_remedy_the_decision_logic_allows() -> None:
+    """The message and the decision logic are pinned to each other.
+
+    `_READ_DENY_REASON` tells the agent to switch to a cached read; if
+    `_has_read_gh_call` does not honour that exact form, the agent is denied
+    for obeying the instruction it was just given. This test reads the remedy
+    OUT of the live deny message rather than restating it, so an edit that
+    changes what the message prescribes without teaching the logic to allow it
+    fails here.
+    """
+    denied = _run(stdin=_bash_input(command=_UNCACHED_LOOPED_READ))
+    assert denied.returncode == 2
+    prescribed = _prescribed_remedy(message=str(_stderr_event(result=denied)["event"]))
+    remedy = _PLACEHOLDER.sub("10m", prescribed)
+    assert "<" not in remedy, f"unsubstituted placeholder in prescribed remedy: {prescribed}"
+    allowed = _run(
+        stdin=_bash_input(command=f"while true; do {remedy} repos/acme/p; sleep 5; done")
+    )
+    _assert_allowed(result=allowed)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # The prescribed form, in every shape a caller writes it. A cache hit
+        # answers 304, which spends no primary rate-limit budget -- the guard's
+        # own stated rationale for prescribing it.
+        "for r in a b c; do gh api --cache 10m repos/acme/project/pulls/$r; done",
+        "sleep 30; gh api --cache 5m repos/acme/project/actions/runs",
+        "while true; do gh api --cache=1h repos/acme/project/pulls/1; sleep 5; done",
+        # Several reads in one loop body, every one of them cached.
+        (
+            "cd /repo\nfor r in a b; do gh api --cache 10m repos/acme/p/pulls/$r; "
+            "gh api --cache 10m repos/acme/p/issues/$r; done"
+        ),
+    ],
+)
+def test_allows_looped_reads_whose_every_gh_api_is_cached(command: str) -> None:
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # One uncached `gh api` in the loop body still spends budget.
+        (
+            "for r in a b; do gh api --cache 10m repos/acme/p/pulls/$r; "
+            "gh api repos/acme/p/issues/$r; done"
+        ),
+        # `gh run` / `gh pr` have no response cache, so `--cache` on a
+        # NEIGHBOURING `gh api` cannot exempt them.
+        "while true; do gh api --cache 10m repos/acme/p; gh pr view 7 --json state; sleep 5; done",
+        "for id in 1 2; do gh api --cache 10m repos/acme/p; gh run view $id; done",
+        # A bare `--cache` with no duration is not the sanctioned form (and is
+        # not even valid `gh`), so it must not buy an exemption.
+        "while true; do gh api --cache; sleep 5; done",
+        "while true; do gh api --cache --jq .id repos/acme/p; sleep 5; done",
+    ],
+)
+def test_still_denies_looped_reads_with_any_uncached_gh_call(command: str) -> None:
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+def test_cache_flag_does_not_exempt_a_looped_mutation() -> None:
+    """`--cache` is meaningless on a mutation; the mutation deny path is unchanged."""
+    result = _run(
+        stdin=_bash_input(
+            command="for ref in a b; do gh api --cache 10m -X POST repos/acme/p/git/refs; done"
+        )
+    )
     event = _stderr_event(result=result)
     assert result.returncode == 2
     assert "mutations cost five points" in str(event)
