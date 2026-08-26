@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.12](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.11...v0.5.12) (2026-08-26)
+
+
+### Bug Fixes
+
+* **hooks:** exempt `gh api --cache` from the rate-limit read-deny path ([dd3b301](https://github.com/thewoolleyman/livespec-driver-claude/commit/dd3b301a6dee90ca39b1961531f36135d77e6969))
+
 ## [0.5.11](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.10...v0.5.11) (2026-08-21)
 
 
