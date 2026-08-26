@@ -23,6 +23,10 @@ _HOOK_SCRIPT = _HOOKS_DIR / "github_rate_limit_guard.py"
 _BACKTICKED = re.compile(r"`([^`]+)`")
 _PLACEHOLDER = re.compile(r"<[^>]+>")
 _UNCACHED_LOOPED_READ = "while true; do gh api repos/acme/project/pulls/1; sleep 5; done"
+# The literal-iteration threshold the hook's module docstring records and its
+# decision logic enforces. Restated here rather than imported, so an edit that
+# moves the number in one place and not the other fails the pinning test below.
+_LITERAL_ITERATION_THRESHOLD = 10
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -79,9 +83,11 @@ def _assert_allowed(*, result: HookResult) -> None:
     "command",
     [
         "while true; do gh pr view 7 --json headRefOid; sleep 5; done",
-        'for id in 1 2; do gh run view "$id" --json status; done',
+        'for id in $(seq 1 20); do gh run view "$id" --json status; done',
         "until gh api repos/acme/project/actions/runs; do sleep 2; done",
-        "sleep 10 && gh api repos/acme/project/pulls/1",
+        # A literal list is bounded, but a `sleep` in the body makes it a POLL
+        # rather than an enumeration, so the bounded exemption does not apply.
+        "for id in 1 2; do gh run view $id --json status; sleep 5; done",
     ],
 )
 def test_denies_polling_github_reads(command: str) -> None:
@@ -212,7 +218,7 @@ def test_allows_gh_calls_whose_prose_contains_loop_words(command: str) -> None:
     [
         # A real loop that does not start at string position 0. Narrowing the
         # keyword match to command position must not lose these.
-        'cd /repo\nfor id in 1 2; do gh run view "$id" --json status; done',
+        'cd /repo\nfor id in $(seq 1 9); do gh run view "$id" --json status; done',
         "cd /repo\nwhile true; do gh pr view 7 --json state; done",
         "echo start\nuntil gh api repos/acme/project/actions/runs; do sleep 2; done",
     ],
@@ -272,13 +278,15 @@ def test_read_deny_message_prescribes_a_remedy_the_decision_logic_allows() -> No
     [
         # The prescribed form, in every shape a caller writes it. A cache hit
         # answers 304, which spends no primary rate-limit budget -- the guard's
-        # own stated rationale for prescribing it.
-        "for r in a b c; do gh api --cache 10m repos/acme/project/pulls/$r; done",
-        "sleep 30; gh api --cache 5m repos/acme/project/actions/runs",
+        # own stated rationale for prescribing it. Every loop here is one the
+        # bounded-literal exemption does NOT reach, so the cached form is the
+        # only thing standing between these commands and a denial.
+        "for r in $(seq 1 50); do gh api --cache 10m repos/acme/project/pulls/$r; done",
+        "until gh api --cache 5m repos/acme/project/actions/runs; do sleep 30; done",
         "while true; do gh api --cache=1h repos/acme/project/pulls/1; sleep 5; done",
         # Several reads in one loop body, every one of them cached.
         (
-            "cd /repo\nfor r in a b; do gh api --cache 10m repos/acme/p/pulls/$r; "
+            "cd /repo\nfor r in $(cat refs); do gh api --cache 10m repos/acme/p/pulls/$r; "
             "gh api --cache 10m repos/acme/p/issues/$r; done"
         ),
     ],
@@ -293,13 +301,13 @@ def test_allows_looped_reads_whose_every_gh_api_is_cached(command: str) -> None:
     [
         # One uncached `gh api` in the loop body still spends budget.
         (
-            "for r in a b; do gh api --cache 10m repos/acme/p/pulls/$r; "
+            "for r in $(cat refs); do gh api --cache 10m repos/acme/p/pulls/$r; "
             "gh api repos/acme/p/issues/$r; done"
         ),
         # `gh run` / `gh pr` have no response cache, so `--cache` on a
         # NEIGHBOURING `gh api` cannot exempt them.
         "while true; do gh api --cache 10m repos/acme/p; gh pr view 7 --json state; sleep 5; done",
-        "for id in 1 2; do gh api --cache 10m repos/acme/p; gh run view $id; done",
+        "for id in $(seq 1 30); do gh api --cache 10m repos/acme/p; gh run view $id; done",
         # A bare `--cache` with no duration is not the sanctioned form (and is
         # not even valid `gh`), so it must not buy an exemption.
         "while true; do gh api --cache; sleep 5; done",
@@ -402,8 +410,8 @@ def test_allows_quoted_bodies_and_search_patterns_that_merely_spell_the_tokens(
         # A shell interpreter's `-c` payload IS shell, so it is re-read rather
         # than masked: this is a genuine polling loop over uncached reads.
         "bash -c 'while true; do gh pr view 7 --json state; sleep 5; done'",
-        'sh -lc "for id in 1 2 3; do gh run view $id; done"',
-        "/bin/bash -c 'for r in a b; do gh api repos/acme/p/pulls/$r; done'",
+        'sh -lc "for id in $(seq 1 30); do gh run view $id; done"',
+        "/bin/bash -c 'for r in $(cat refs); do gh api repos/acme/p/pulls/$r; done'",
         # The mutation-burst shape that hides a `gh api -X PATCH` one quoting
         # level down from the `xargs` that drives it.
         "cat ids | xargs -I{} bash -c 'gh api -X PATCH repos/acme/p/issues/{}'",
@@ -440,3 +448,134 @@ def test_still_denies_real_loops_over_uncached_reads_after_masking(command: str)
 def test_unbalanced_quoting_fails_open(command: str) -> None:
     result = _run(stdin=_bash_input(command=command))
     _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # Six calls, and the six is written out in the command itself.
+        "for id in 1 2 3 4 5 6; do gh pr view $id --json state; done",
+        'for id in 1 2; do gh run view "$id" --json status; done',
+        # A loop that starts on a later line is bounded just the same.
+        "cd /repo\nfor id in 1 2; do gh run view $id --json status; done",
+        # Several reads per iteration still totals a legible, small number.
+        "for r in a b; do gh api repos/acme/p/pulls/$r; gh api repos/acme/p/issues/$r; done",
+        # A `sleep` OUTSIDE every loop body does not turn enumeration into
+        # polling, whichever side of the loop it falls on.
+        "sleep 5; for id in 1 2 3; do gh pr view $id --json state; done",
+        "for id in 1 2 3; do gh pr view $id --json state; done; sleep 5",
+    ],
+)
+def test_allows_bounded_literal_loops_over_reads(command: str) -> None:
+    """A loop whose iteration count is written out in the command is not a burst.
+
+    The ceiling this guard defends is nine hundred points per minute and a read
+    costs one of them, so a handful of reads cannot approach it. Denying a
+    six-iteration literal loop exactly as hard as `for p in $(seq 1 500)` was
+    true only in letter.
+    """
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "sleep 10 && gh api repos/acme/project/pulls/1",
+        "sleep 30; gh api repos/acme/project/actions/runs",
+        "sleep 60 && gh pr view 7 --json state",
+    ],
+)
+def test_allows_a_bare_sleep_before_a_single_read(command: str) -> None:
+    """One sleep and one read is polite polling, the opposite of a burst.
+
+    44 of 615 denials over the 7 days to 2026-08-26 were exactly this shape.
+    """
+    result = _run(stdin=_bash_input(command=command))
+    _assert_allowed(result=result)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # Command substitution: the word count is produced at run time, so it
+        # is not readable from the command text at any apparent size.
+        "for p in $(seq 1 500); do gh pr view $p --json state; done",
+        "for p in $(seq 1 3); do gh pr view $p --json state; done",
+        "for p in `cat prs.txt`; do gh pr view $p --json state; done",
+        # A parameter expansion, a glob and a brace expansion are all expanded
+        # by the shell into an unknown number of words.
+        "for p in $PRS; do gh pr view $p --json state; done",
+        "for f in *.json; do gh api repos/acme/p/pulls/1; done",
+        "for p in {1..500}; do gh pr view $p --json state; done",
+        # `"$@"` masks to the same token as `"main"` but expands to as many
+        # words as the caller passed, so a bare masked item cannot be trusted.
+        'for p in "$@"; do gh pr view $p --json state; done',
+        # A C-style header carries no `in` list to read a bound out of.
+        "for ((i=0; i<50; i++)); do gh pr view $i --json state; done",
+        # `while`, `until` and `select` have no bound to read at all.
+        "while read -r p; do gh pr view $p --json state; done < prs.txt",
+        "until gh pr view 7 --json state; do sleep 2; done",
+        "select R in a b; do gh pr view $R --json state; done",
+    ],
+)
+def test_denies_loops_whose_iteration_count_is_not_readable(command: str) -> None:
+    """Only a literal list states its own size; everything else stays denied."""
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # A `sleep` in the body means the loop is waiting for state to change
+        # rather than fetching a known list -- polling, not enumeration.
+        "for id in 1 2 3; do gh pr view $id --json state; sleep 5; done",
+        # A missing `done` is a shell syntax error; the body runs to the end of
+        # the command, which is where the shell itself would take it.
+        "for id in 1 2 3; do gh pr view $id --json state; sleep 5",
+        # A `done` with no open `do` is likewise a syntax error: it closes
+        # nothing, so it cannot move the sleep out of the body before it.
+        "for id in 1 2; do gh pr view $id; sleep 1; done; done",
+        # Nested bounded loops: the sleep sits in the INNER body.
+        "for a in 1 2; do for b in 3 4; do gh pr view $a$b; sleep 1; done; done",
+    ],
+)
+def test_denies_a_sleep_inside_a_bounded_literal_loop_body(command: str) -> None:
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+def _literal_loop(*, count: int) -> str:
+    items = " ".join(str(number) for number in range(1, count + 1))
+    return f"for p in {items}; do gh pr view $p --json state; done"
+
+
+def test_allows_a_literal_loop_at_the_recorded_threshold() -> None:
+    result = _run(stdin=_bash_input(command=_literal_loop(count=_LITERAL_ITERATION_THRESHOLD)))
+    _assert_allowed(result=result)
+
+
+def test_denies_a_literal_loop_one_past_the_recorded_threshold() -> None:
+    result = _run(stdin=_bash_input(command=_literal_loop(count=_LITERAL_ITERATION_THRESHOLD + 1)))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+def test_module_docstring_records_the_literal_iteration_threshold() -> None:
+    """The threshold is a judgement call, so the number and its reason are pinned.
+
+    A bounded-literal exemption is auditable only if the number that turns it on
+    is written down beside the budget arithmetic it comes from. This reads the
+    LIVE module docstring rather than restating it, so moving the threshold in
+    the decision logic without moving the recorded number fails here -- as does
+    dropping the per-minute ceiling the number is derived from.
+    """
+    docstring = _load_hook().__doc__ or ""
+    assert f"at most {_LITERAL_ITERATION_THRESHOLD} " in docstring
+    assert "900-point-per-minute" in docstring
