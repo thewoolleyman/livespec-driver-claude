@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.7.0...v0.8.0) (2026-08-26)
+
+
+### Features
+
+* **dev-tooling:** verify the rate-limit guard is in force per governed repo ([bdce847](https://github.com/thewoolleyman/livespec-driver-claude/commit/bdce847bc1d770bf32281d8f68f0e34bcd5aa566))
+
 ## [0.7.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.6.0...v0.7.0) (2026-08-26)
 
 
