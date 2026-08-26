@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 from types import ModuleType
+from typing import cast
 
 import pytest
 
@@ -579,3 +580,210 @@ def test_module_docstring_records_the_literal_iteration_threshold() -> None:
     docstring = _load_hook().__doc__ or ""
     assert f"at most {_LITERAL_ITERATION_THRESHOLD} " in docstring
     assert "900-point-per-minute" in docstring
+
+
+# ---------------------------------------------------------------------------
+# Replay corpus — the committed successor to the session-scratch harness that
+# measured a 40.5% false-positive rate over 73,162 real Bash commands. The
+# vectors, their expected verdicts and the per-bucket denial counts live in the
+# JSON fixture beside this file so the gate's arithmetic is auditable rather
+# than a bare percentage, and so a cross-runtime port -- where byte-identity of
+# the decision function is impossible -- has one shared thing to conform to.
+# ---------------------------------------------------------------------------
+
+_CORPUS_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "github_rate_limit_guard_replay_corpus.json"
+)
+
+
+def _mapping(*, value: object) -> dict[str, object]:
+    assert isinstance(value, dict)
+    return cast("dict[str, object]", value)
+
+
+def _text(*, mapping: dict[str, object], key: str) -> str:
+    value = mapping[key]
+    assert isinstance(value, str)
+    return value
+
+
+def _whole_number(*, mapping: dict[str, object], key: str) -> int:
+    value = mapping[key]
+    assert isinstance(value, int)
+    return value
+
+
+def _percentage(*, mapping: dict[str, object], key: str) -> float:
+    value = mapping[key]
+    assert isinstance(value, float)
+    return value
+
+
+def _measured_denials(*, bucket: dict[str, object]) -> int | None:
+    """The bucket's share of the measured denial population, or None when it has none.
+
+    `b4` was carved out of the true-positive population AFTER the measurement,
+    so it has no measured count of its own; recording that as null keeps it out
+    of the baseline arithmetic instead of silently counting it as zero.
+    """
+    value = bucket["measured_denials"]
+    if value is None:
+        return None
+    assert isinstance(value, int)
+    return value
+
+
+_CORPUS = _mapping(value=json.loads(_CORPUS_PATH.read_text(encoding="utf-8")))
+_CORPUS_MEASUREMENT = _mapping(value=_CORPUS["measurement"])
+_CORPUS_BASELINE = _mapping(value=_CORPUS["pre_fix_baseline"])
+_CORPUS_BUCKETS = {
+    name: _mapping(value=bucket) for name, bucket in _mapping(value=_CORPUS["buckets"]).items()
+}
+# The four buckets the 7-day measurement actually partitioned its denials into.
+_MEASURED_BUCKETS = frozenset({"tp", "b1", "b2", "b3"})
+# Credential shapes and session identifiers. The fixture is a REDACTED corpus of
+# command SHAPES; raw transcript text would carry all of these.
+_UNREDACTED_SECRET = re.compile(
+    r"gh[pousr]_[A-Za-z0-9]{4}|github_pat_|authorization\s*:|bearer\s+[A-Za-z0-9]"
+    r"|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    re.IGNORECASE,
+)
+# An absolute path rooted in a home directory or a checkout root is repo-private
+# even when it carries no secret: it names whose machine the command ran on.
+_UNREDACTED_PRIVATE_PATH = re.compile(
+    r"(?:^|[^\w.])(?:~/|\$HOME|/(?:Users|home|root|data|repos|mnt|workspace)/)",
+    re.MULTILINE,
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReplayVector:
+    identifier: str
+    bucket: str
+    expected_verdict: str
+    pre_fix_verdict: str
+    command: str
+
+
+def _replay_vectors() -> list[ReplayVector]:
+    raw = _CORPUS["vectors"]
+    assert isinstance(raw, list)
+    entries = [_mapping(value=entry) for entry in cast("list[object]", raw)]
+    return [
+        ReplayVector(
+            identifier=_text(mapping=entry, key="id"),
+            bucket=_text(mapping=entry, key="bucket"),
+            expected_verdict=_text(mapping=entry, key="expected_verdict"),
+            pre_fix_verdict=_text(mapping=entry, key="pre_fix_verdict"),
+            command=_text(mapping=entry, key="command"),
+        )
+        for entry in entries
+    ]
+
+
+_REPLAY_VECTORS = _replay_vectors()
+
+
+def _observed_verdict(*, vector: ReplayVector) -> str:
+    """Replay one vector through the real hook boundary and name what it did.
+
+    The verdict is read off the hook's EXIT STATUS rather than off
+    `_deny_reason`, so the fixture pins the behaviour a governed repo actually
+    sees -- a deny that never reaches exit 2 is not a deny.
+    """
+    result = _run(stdin=_bash_input(command=vector.command))
+    if result.returncode == 0:
+        _assert_allowed(result=result)
+        return "allow"
+    assert result.returncode == 2, result.stderr
+    assert "DENIED by github_rate_limit_guard.py" in str(_stderr_event(result=result))
+    return "deny"
+
+
+@pytest.mark.parametrize(
+    "vector", [pytest.param(vector, id=vector.identifier) for vector in _REPLAY_VECTORS]
+)
+def test_replay_corpus_vector_returns_its_recorded_verdict(vector: ReplayVector) -> None:
+    assert _observed_verdict(vector=vector) == vector.expected_verdict
+
+
+def test_replay_corpus_covers_every_measured_bucket() -> None:
+    """Each bucket the measurement partitioned denials into carries a vector.
+
+    A corpus that covers only the buckets a given fix touched would go green
+    against a guard that had regressed in one of the others.
+    """
+    covered = {vector.bucket for vector in _REPLAY_VECTORS}
+    assert covered >= _MEASURED_BUCKETS
+    assert covered == set(_CORPUS_BUCKETS)
+
+
+def test_replay_corpus_vectors_agree_with_their_bucket_verdict() -> None:
+    """A vector's expected verdict is the verdict its whole bucket is labelled with."""
+    for vector in _REPLAY_VECTORS:
+        bucket = _CORPUS_BUCKETS[vector.bucket]
+        assert vector.expected_verdict == _text(mapping=bucket, key="expected_verdict")
+
+
+def test_measured_false_positive_rate_is_reproducible_from_the_recorded_buckets() -> None:
+    """The 40.5% figure must be derivable from the counts the fixture carries.
+
+    A bare percentage in a plan note cannot be checked; per-bucket counts that
+    sum to the recorded denial total, with the false share divided out of it,
+    can. This is the arithmetic the gate below is measured against.
+    """
+    denials = {
+        name: count
+        for name, bucket in _CORPUS_BUCKETS.items()
+        if (count := _measured_denials(bucket=bucket)) is not None
+    }
+    assert set(denials) == _MEASURED_BUCKETS
+    total = sum(denials.values())
+    assert total == _whole_number(mapping=_CORPUS_MEASUREMENT, key="denials")
+    false = sum(
+        count
+        for name, count in denials.items()
+        if _text(mapping=_CORPUS_BUCKETS[name], key="expected_verdict") == "allow"
+    )
+    recorded = _percentage(mapping=_CORPUS_MEASUREMENT, key="false_positive_rate_percent")
+    assert round(100 * false / total, 1) == recorded
+
+
+def test_replayed_corpus_has_no_false_positives_and_no_disabled_controls() -> None:
+    """The gate: every false-positive vector allows WHILE every control still denies.
+
+    Both halves are load-bearing. The first is the defect this corpus was cut
+    to measure; the second is the control proving a green fixture came from a
+    fixed guard rather than a switched-off one -- deleting the decision logic
+    outright would satisfy the first half alone.
+    """
+    observed = {vector.identifier: _observed_verdict(vector=vector) for vector in _REPLAY_VECTORS}
+    allow_vectors = [v for v in _REPLAY_VECTORS if v.expected_verdict == "allow"]
+    deny_vectors = [v for v in _REPLAY_VECTORS if v.expected_verdict == "deny"]
+    assert allow_vectors
+    assert deny_vectors
+    false_positives = [v.identifier for v in allow_vectors if observed[v.identifier] == "deny"]
+    not_denied = [v.identifier for v in deny_vectors if observed[v.identifier] == "allow"]
+    assert 100 * len(false_positives) / len(allow_vectors) == 0.0, false_positives
+    assert 100 * len(not_denied) / len(deny_vectors) == 0.0, not_denied
+
+
+def test_replay_corpus_retains_every_vector_the_pre_fix_build_got_wrong() -> None:
+    """The corpus keeps its regression value only while it still holds the failures.
+
+    Each vector records what the pre-fix build returned for it. Dropping one --
+    the cheapest way to make a stubborn fixture green -- moves this count.
+    """
+    wrong = [v.identifier for v in _REPLAY_VECTORS if v.pre_fix_verdict != v.expected_verdict]
+    assert len(wrong) == _whole_number(mapping=_CORPUS_BASELINE, key="vectors_wrong"), wrong
+
+
+def test_replay_corpus_carries_no_credentials_session_ids_or_private_paths() -> None:
+    """Redaction is a property of the FILE, not just of the command strings.
+
+    Notes and provenance lines are prose written by hand, so they leak as
+    easily as a command would; the whole fixture text is scanned.
+    """
+    text = _CORPUS_PATH.read_text(encoding="utf-8")
+    assert _UNREDACTED_SECRET.search(text) is None
+    assert _UNREDACTED_PRIVATE_PATH.search(text) is None
