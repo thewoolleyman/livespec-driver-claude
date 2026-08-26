@@ -320,6 +320,7 @@ fail_under = 100
 show_missing = true
 skip_covered = false
 include = [
+    ".claude-plugin/hooks/_guard_telemetry.py",
     ".claude-plugin/hooks/_result.py",
     ".claude-plugin/hooks/_tmux_hazard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
