@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.6.0...v0.7.0) (2026-08-26)
+
+
+### Features
+
+* **hooks:** emit a rate-limit guard verdict on both the allow and deny paths ([f2ad38b](https://github.com/thewoolleyman/livespec-driver-claude/commit/f2ad38b46ebd2ee87132b999042f943d1c5ffe47))
+* **hooks:** ship a stdlib-only OTLP exporter for guard verdicts ([cf1aefa](https://github.com/thewoolleyman/livespec-driver-claude/commit/cf1aefa2ec4e0921b6e5208443f36d0822e96e8e))
+
 ## [0.6.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.13...v0.6.0) (2026-08-26)
 
 
