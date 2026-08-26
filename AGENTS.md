@@ -196,6 +196,30 @@ them what they were allowed to decide.
   you would pick, you have already done the deciding work. Decide it, record
   the reasoning where the work is tracked, and report it as decided.
 
+## Name the work, don't code it
+
+Refer to work by what it IS, not by a short code. Write "hoist the guard
+decision function into livespec-dev-tooling", never "D1". This applies to
+durable records — ledger comments, plan handoffs, commit messages, PR bodies —
+at least as much as to conversation.
+
+**Why.** These codes are local to the one artifact that defines them, usually a
+plan's scope comment. A reader who lands on the ledger later has to find the
+decoder before any sentence carries meaning, and the code itself says nothing
+about whether the item still matters or what it would cost. Plans across this
+fleet reuse the same letters, so a bare `W4` is ambiguous the moment it leaves
+its own epic. A handoff written in codes is precisely the artifact that fails
+the livespec `plan` contract's own test — that a fresh session can continue
+from the ledger timeline without chat history.
+
+**How.** Lead with the descriptive name. When a code already exists in the
+ledger and a future reader might grep for it, give it once in parentheses after
+the name — "hoist the decision function into livespec-dev-tooling (recorded as
+D1 in the scope comment)" — and never as a bare reference thereafter. The same
+rule covers work-item ids in prose: an id is an address, not a description, so
+pair it with the name on first use rather than assuming the reader will resolve
+it.
+
 ## Repository mutation protocol
 
 Every repo change uses a worktree → PR → merge → cleanup path. Treat
