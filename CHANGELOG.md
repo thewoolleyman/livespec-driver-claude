@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.13...v0.6.0) (2026-08-26)
+
+
+### Features
+
+* **hooks:** allow bounded literal loops over gh reads ([63c9491](https://github.com/thewoolleyman/livespec-driver-claude/commit/63c9491ba65a8c22162ba9aeba46b4984002c670))
+
 ## [0.5.13](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.5.12...v0.5.13) (2026-08-26)
 
 
