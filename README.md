@@ -91,3 +91,6 @@ in its description.
 The livespec family dogfoods its own telemetry. CI runs, Red→Green commit-gate cycles, the beads+fabro dispatcher, sandbox runs, and harness sub-agents are published to a shared Honeycomb environment:
 
 - **[livespec family — all activity](https://ui.honeycomb.io/thewoolleyweb/environments/livespec/board/krThv8DvcwS)** — the cross-repo activity board (Honeycomb, `livespec` environment).
+
+<!-- ci-fallback probe (throwaway, do not merge): PowerEdge RAID plan Phase 5 — proving CI routes to GitHub-hosted runners when CI_RUNNER_LABELS is cleared. -->
+
