@@ -465,6 +465,11 @@ def test_unbalanced_quoting_fails_open(command: str) -> None:
         # polling, whichever side of the loop it falls on.
         "sleep 5; for id in 1 2 3; do gh pr view $id --json state; done",
         "for id in 1 2 3; do gh pr view $id --json state; done; sleep 5",
+        # A PREFIXED sleep outside the body is outside the body just the same:
+        # teaching the guard to see through `command`/`timeout`/`env` must not
+        # start convicting the loops that only sleep around themselves.
+        "command sleep 5; for id in 1 2 3; do gh pr view $id --json state; done",
+        "for id in 1 2 3\ndo\n  gh pr view $id --json state\ndone\nmise exec -- sleep 5",
     ],
 )
 def test_allows_bounded_literal_loops_over_reads(command: str) -> None:
@@ -545,6 +550,64 @@ def test_denies_loops_whose_iteration_count_is_not_readable(command: str) -> Non
     ],
 )
 def test_denies_a_sleep_inside_a_bounded_literal_loop_body(command: str) -> None:
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # The sleep FIRST in the body. The body span opens at the END of the
+        # `do`, while a first-position `sleep` matches command position THROUGH
+        # that same `do` and so begins before the span it sits in. Only a sleep
+        # that was NOT the first command in the body was ever detected, which
+        # left the commonest polling shape of all allowed.
+        "for i in 1 2 3; do sleep 10; gh pr view $i; done",
+        "for i in 1 2 3; do sleep 10; gh pr view $i; sleep 10; done",
+        # The same body written multiline, where every command is INDENTED: an
+        # indented line begins a command just as a bare one does, with the sleep
+        # first and with it last.
+        "for i in 1 2 3\ndo\n  sleep 10\n  gh pr view $i\ndone",
+        "for i in 1 2 3\ndo\n  gh pr view $i\n  sleep 10\ndone",
+        # Nested loops, where the INNER body opens on a `do` sitting immediately
+        # before the sleep.
+        "for a in 1 2; do for b in 3 4; do sleep 1; gh pr view $a$b; done; done",
+        # `&&` chains the sleep exactly as `;` does.
+        "for i in 1 2 3; do sleep 10 && gh pr view $i; done",
+    ],
+)
+def test_denies_a_sleep_wherever_it_sits_in_the_loop_body(command: str) -> None:
+    """Position in the body is not what makes a loop a poll -- the sleep is."""
+    result = _run(stdin=_bash_input(command=command))
+    event = _stderr_event(result=result)
+    assert result.returncode == 2
+    assert "gh api --cache <duration>" in str(event)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        # `command sleep 20` is the shape found spacing a real six-iteration
+        # `gh pr view` poll in the measured 7-day population.
+        "for i in 1 2 3 4 5 6; do gh pr view $i; command sleep 20; done",
+        "for i in 1 2 3; do command sleep 20; gh pr view $i; done",
+        "for i in 1 2 3; do gh pr view $i; mise exec -- sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; mise exec node@20 -- sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; timeout 30 sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; timeout -k 5 30s sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; env sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; env -i TZ=UTC sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; /usr/bin/env sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; TZ=UTC sleep 10; done",
+        "for i in 1 2 3; do gh pr view $i; nohup sleep 10; done",
+        # Multiline, and behind a prefix, in first position.
+        "for i in 1 2 3\ndo\n  mise exec -- sleep 10\n  gh pr view $i\ndone",
+    ],
+)
+def test_denies_a_sleep_reached_through_a_command_prefix(command: str) -> None:
+    """A prefix chooses HOW the sleep runs, never WHETHER it does."""
     result = _run(stdin=_bash_input(command=command))
     event = _stderr_event(result=result)
     assert result.returncode == 2
