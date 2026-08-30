@@ -30,7 +30,11 @@ constant.
 
 The exemption covers ENUMERATION, not POLLING. A `sleep` inside a loop body
 means the loop is waiting for state to change rather than fetching a known
-list, so it denies at any size. Conversely a `sleep` OUTSIDE every loop body
+list, so it denies at any size. ANYWHERE in the body counts -- first command or
+last, on its own indented line or after a `;` -- and so does a sleep reached
+through a command prefix such as `command sleep 10`, `mise exec -- sleep 10`,
+`timeout 30 sleep 10` or a leading `TZ=UTC` assignment: a prefix chooses HOW
+the sleep runs, never WHETHER it does. Conversely a `sleep` OUTSIDE every loop body
 -- `sleep 30; gh api ...`, one polite poll -- no longer denies at all: 44 of
 615 denials over the 7 days to 2026-08-26 were exactly that shape. `while`,
 `until` and `select` carry no readable bound and are denied unchanged, as is
@@ -105,11 +109,35 @@ _DENY_REASONS = {
 #
 # MULTILINE is load-bearing rather than incidental: requiring command position
 # without it would stop matching a real loop that begins on any line after the
-# first, which is the common shape for a multi-line command.
-_CMD_POS = r"(?:^|[;&|]\s*|\bdo\s+|\bthen\s+)"
+# first, which is the common shape for a multi-line command. The leading run of
+# blanks is load-bearing for the same reason one level down: the body of a
+# multi-line loop is INDENTED, and a bare `^` stopped at the indentation rather
+# than at the command behind it.
+_CMD_POS = r"(?:^[ \t]*|[;&|]\s*|\bdo\s+|\bthen\s+)"
 _SHELL_SELECT = rf"{_CMD_POS}select\s+[A-Z_][A-Z0-9_]*(?=\s+(?:in|do)\b|\s*;)"
 _SHELL_LOOP = rf"{_CMD_POS}(?:for|while|until)\b"
-_SHELL_SLEEP = rf"{_CMD_POS}sleep\b"
+# A command reached through a PREFIX runs all the same: `command sleep 20`,
+# `mise exec -- sleep 10`, `timeout 30 sleep 10`, `env sleep 10` and
+# `TZ=UTC sleep 10` every one of them sleep. Command position alone saw none of
+# them, so a real six-iteration `gh pr view` poll spaced by `command sleep 20`
+# -- in the same 7-day population this guard's false-positive rate was measured
+# against -- read as an enumeration rather than the poll it was.
+_ASSIGNMENT = r"[A-Za-z_][A-Za-z0-9_]*=\S*"
+# What a prefix consumes BEFORE the command word it hands off to: its own
+# options, and `timeout`'s duration. A bare word is excluded deliberately --
+# that word would BE the command being run.
+_PREFIX_ARGUMENT = r"(?:-\S+|\d+(?:\.\d+)?[smhd]?)"
+_PREFIX_COMMAND = r"(?:[\w./-]*/)?(?:command|env|exec|nohup|stdbuf|timeout)"
+# A runner that separates its own arguments from the command with `--`.
+_RUNNER_PREFIX = r"(?:[\w./-]*/)?mise\s+(?:exec|x)\s+(?:\S+\s+)*?--"
+_CMD_PREFIX = (
+    rf"(?:{_ASSIGNMENT}\s+|(?:{_PREFIX_COMMAND}|{_RUNNER_PREFIX})\s+(?:{_PREFIX_ARGUMENT}\s+)*)*"
+)
+# The `sleep` group, not the whole match, is what `_has_sleep_in_loop_body`
+# measures against a body span: command position can begin at the very `do`
+# that OPENED the body, and a prefix chain widens the gap further, so the
+# match's own start says nothing about which body the sleep sits in.
+_SHELL_SLEEP = rf"{_CMD_POS}{_CMD_PREFIX}(?P<sleep>sleep)\b"
 _LOOP_OR_XARGS = re.compile(
     rf"{_SHELL_LOOP}|{_CMD_POS}xargs\b|{_SHELL_SELECT}",
     re.IGNORECASE | re.MULTILINE,
@@ -340,7 +368,7 @@ def _loop_body_spans(*, command: str) -> list[tuple[int, int]]:
 def _has_sleep_in_loop_body(*, command: str) -> bool:
     spans = _loop_body_spans(command=command)
     return any(
-        any(start <= match.start() < end for start, end in spans)
+        any(start <= match.start("sleep") < end for start, end in spans)
         for match in _SLEEP.finditer(command)
     )
 

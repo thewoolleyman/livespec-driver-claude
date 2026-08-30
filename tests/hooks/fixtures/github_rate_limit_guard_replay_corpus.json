@@ -164,6 +164,33 @@
       "provenance": "Synthesized adjacency control."
     },
     {
+      "id": "tp-literal-loop-sleeping-first-in-body",
+      "bucket": "tp",
+      "expected_verdict": "deny",
+      "pre_fix_verdict": "deny",
+      "command": "for i in 1 2 3; do sleep 10; gh pr view $i; done",
+      "note": "REGRESSION CONTROL: `tp-literal-loop-sleeping-in-body` with the `sleep` moved to the FRONT of the body. A body span opens at the END of its `do`, while a first-position `sleep` reaches command position THROUGH that same `do` and so begins before the span it sits in -- an ORDERING escape under which only a non-first sleep was ever detected. Every deny vector for the sleeping-loop rule had the sleep last, so the rule could have been a no-op for the commonest polling shape without a single vector noticing.",
+      "provenance": "Completeness review of the github-rate-limit-guard-false-positives plan, 2026-08-26."
+    },
+    {
+      "id": "tp-multiline-literal-loop-sleeping-in-body",
+      "bucket": "tp",
+      "expected_verdict": "deny",
+      "pre_fix_verdict": "deny",
+      "command": "for i in 1 2 3\ndo\n  sleep 10\n  gh pr view $i\ndone",
+      "note": "REGRESSION CONTROL: the same poll in the multiline form, where every command in the body is INDENTED. An indented line begins a command just as a bare one does, so a body written this way must read no differently from the single-line form above.",
+      "provenance": "Completeness review of the github-rate-limit-guard-false-positives plan, 2026-08-26."
+    },
+    {
+      "id": "tp-literal-loop-sleeping-behind-a-command-prefix",
+      "bucket": "tp",
+      "expected_verdict": "deny",
+      "pre_fix_verdict": "deny",
+      "command": "for i in 1 2 3 4 5 6; do gh pr view $i; command sleep 20; done",
+      "note": "REGRESSION CONTROL: a real six-iteration poll from the measured 7-day population, spaced by `command sleep 20`. A `sleep` reached through a prefix -- `command`, `mise exec --`, `timeout`, `env`, a leading assignment -- runs exactly the sleep it would have run unprefixed, so the prefix must not hide it.",
+      "provenance": "Completeness review of the github-rate-limit-guard-false-positives plan, 2026-08-26."
+    },
+    {
       "id": "tp-xargs-fed-mutation",
       "bucket": "tp",
       "expected_verdict": "deny",
