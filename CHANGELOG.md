@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.8.0...v0.8.1) (2026-08-30)
+
+
+### Bug Fixes
+
+* **hooks:** deny a sleep first in a loop body or behind a command prefix ([148a17f](https://github.com/thewoolleyman/livespec-driver-claude/commit/148a17fec724bfb4997145b30b87ce7b37937e1a))
+
 ## [0.8.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.7.0...v0.8.0) (2026-08-26)
 
 
