@@ -319,7 +319,6 @@ jobs:
           shims_dir="$(dirname "$(command -v npm)")"
           node_bin="$(cd "$shims_dir/../installs/node/latest/bin" 2>/dev/null && pwd || ls -d "$shims_dir/../installs/node"/*/bin 2>/dev/null | head -1)"
           [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
-          just check-ci-gate-parity || failed="$failed check-ci-gate-parity"
           just check-per-file-coverage
 
       # include-hidden-files is REQUIRED: upload-artifact@v4 excludes dotfiles
@@ -614,6 +613,11 @@ jobs:
           # `just check` but dropped from CI reddens this job. Harmless for the
           # other batched targets (they do not read this var).
           LIVESPEC_FAIL_IF_CI_MATRIX_GAPS_EXIST: "true"
+          # Arm the PR-gate ≡ master-gate guard (livespec plan
+          # pr-gate-master-parity, epic livespec-citqsd): flip
+          # check-ci-gate-parity from warn to FAIL. Also corrects the v1.43.0
+          # reconciler's mis-placement of that check into check-per-file-coverage.
+          LIVESPEC_FAIL_IF_CI_GATE_PARITY_GAPS_EXIST: "true"
         run: |
           failed=""
           just check-agents-ai-references-resolve || failed="$failed check-agents-ai-references-resolve"
@@ -621,6 +625,7 @@ jobs:
           just check-canonical-recipe-fidelity || failed="$failed check-canonical-recipe-fidelity"
           just check-check-tools || failed="$failed check-check-tools"
           just check-ci-matrix-completeness || failed="$failed check-ci-matrix-completeness"
+          just check-ci-gate-parity || failed="$failed check-ci-gate-parity"
           just check-claude-md-coverage || failed="$failed check-claude-md-coverage"
           just check-comment-line-anchors || failed="$failed check-comment-line-anchors"
           just check-commit-pairs-source-and-test || failed="$failed check-commit-pairs-source-and-test"
