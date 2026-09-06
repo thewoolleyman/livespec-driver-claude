@@ -197,6 +197,7 @@ check:
         check-tests-no-subprocess-spawn
         check-tool-backed-check-completeness
         check-vendor-manifest
+        check-work-item-interpolation-delimiters
         check-wrapper-shape
         # Repo-private extras (NON-canonical) — MUST follow the canonical
         # block. The four tool-backed gates (lint / format / types /
@@ -587,3 +588,6 @@ check-self-hosted-uv-lane:
 
 check-ci-gate-parity:
     uv run python -m livespec_dev_tooling.checks.ci_gate_parity
+
+check-work-item-interpolation-delimiters:
+    uv run python -m livespec_dev_tooling.checks.work_item_interpolation_delimiters
