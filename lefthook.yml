@@ -6,14 +6,24 @@
 # §"Toolchain pins").
 #
 # Authority: livespec/SPECIFICATION/contracts.md
-#   §"Pre-commit step ordering" — pre-commit runs three commands in
-#   order (00-lint-autofix-staged, 01-commit-pairs-source-and-test,
-#   02-check-pre-commit); commit-msg runs no-commit-on-master then
-#   red-green-replay (v034 D3). Red-green-replay is enforced here
-#   fleet+adopter-wide per epic livespec-gcp2 (maintainer directive
-#   2026-06-25): a feat:/fix: commit with staged `.py` follows the
-#   Red->Green ritual; the gate is a no-op on commits with no staged
-#   `.py`, so a `ci:`/`docs:`/`chore:` commit passes it freely.
+#   §"Pre-commit step ordering" (v219) — pre-commit runs four commands
+#   in order (00-install-worktree-pack, 01-lint-autofix-staged,
+#   02-commit-pairs-source-and-test, 03-check-pre-commit); pre-push
+#   runs 00-install-worktree-pack then 01-check-pre-push; commit-msg
+#   runs no-commit-on-master then red-green-replay (v034 D3).
+#   The installer runs FIRST at both gates because the
+#   worktree-discipline pack is gitignored-and-installed: a worktree
+#   created by raw `git worktree add` (or one predating a
+#   livespec-dev-tooling pin bump) would otherwise reach the gate with
+#   the pack absent or stale and fail `worktree_pack_absent` only after
+#   the whole aggregate had run. The installer is idempotent, writes only
+#   ignored files, installs from the package this checkout resolves, and
+#   the byte-identity verifier still asserts the result.
+#   Red-green-replay is enforced here fleet+adopter-wide per epic
+#   livespec-gcp2 (maintainer directive 2026-06-25): a feat:/fix: commit
+#   with staged `.py` follows the Red->Green ritual; the gate is a no-op
+#   on commits with no staged `.py`, so a `ci:`/`docs:`/`chore:` commit
+#   passes it freely.
 #
 # Activation: `just bootstrap` installs the canonical commit-refuse hook by
 # REUSING the livespec-dev-tooling installer
@@ -25,11 +35,13 @@
 
 pre-commit:
   commands:
-    00-lint-autofix-staged:
+    00-install-worktree-pack:
+      run: just install-worktree-pack
+    01-lint-autofix-staged:
       run: just lint-autofix-staged
-    01-commit-pairs-source-and-test:
+    02-commit-pairs-source-and-test:
       run: just check-commit-pairs-source-and-test
-    02-check-pre-commit:
+    03-check-pre-commit:
       run: just check-pre-commit
 
 commit-msg:
@@ -47,5 +59,7 @@ commit-msg:
 
 pre-push:
   commands:
-    check:
+    00-install-worktree-pack:
+      run: just install-worktree-pack
+    01-check-pre-push:
       run: just check-pre-push
