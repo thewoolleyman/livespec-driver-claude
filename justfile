@@ -202,6 +202,7 @@ check:
         # block. The four tool-backed gates (lint / format / types /
         # coverage) live here AND in the CI matrix, per
         # check-tool-backed-check-completeness's both-surfaces invariant.
+        check-no-workflow-edits
         check-plugin-structure
         check-lint
         check-format
@@ -390,11 +391,16 @@ check-pre-push:
 # Pre-commit auxiliary gates.
 # ---------------------------------------------------------------
 
-# Factory-branch boundary: implementation branches do not carry workflow
-# changes. The dispatcher runs this before `check` so any accidental workflow
-# diff is rejected with the maintainer-landable patch shown in the log.
+# Factory-branch boundary: implementation branches do not carry
+# `.github/workflows/` changes without HUMAN authorization. Delegates to the
+# worktree pack's single canonical guard body (livespec-dev-tooling-fy02),
+# installed untracked into dev-tooling/ by `just install-worktree-pack` and
+# byte-verified fleet-wide — no local copy, no env override. A member of the
+# `check` aggregate (so pre-push stops a session agent) and of the
+# Dispatcher's janitor suite; deliberately NOT a CI slug (the body itself
+# no-ops under GITHUB_ACTIONS, where the bot lanes rewrite workflows).
 check-no-workflow-edits:
-    bash dev-tooling/just/check-no-workflow-edits.sh
+    bash dev-tooling/check-no-workflow-edits.sh
 
 # Ruff fix + format on staged .py files BEFORE the rest of the
 # pre-commit gate runs. Non-blocking — unfixable issues fall through
