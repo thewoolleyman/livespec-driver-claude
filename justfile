@@ -180,6 +180,7 @@ check:
         check-plan-anchor-declared
         check-plan-epic-parity
         check-plan-no-tombstone
+        check-plan-record-conformance
         check-plugin-resolution
         check-primary-checkout-commit-refuse-hook-installed
         check-private-calls
@@ -591,3 +592,6 @@ check-ci-gate-parity:
 
 check-work-item-interpolation-delimiters:
     uv run python -m livespec_dev_tooling.checks.work_item_interpolation_delimiters
+
+check-plan-record-conformance:
+    uv run python -m livespec_dev_tooling.checks.plan_record_conformance
