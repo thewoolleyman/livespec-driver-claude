@@ -4,63 +4,72 @@
     "spec_file": "spec.md",
     "heading": "## Purpose",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "spec.md",
     "heading": "## Scope boundary",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "spec.md",
     "heading": "## Terminology",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "spec.md",
     "heading": "## Public surface",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "spec.md",
     "heading": "## Lifecycle and evolution",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Plugin manifest and marketplace",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Skill-binding set",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Core-root resolution",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Fenced-invocation discipline",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
@@ -74,217 +83,248 @@
     "spec_file": "contracts.md",
     "heading": "## Versioning",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## CLI end-to-end harness contract",
     "test": "TODO",
-    "reason": "Relocated from livespec core (livespec-besm.6, B4): this contract states a requirement on the Claude Driver's own top-of-pyramid, user-surface e2e tier whose sole interaction surface is the claude CLI binary. The REAL test is the full claude-CLI-binary e2e harness \u2014 the deferred li-e2ecli epic, whose harness ships from livespec-dev-tooling and is consumed via tests/e2e-cli/ fixtures wired into this repo's pytest collection. Replace TODO with the imported harness test's node ID when that epic lands here."
+    "reason": "Relocated from livespec core (livespec-besm.6, B4): this contract states a requirement on the Claude Driver's own top-of-pyramid, user-surface e2e tier whose sole interaction surface is the claude CLI binary. The REAL test is the full claude-CLI-binary e2e harness \u2014 the deferred li-e2ecli epic, whose harness ships from livespec-dev-tooling and is consumed via tests/e2e-cli/ fixtures wired into this repo's pytest collection. Replace TODO with the imported harness test's node ID when that epic lands here.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Inherited from livespec",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Binding constraints",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Resolution-substrate constraints",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Structural-check constraints",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Forbidden patterns",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Boundary",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Inherited from livespec",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Task-runner discipline",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Repo layout",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Enforcement suite",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Build and release",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Test discipline",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Spec evolution",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Seeded when check-heading-coverage was wired into this binding repo (livespec-driver-claude-o3p). This Driver's spec H2s are mechanically guarded by check-plugin-structure, the hook unit tests, and the e2e-cli harness rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: installed Driver exposes the eight /livespec:* commands",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli harness (mock-tier skill discovery). Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli harness (mock-tier skill discovery). Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution via operator override",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this resolution path is exercised by the e2e-cli harness. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this resolution path is exercised by the e2e-cli harness. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution falls back to the governed-project checkout",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this resolution path is exercised by the e2e-cli harness. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this resolution path is exercised by the e2e-cli harness. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution rejects a non-core project checkout",
     "test": "TODO",
-    "reason": "Added by the core-root-predicate-identifies-livespec-core revision, which replaced rule 2's prose-DIRECTORY test with the three-way predicate over the designated core-exclusive operation-prose evidence set. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py, whose fixtures include a worktree shipping EIGHT prose files of its own that share zero names with core's set \u2014 the case that fails count-based and size-based implementations the naive empty-prose/ fixture lets through. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Added by the core-root-predicate-identifies-livespec-core revision, which replaced rule 2's prose-DIRECTORY test with the three-way predicate over the designated core-exclusive operation-prose evidence set. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py, whose fixtures include a worktree shipping EIGHT prose files of its own that share zero names with core's set \u2014 the case that fails count-based and size-based implementations the naive empty-prose/ fixture lets through. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an incomplete core checkout fails rather than falling back",
     "test": "TODO",
-    "reason": "Added by the core-root-predicate-identifies-livespec-core revision. This is the ERROR band: a checkout carrying core-exclusive prose without the complete set stops here rather than falling through to the install record, which on a mid-rename core checkout would serve the OLD released prose while the maintainer edits its replacement. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Added by the core-root-predicate-identifies-livespec-core revision. This is the ERROR band: a checkout carrying core-exclusive prose without the complete set stops here rather than falling through to the install record, which on a mid-rename core checkout would serve the OLD released prose while the maintainer edits its replacement. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: the incomplete-checkout diagnostic names the recovery",
     "test": "TODO",
-    "reason": "Added by the core-root-predicate-identifies-livespec-core revision. This scenario pins livespec core's BINDING ratification condition and is deliberately separate from the error-band scenario: a diagnostic that errors correctly while saying nothing about recovery satisfies that one completely, so only a separate assertion pins the text. Without it the error band hard-blocks core's own ratified rename path, which transits the incomplete state while driving the very operations this predicate gates. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the guidance text is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Added by the core-root-predicate-identifies-livespec-core revision. This scenario pins livespec core's BINDING ratification condition and is deliberately separate from the error-band scenario: a diagnostic that errors correctly while saying nothing about recovery satisfies that one completely, so only a separate assertion pins the text. Without it the error band hard-blocks core's own ratified rename path, which transits the incomplete state while driving the very operations this predicate gates. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the guidance text is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution selects the install record for this project",
     "test": "TODO",
-    "reason": "Renamed from '## Scenario: core-root resolution falls back to the installed cache' by the core-root-project-path-selection revision (livespec-dev-tooling-e01t), which replaced positional selection with projectPath selection. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the selection logic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, including the multi-project POSITIVE CONTROL whose FIRST record belongs to a different project \u2014 without which an implementation still reading entries[0] would satisfy every other assertion. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Renamed from '## Scenario: core-root resolution falls back to the installed cache' by the core-root-project-path-selection revision (livespec-dev-tooling-e01t), which replaced positional selection with projectPath selection. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored the selection logic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, including the multi-project POSITIVE CONTROL whose FIRST record belongs to a different project \u2014 without which an implementation still reading entries[0] would satisfy every other assertion. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution reports a projectPath mismatch as such",
     "test": "TODO",
-    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this diagnostic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, which asserts the message names the mismatch AS SUCH rather than as plugin staleness. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this diagnostic is exercised unit-tier by tests/hooks/test_resolve_core_root.py, which asserts the message names the mismatch AS SUCH rather than as plugin staleness. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an unreadable registry is not reported as core being uninstalled",
     "test": "TODO",
-    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this can't-read arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py, whose fixture uses undecodable bytes and a directory-in-place-of-file rather than a chmod-based unreadability that would not fail for a root-run suite. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this can't-read arm is exercised unit-tier by tests/hooks/test_resolve_core_root.py, whose fixture uses undecodable bytes and a directory-in-place-of-file rather than a chmod-based unreadability that would not fail for a root-run suite. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an absent registry yields the install instructions",
     "test": "TODO",
-    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this absence arm \u2014 definitive, and deliberately kept on the install-instructions track rather than fused with the unreadable arm \u2014 is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Added by the core-root-project-path-selection revision (livespec-dev-tooling-e01t). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this absence arm \u2014 definitive, and deliberately kept on the install-instructions track rather than fused with the unreadable arm \u2014 is exercised unit-tier by tests/hooks/test_resolve_core_root.py. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects a SKILL.md invoking uv run",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects the Driver's own plugin-root placeholder for core scripts",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects an extra or missing skill directory",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: marketplace description drift is rejected",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is enforced live by the check-plugin-structure gate. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: auto-memory write in a governed project is intent-routed by the block-auto-memory hook",
     "test": "TODO",
-    "reason": "Heading updated from 'redirected to capture-work-item' to 'intent-routed by the block-auto-memory hook' per livespec-co9h: the hook now routes by what the would-be write IS rather than redirecting everything to capture-work-item. The hook behavior is exercised by tests/hooks/test_block_auto_memory.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise."
+    "reason": "Heading updated from 'redirected to capture-work-item' to 'intent-routed by the block-auto-memory hook' per livespec-co9h: the hook now routes by what the would-be write IS rather than redirecting everything to capture-work-item. The hook behavior is exercised by tests/hooks/test_block_auto_memory.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: plan-artifact persistence warning on a bare assistant turn",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; the Stop hook is already exercised by tests/hooks/test_warn_plan_persistence.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; the Stop hook is already exercised by tests/hooks/test_warn_plan_persistence.py (subprocess tier). Replace TODO with that integration-tier node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   },
   {
     "spec_root": "SPECIFICATION",
@@ -298,6 +338,7 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: commit at the primary checkout is refused",
     "test": "TODO",
-    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is owned upstream by livespec core's commit-refuse hook + its doctor fingerprint invariant. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Seeded when check-heading-coverage was wired (livespec-driver-claude-o3p). Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is owned upstream by livespec core's commit-refuse hook + its doctor fingerprint invariant. Replace TODO with the integration-tier test node ID via a governed revise.",
+    "work_item": "livespec-driver-claude-axs"
   }
 ]
