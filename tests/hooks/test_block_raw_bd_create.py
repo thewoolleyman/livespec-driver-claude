@@ -58,6 +58,10 @@ _DENY_COMMANDS = (
     "cd /tmp && bd create -t x",
     "bd create -t 'title; with a semicolon'",
     "timeout 30 bd create -t x",
+    "cd /tmp\nbd create -t x",
+    # A quoted title spanning line breaks: the per-line split cannot tokenize
+    # either half, so the whole command is judged instead.
+    "bd create -t 'a title spanning\ntwo lines'",
 )
 
 # Invocations that must reach the shell untouched: other `bd` subcommands,
@@ -76,6 +80,10 @@ _ALLOW_COMMANDS = (
     "bd list && grep -rn create .",
     "bd close x; echo create",
     "bd list | grep create",
+    # A LATER LINE of a multi-line command is a separate invocation, not more
+    # arguments to the `bd` on the first one.
+    "bd list --status all\ngrep -rn create .",
+    "bd -C /data/projects/x show wgufs2\n\necho create",
     "git status --short",
     "echo 'unterminated",
 )
