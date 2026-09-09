@@ -216,14 +216,24 @@
       // rather than draining the factory's shared App-installation rate-limit
       // bucket (the orchestrator's bd-ib-bic7hb root-cause, mirrored here).
       //
-      // Only the version-manager arm is declared. This repo pins lefthook as a
-      // mise binary (NOT a uv dependency), and the later
-      // `conformance_hook_install` prepare step installs the canonical
-      // commit-refuse hook that subsumes `lefthook install` and delegates to
-      // the mise-installed lefthook, so a separate `lefthook` arm is neither
-      // needed nor of the orchestrator's `uv run lefthook` shape here.
+      // The `lefthook` arm is the hook-manager install (the second toolchain
+      // premise), rendered into `inputs.prepare_toolchain_lefthook`, which runs
+      // AFTER `uv sync`. `lefthook install` wires this repo's lefthook.yml git
+      // hooks in the sandbox — including the commit-msg stage that runs
+      // red-green-replay — so in-sandbox commits are gated the same way a
+      // developer checkout's are. This repo pins lefthook as a mise binary (not
+      // a uv dependency), exactly like the orchestrator; `uv run lefthook`
+      // resolves the mise-installed binary from PATH, so the orchestrator's arm
+      // mirrors verbatim. Leaving either arm absent resolves to the ratified
+      // no-op (no setup crash) but is a silent degrade the Dispatcher warns
+      // about, so both premises are declared explicitly per fleet convention.
+      // (This repo declares no `dispatcher.conformance` block, so the separate
+      // conformance commit-refuse hook install resolves to a no-op; the
+      // `lefthook` arm is therefore the mechanism that wires the RGR gate
+      // in-sandbox here.)
       "prepare_toolchain": {
-        "mise": ["sh", "-c", "mise trust && env -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_API_TOKEN mise install --quiet"]
+        "mise": ["sh", "-c", "mise trust && env -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_API_TOKEN mise install --quiet"],
+        "lefthook": ["uv", "run", "lefthook", "install"]
       },
       "factories": {
         "hp": { "server": "https://hp-xubuntu.perch-rudd.ts.net:32276" },
