@@ -201,6 +201,30 @@
       "auto_approve_ready": true,
       "acceptance_mode": "ai-only",
       "wip_cap": 10,
+      // Factory-sandbox toolchain premise: the version-manager arm of
+      // `dispatcher.prepare_toolchain`. The Dispatcher resolves this argv ONCE
+      // and renders it into the workflow's `inputs.prepare_toolchain_mise`
+      // step, which runs BEFORE `uv sync --all-groups` in the sandbox prepare
+      // phase. Without it the fresh Fabro clone's `.mise.toml` is untrusted, so
+      // `uv sync` aborts with "mise ERROR ... are not trusted. Trust them with
+      // `mise trust`." and every dispatch dies at setup (evidence run
+      // 01M2355GJ12C, workflow_error; work-item livespec-driver-claude-yki4pv).
+      // `mise trust` clears that; `mise install` then resolves this repo's
+      // `.mise.toml` binary pins (uv, just, lefthook, shellcheck). GITHUB_TOKEN
+      // / GH_TOKEN / GITHUB_API_TOKEN are scrubbed for THIS command only so
+      // mise's aqua backend makes its public release-metadata fetch anonymously
+      // rather than draining the factory's shared App-installation rate-limit
+      // bucket (the orchestrator's bd-ib-bic7hb root-cause, mirrored here).
+      //
+      // Only the version-manager arm is declared. This repo pins lefthook as a
+      // mise binary (NOT a uv dependency), and the later
+      // `conformance_hook_install` prepare step installs the canonical
+      // commit-refuse hook that subsumes `lefthook install` and delegates to
+      // the mise-installed lefthook, so a separate `lefthook` arm is neither
+      // needed nor of the orchestrator's `uv run lefthook` shape here.
+      "prepare_toolchain": {
+        "mise": ["sh", "-c", "mise trust && env -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_API_TOKEN mise install --quiet"]
+      },
       "factories": {
         "hp": { "server": "https://hp-xubuntu.perch-rudd.ts.net:32276" },
         "vps": { "server": "https://vps.perch-rudd.ts.net:32276" }
