@@ -34,7 +34,11 @@ import) so the body is testable in-process for real per-file coverage.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
-import here is the standard library or the sibling `_result` railway module.
+import here is the standard library or a sibling module shipped beside it —
+the `_result` railway, and the `_livespec_project` resolver that reads the
+active impl-plugin namespace out of the governed project's `.livespec.jsonc`
+(shared with the sibling `block_raw_bd_create.py` redirect, which routes to
+the same `/<plugin>:capture-work-item` operation).
 """
 
 from __future__ import annotations
@@ -42,9 +46,10 @@ from __future__ import annotations
 import json
 import os
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import cast
 
+from _livespec_project import resolve_impl_plugin
 from _result import Failure, Result, Success
 
 __all__: list[str] = []
@@ -55,63 +60,6 @@ def _as_object_dict(*, value: object) -> dict[str, object] | None:
     if isinstance(value, dict):
         return cast("dict[str, object]", value)
     return None
-
-
-def _strip_jsonc_comments(*, text: str) -> str:
-    """String-aware removal of // line and /* block */ comments."""
-    out: list[str] = []
-    i = 0
-    n = len(text)
-    in_string = False
-    while i < n:
-        ch = text[i]
-        if in_string:
-            out.append(ch)
-            if ch == "\\" and i + 1 < n:
-                out.append(text[i + 1])
-                i += 2
-                continue
-            if ch == '"':
-                in_string = False
-            i += 1
-            continue
-        if ch == '"':
-            in_string = True
-            out.append(ch)
-            i += 1
-            continue
-        if ch == "/" and i + 1 < n and text[i + 1] == "/":
-            while i < n and text[i] != "\n":
-                i += 1
-            continue
-        if ch == "/" and i + 1 < n and text[i + 1] == "*":
-            i += 2
-            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
-                i += 1
-            i += 2
-            continue
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
-def _resolve_namespace(*, project_dir: str) -> str | None:
-    """The active impl-plugin namespace from the project's .livespec.jsonc, else None."""
-    config_path = Path(project_dir) / ".livespec.jsonc"
-    if not config_path.is_file():
-        return None
-    config = _as_object_dict(
-        value=json.loads(_strip_jsonc_comments(text=config_path.read_text(encoding="utf-8")))
-    )
-    if config is None:
-        return None
-    implementation = _as_object_dict(value=config.get("implementation"))
-    if implementation is None:
-        return None
-    plugin = implementation.get("plugin")
-    if not isinstance(plugin, str) or not plugin.strip():
-        return None
-    return plugin.strip()
 
 
 def _deny_reason(*, namespace: str) -> str:
@@ -149,7 +97,7 @@ def _block_decision(*, raw: str) -> str | None:
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
     if not project_dir:
         return None
-    namespace = _resolve_namespace(project_dir=project_dir)
+    namespace = resolve_impl_plugin(project_dir=project_dir).value_or(default=None)
     if namespace is None:
         return None
     reason = _deny_reason(namespace=namespace)
@@ -169,13 +117,13 @@ def _block_decision(*, raw: str) -> str | None:
 def _decision_result(*, raw: str) -> Result[str | None, Exception]:
     """Lift expected pass-through failures from decision logic onto the rail.
 
-    `OSError` is raised by the `.livespec.jsonc` read inside
-    `_block_decision`; `ValueError` is raised by `json.loads`, including
-    `JSONDecodeError` subclasses.
+    `ValueError` is raised by `json.loads`, including `JSONDecodeError`
+    subclasses. The `.livespec.jsonc` read has its own rail inside
+    `resolve_impl_plugin`, so it never surfaces here.
     """
     try:
         return Success(_block_decision(raw=raw))
-    except (OSError, ValueError) as exc:
+    except ValueError as exc:
         return Failure(exc)
 
 

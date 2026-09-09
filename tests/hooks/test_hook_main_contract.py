@@ -24,6 +24,7 @@ if str(_HOOKS_DIR) not in sys.path:
 
 _HOOK_MODULES = (
     "block_auto_memory",
+    "block_raw_bd_create",
     "warn_plan_persistence",
     "no_shadow_ledger",
     "primary_checkout_playwright_guard",
