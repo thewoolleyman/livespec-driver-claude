@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.8.1...v0.9.0) (2026-09-09)
+
+
+### Features
+
+* route a raw bd create to capture-work-item ([b32eac2](https://github.com/thewoolleyman/livespec-driver-claude/commit/b32eac232ae80284c1979ecb943db6f2695b3f2a))
+
+
+### Bug Fixes
+
+* keep the bd-create redirect off a multi-line command's later lines ([547e59a](https://github.com/thewoolleyman/livespec-driver-claude/commit/547e59abb7419ac6fe0538008d4f01c8b4717c73))
+
 ## [0.8.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.8.0...v0.8.1) (2026-08-30)
 
 
