@@ -183,6 +183,10 @@ def test_hook_manifest_loads_rate_limit_guard_for_bash_pre_tool_use() -> None:
                     "type": "command",
                     "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/github_rate_limit_guard.py"',
                 },
+                {
+                    "type": "command",
+                    "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/block_raw_bd_create.py"',
+                },
             ],
         }
     ]

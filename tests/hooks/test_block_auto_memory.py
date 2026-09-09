@@ -321,18 +321,6 @@ def test_passes_through_on_unparseable_config(monkeypatch, capsys, tmp_path: Pat
     _assert_pass_through(returncode=returncode, stdout=stdout)
 
 
-def test_strip_jsonc_comments_covers_string_escape_and_both_comment_forms() -> None:
-    # Exercises every branch of the JSONC comment stripper: an in-string
-    # escaped quote (`\"`) and escaped backslash, a closing then re-opening
-    # string, a `//` line comment, and a `/* ... */` block comment.
-    src = '{"a": "x\\"y\\\\z"} // line\n/* block\ncomment */ "tail"'
-    stripped = block_auto_memory._strip_jsonc_comments(text=src)
-    assert '"x\\"y\\\\z"' in stripped
-    assert "// line" not in stripped
-    assert "block" not in stripped
-    assert '"tail"' in stripped
-
-
 def test_as_object_dict_narrows_only_mappings() -> None:
     assert block_auto_memory._as_object_dict(value={"k": 1}) == {"k": 1}
     assert block_auto_memory._as_object_dict(value=[1, 2]) is None

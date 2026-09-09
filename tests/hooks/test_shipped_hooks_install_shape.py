@@ -166,6 +166,10 @@ _BENIGN_PAYLOADS = (
         "block_auto_memory.py",
         {"tool_name": "Write", "tool_input": {"file_path": "/tmp/notes.md", "content": "hi"}},
     ),
+    (
+        "block_raw_bd_create.py",
+        {"tool_name": "Bash", "tool_input": {"command": "bd list --status all"}},
+    ),
     ("warn_plan_persistence.py", {"transcript_path": "/nonexistent/transcript.jsonl"}),
     ("no_shadow_ledger.py", {"transcript_path": "/nonexistent/transcript.jsonl"}),
     (

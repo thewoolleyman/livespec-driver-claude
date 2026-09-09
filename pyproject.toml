@@ -286,6 +286,7 @@ supervisor_entry_files = [
     # (`just verify-guard-rollout`); same entry-point shape as its sibling.
     "dev-tooling/bin/verify_guard_rollout.py",
     ".claude-plugin/hooks/block_auto_memory.py",
+    ".claude-plugin/hooks/block_raw_bd_create.py",
     ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
@@ -324,9 +325,15 @@ show_missing = true
 skip_covered = false
 include = [
     ".claude-plugin/hooks/_guard_telemetry.py",
+    # The shared `.livespec.jsonc` resolver both redirect hooks import to name
+    # the active impl-plugin's capture-work-item operation. Listed for the same
+    # reason as the resolver below: these keys are explicit ALLOWLISTS, so a
+    # shipped module left out of them is measured by nothing and reads as covered.
+    ".claude-plugin/hooks/_livespec_project.py",
     ".claude-plugin/hooks/_result.py",
     ".claude-plugin/hooks/_tmux_hazard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
+    ".claude-plugin/hooks/block_raw_bd_create.py",
     ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
