@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.9.0...v0.9.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* declare canonical git author policy ([52c9574](https://github.com/thewoolleyman/livespec-driver-claude/commit/52c9574146d427c6395e90b35bb9e17b13435d6b))
+
 ## [0.9.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.8.1...v0.9.0) (2026-09-09)
 
 
