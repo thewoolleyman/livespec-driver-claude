@@ -20,9 +20,13 @@ if str(_HOOKS_DIR) not in sys.path:
 from _verb_tables import (  # noqa: E402 — path-dependent import after sys.path insert.
     ALWAYS_MUTATING,
     ANSIBLE_MUTATING_MODULES,
+    CHECK_FLAGS,
+    CLUSTERED_FLAG_HEADS,
     FLAG_MUTATIONS,
     FLAG_PREFIX_MUTATIONS,
     GIT_CONFIG_READ_FLAGS,
+    HOME_PROTECTED_NAME_PREFIXES,
+    HOME_PROTECTED_TREES,
     MUTATING_KUBECTL_VERBS,
     PATH_SCOPED,
     PROTECTED_PREFIXES,
@@ -107,3 +111,17 @@ def test_every_inverted_head_lists_at_least_one_read_verb() -> None:
     """An inverted head with an empty read set would convict EVERY invocation of the tool."""
     for head, verbs in READ_ONLY_SUBCOMMANDS.items():
         assert verbs, head
+
+
+def test_home_config_sub_trees_are_relative_dot_paths() -> None:
+    for tree in HOME_PROTECTED_TREES + HOME_PROTECTED_NAME_PREFIXES:
+        assert tree.startswith("."), tree
+        assert not tree.endswith("/"), tree
+    assert set(HOME_PROTECTED_TREES) == {".ssh", ".config/systemd"}
+    assert HOME_PROTECTED_NAME_PREFIXES == (".fabro",)
+
+
+def test_clustered_and_check_flag_heads_are_flag_judged() -> None:
+    assert set(FLAG_MUTATIONS) >= CLUSTERED_FLAG_HEADS
+    assert set(CHECK_FLAGS) <= set(FLAG_MUTATIONS)
+    assert {"date", "find"}.isdisjoint(CLUSTERED_FLAG_HEADS)
