@@ -34,10 +34,9 @@ __all__: list[str] = []
     ("head", "arguments", "rule"),
     [
         # Always mutating: the head is the verb.
-        ("tee", ["/tmp/x"], "tee"),
         ("/usr/bin/install", ["-m", "0755", "x", "/tmp/x"], "install"),
-        ("CHMOD", ["+x", "x"], "chmod"),
         ("reboot", [], "reboot"),
+        ("useradd", ["x"], "useradd"),
         # Path-scoped: a write is a mutation only under a protected tree.
         ("rm", ["-rf", "/opt/x"], "rm"),
         ("/usr/bin/rm", ["-rf", "/etc/x"], "rm"),
@@ -54,6 +53,14 @@ __all__: list[str] = []
         ("mv", ["x", "/usr/local/bin/x"], "mv"),
         ("mv", ["/srv/a", "/tmp/b"], None),
         ("cp", ["-r"], None),
+        ("tee", ["/tmp/x"], None),
+        ("tee", ["-a", "/etc/x"], "tee"),
+        ("sudo", [], None),
+        ("CHMOD", ["+x", "/tmp/probe.sh"], None),
+        ("chmod", ["600", "/etc/rancher/k3s/k3s.yaml"], "chmod"),
+        ("chown", ["root", "/usr/local/bin/x"], "chown"),
+        ("chown", ["cwoolley", "~/x"], None),
+        ("chgrp", ["adm", "/opt/x"], "chgrp"),
         # Inverted subcommand heads.
         ("systemctl", ["restart", "k3s"], "systemctl+restart"),
         ("systemctl", ["status", "k3s"], None),
@@ -141,7 +148,9 @@ __all__: list[str] = []
         ("npm", ["install", "-g", "x"], "npm+install"),
         ("nft", ["list", "ruleset"], None),
         ("nft", ["flush", "ruleset"], "nft+flush"),
-        ("nft", ["-f", "/etc/nftables.conf"], None),
+        ("nft", ["-f", "/etc/nftables.conf"], "nft+-f"),
+        ("nft", ["--file=/etc/nftables.conf"], "nft+--file"),
+        ("nft", ["-a", "list", "ruleset"], None),
         # Flag-judged heads.
         ("find", ["/etc", "-name", "x"], None),
         ("find", ["/etc", "-name", "x", "-delete"], "find+-delete"),
@@ -179,6 +188,9 @@ __all__: list[str] = []
         ("hostname", ["newname"], "hostname+set"),
         ("mount", [], None),
         ("mount", ["/dev/sdb1", "/mnt"], "mount+set"),
+        ("mount", ["-a"], "mount+-a"),
+        ("mount", ["-o", "remount,rw", "/"], "mount+-o"),
+        ("mount", ["-t", "nfs"], None),
         ("dpkg", ["-l"], None),
         ("dpkg", ["-s", "curl"], None),
         ("dpkg", ["-i", "x.deb"], "dpkg+-i"),

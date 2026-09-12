@@ -22,6 +22,7 @@ from _shell_lex import (  # noqa: E402 — path-dependent import after sys.path 
     SHELL_KEYWORDS_DATA,
     SHELL_KEYWORDS_PASS,
     SHELLS,
+    after_case_pattern,
     basename,
     first_command_index,
     heredoc_count,
@@ -214,3 +215,20 @@ def test_first_command_index_skips_leading_assignments() -> None:
 
 def test_operands_drop_flags() -> None:
     assert operands(arguments=["-n", "5", "--x=y", "cmd"]) == ["5", "cmd"]
+
+
+@pytest.mark.parametrize(
+    ("seg", "rest"),
+    [
+        ("case $x in k3s) ssh h 'sudo x'", "ssh h 'sudo x'"),
+        ("case $x in 'a)b') cmd", "cmd"),
+        ('case $x in "a)b") cmd', "cmd"),
+        ("case $x in k3s)", None),
+        ("case $x in", None),
+        ("", None),
+    ],
+)
+def test_after_case_pattern_returns_the_arm_body_past_the_first_unquoted_paren(
+    seg: str, rest: str | None
+) -> None:
+    assert after_case_pattern(seg=seg) == rest

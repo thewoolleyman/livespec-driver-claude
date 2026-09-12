@@ -73,7 +73,8 @@ after it as ITS arguments, and stop there — the arguments of a recognised head
 are data (`journalctl -u k3s` names a unit, not a `k3s` command). Tokens the
 guard does not recognise (`timeout 30`, `env -i`, `mise exec --`, `nohup`) and
 shell keywords (`if`, `do`, `then`, `!`) are walked past, so a wrapper is
-defeated by the walk rather than by an allowlist. Heads are matched
+defeated by the walk rather than by an allowlist; a one-line `case … in pat)
+cmd;; esac` is scanned from its first `)`. Heads are matched
 case-insensitively. Payloads handed to another interpreter are re-classified
 one level down: `sh -c`, `bash <<<`, `| bash`, `eval`, `script -c`, `watch`,
 and tmux `new-session`/`send-keys` operands.
@@ -112,6 +113,7 @@ from _shell_io import (
 from _shell_lex import (
     SHELL_KEYWORDS_DATA,
     SHELL_KEYWORDS_PASS,
+    after_case_pattern,
     basename,
     first_command_index,
     heredoc_count,
@@ -258,6 +260,12 @@ def _position(
     return rule, rule is not None or read_only(head=head, arguments=arguments)
 
 
+def _opens_case(*, tokens: list[str]) -> bool:
+    """`case $x in pat) cmd;; esac` on ONE line: the arm's command follows the first `)`."""
+    start = first_command_index(tokens=tokens)
+    return start is not None and tokens[start].lower() == "case"
+
+
 def _command_start(*, seg: str, tokens: list[str]) -> int | None:
     """Where the command begins: past assignments, keywords and a `case` pattern; None if data."""
     start = first_command_index(tokens=tokens)
@@ -284,7 +292,8 @@ def _segment_rule(
         return rule
     start = _command_start(seg=seg, tokens=tokens)
     if start is None:
-        return None
+        arm = after_case_pattern(seg=seg) if _opens_case(tokens=tokens) else None
+        return _scan(text=arm, scan=replace(scan, depth=scan.depth + 1)) if arm else None
     if scan.hinted and _unresolvable(token=tokens[start]):
         return "unresolvable-command"
     if not scan.remote:
@@ -329,7 +338,7 @@ def _scan(*, text: str, scan: _Scan) -> str | None:
         rule = _segment_rule(seg=seg, tokens=tokens, fed_by=fed_by, stdin=stdin, scan=scan)
         if rule is not None:
             return rule
-        piped = produced_text(tokens=tokens, bodies=own)
+        piped = produced_text(tokens=tokens, stdin=stdin)
     return None
 
 

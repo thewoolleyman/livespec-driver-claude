@@ -48,6 +48,7 @@ __all__: list[str] = [
     "SHELLS",
     "SHELL_KEYWORDS_DATA",
     "SHELL_KEYWORDS_PASS",
+    "after_case_pattern",
     "basename",
     "first_command_index",
     "heredoc_count",
@@ -110,6 +111,20 @@ def tokens_or_none(*, seg: str) -> list[str] | None:
         for token in raw
         if not token or token == _XARGS_PLACEHOLDER or token.strip(_GROUPING)
     ]
+
+
+def after_case_pattern(*, seg: str) -> str | None:
+    """The command text after the first unquoted `)` — a single-segment `case` arm's body."""
+    quote = ""
+    for index, char in enumerate(seg):
+        if quote:
+            quote = "" if char == quote else quote
+        elif char in "'\"":
+            quote = char
+        elif char == ")":
+            rest = seg[index + 1 :].strip()
+            return rest or None
+    return None
 
 
 def heredoc_count(*, tokens: list[str]) -> int:

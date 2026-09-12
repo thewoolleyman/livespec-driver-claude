@@ -17,14 +17,17 @@ Conventions:
   - `READ_ONLY_SECOND_LEVEL`: for a (head, verb) pair, the nested verbs that
     read (`docker container ls`, `k3s certificate check`); `""` means the bare
     pair reads (`crictl image` alone lists images).
-  - `VALUE_FLAGS`: a tool's global flags that consume the next token, so the
-    verb is found in the right place (`kubectl -n apply logs x` reads).
+  - `VALUE_FLAGS`: a tool's flags that consume the next token, so the verb or
+    operand is found in the right place (`kubectl -n apply logs x` reads,
+    `mount -t nfs` lists).
   - `FLAG_MUTATIONS`: heads that read by default but write under a flag
     (`dpkg -i`, `iptables -A`, `dmesg -C`); `FLAG_PREFIX_MUTATIONS` the same
     by prefix (`journalctl --vacuum-time=…`).
   - `PATH_SCOPED`: heads judged by the tree their operands touch — a write
     under a `PROTECTED_PREFIXES` tree is host configuration; the same write
-    under `/tmp` or `$HOME` is scratch and is NOT this guard's concern.
+    under `/tmp` or `$HOME` is scratch and is NOT this guard's concern. `tee`,
+    `chmod`, `chown` and `chgrp` are scoped the same way; `install` is not —
+    it is a configuration write by construction.
   - `ALWAYS_MUTATING`: the head IS the verb.
 
 Self-contained by contract: the plugin installer ships this file under bare
@@ -57,15 +60,14 @@ def _words(*, text: str) -> frozenset[str]:
 PROTECTED_PREFIXES = ("/etc", "/usr", "/opt", "/var/lib", "/srv", "/boot")
 
 ALWAYS_MUTATING = _words(
-    text="install tee chmod chown chgrp dd mkfs fdisk parted umount useradd usermod userdel "
-    "groupadd "
+    text="install dd mkfs fdisk parted umount useradd usermod userdel groupadd "
     "groupdel passwd reboot shutdown poweroff halt modprobe rmmod ufw iptables-restore "
     "ip6tables-restore nft-restore swapoff swapon k3s-uninstall.sh k3s-agent-uninstall.sh "
     "k3s-killall.sh"
 )
 
 # Writes only when an operand lies under a protected tree.
-PATH_SCOPED = _words(text="cp mv rm rmdir mkdir touch ln truncate")
+PATH_SCOPED = _words(text="cp mv rm rmdir mkdir touch ln truncate tee chmod chown chgrp")
 
 READ_ONLY_HEADS = _words(
     text="cat ls stat grep egrep fgrep rg test [ head tail wc find df du id hostname uname uptime "
@@ -170,6 +172,7 @@ VALUE_FLAGS: dict[str, frozenset[str]] = {
     "docker": _words(text="-H --host --context -l --log-level -c"),
     "tailscale": frozenset({"--socket"}),
     "nft": _words(text="-f --file -D --define -I --includepath"),
+    "mount": _words(text="-t --types -L --label -U --uuid -N --namespace --source --target"),
 }
 
 # The verbs the fail-closed hazard hint treats as cluster mutations.
@@ -178,8 +181,11 @@ MUTATING_KUBECTL_VERBS = _words(
     "rollout exec uncordon run expose certificate cp debug"
 )
 
-# Read-by-default heads that write under one of these flags.
+# Heads that write under one of these flags: reads by default, or inverted heads
+# whose ruleset-loading flags carry no verb (`nft -f file`, `mount -a`).
 FLAG_MUTATIONS: dict[str, frozenset[str]] = {
+    "nft": _words(text="-f --file -i --interactive"),
+    "mount": _words(text="-a --all -o --options"),
     "find": _words(text="-delete -exec -execdir -ok -okdir"),
     "iptables": _words(
         text="-A -D -I -R -F -X -N -P -E -Z --append --delete --insert --replace --flush "
