@@ -27,6 +27,8 @@ import sys
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -141,8 +143,13 @@ def test_reason_names_the_configured_plugin_namespace(monkeypatch, capsys, tmp_p
     assert "/livespec-orchestrator-beads-fabro" not in decision["reason"]
 
 
+@pytest.mark.integration
 def test_subprocess_smoke_blocks_memory_write(tmp_path: Path) -> None:
-    """The shipped script path still speaks the PreToolUse stdin/stdout protocol."""
+    """The shipped script path still speaks the PreToolUse stdin/stdout protocol.
+
+    Integration-tier: drives the shipped hook script as a subprocess over its
+    real stdin/stdout protocol, realizing scenarios.md's auto-memory-intent-route
+    scenario end to end (mapped from tests/heading-coverage.json)."""
     project = _governed_project(root=tmp_path)
     result = subprocess.run(
         ["python3", str(_HOOK_SCRIPT)],
