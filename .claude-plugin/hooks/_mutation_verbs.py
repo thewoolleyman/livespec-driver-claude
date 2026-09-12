@@ -10,28 +10,36 @@ questions about each head it meets, with that head's own argument run:
   - `read_only(head, arguments)` — is this POSITIVELY a read? Used only to
     decide what `sudo` may escalate without convicting on its own: `sudo`
     followed by anything that is not provably read-only IS the mutation
-    (`sudo reboot`, `sudo /usr/local/bin/k3s-uninstall.sh`, `sudo cp x /tmp`),
+    (`sudo reboot`, `sudo /usr/local/bin/k3s-uninstall.sh`, `sudo some-tool`),
     because root is exactly the capability the discipline withholds from a
     hand. That default-convict is deliberate and is the one place the guard
     prefers the deny direction over positive identification.
 
-Three shapes of head, each judged its own way:
+The tables live in `_verb_tables`; this module applies them, in four shapes:
 
-  - **Always mutating**: `install`, `tee`, `rm`, `chmod`, `apt`, `mkdir`, `dd`,
-    `useradd`, `reboot`, … — the head IS the verb.
-  - **Inverted subcommand heads**: `systemctl`, `git`, `k3s`, `kubectl`, `helm`,
-    `crictl`, `ctr`, `docker`, `tailscale`. Their READ-ONLY subcommands are
-    enumerated (`systemctl status|show|cat|list-*|is-*`, `git status|log|
-    diff|show|…`, `kubectl get|describe|logs|top|…`) and every other verb
-    convicts, so a newly learned verb (`systemctl kexec`, `kubectl certificate
-    approve`) is denied rather than missed. The verb is the FIRST positional
-    after the tool's global flags, so `kubectl -n apply logs x` reads and
-    `kubectl get pods delete` reads. `kubectl --dry-run=client|server` makes
-    a verb a read; the LAST `--dry-run` wins, as it does in kubectl.
-  - **Flag-judged heads**: `find -delete|-exec`, `journalctl --vacuum*|--rotate`,
-    `sed -i`, `iptables -A|-D|-F|…`, `ip … add|del|set|flush`, `dmesg -c|-C`,
-    `sysctl -w|key=value`, `cp`/`mv` into a protected tree (`/etc`, `/usr`,
-    `/boot`, `/var/lib`), a `>`/`>>` redirection into one, and an ad hoc
+  - **Always mutating**: `install`, `tee`, `chmod`, `dd`, `useradd`, `reboot`,
+    … — the head IS the verb.
+  - **Path-scoped**: `cp`, `mv`, `rm`, `mkdir`, `touch`, `ln`, … write the host
+    only when an operand lies under a protected tree (`/etc`, `/usr`, `/opt`,
+    `/var/lib`, `/srv`, `/boot`); the same verb under `/tmp` or `$HOME` is
+    scratch, which this guard does not police (a deliberate scoping: it
+    guards host CONFIGURATION). A `>`-family redirection into a protected
+    tree is the same write spelt differently.
+  - **Inverted subcommand heads**: `systemctl`, `git`, `k3s`, `kubectl`,
+    `helm`, `crictl`, `ctr`, `docker`, `tailscale`, `apt`, `snap`, `pip`,
+    `npm`, `nft`. Their READ-ONLY verbs are enumerated and every other verb
+    convicts, so a newly learned verb is denied rather than missed. The verb
+    is the FIRST positional after the tool's global flags, so `kubectl -n
+    apply logs x` reads and `kubectl get pods delete` reads; noun-verb tools
+    (`docker container ls`, `k3s etcd-snapshot ls`, `kubectl auth can-i`) are
+    judged at the second level. `kubectl`/`helm --dry-run=client|server`
+    makes a verb a read; the LAST `--dry-run` wins. `git config` reads only
+    with a `--get*`/`--list`/`--show-*` flag.
+  - **Flag-judged heads**: reads by default that write under a flag —
+    `find -delete|-exec`, `journalctl --vacuum*|--rotate`, `sed -i`,
+    `yq -i`, `awk -i inplace`, `iptables -A|-D|-F|…`, `ip … add|del|set|
+    exec`, `dmesg -c|-C`, `sysctl -w|--system|key=value`, `date -s`,
+    `dpkg -i|-r|-P|…`, `hostname <name>`, `mount <operands>`, and an ad hoc
     `ansible` run with `--become` or a mutating module.
 
 Anything not listed is UNKNOWN: not a mutation on its own, not a read under
@@ -39,14 +47,28 @@ Anything not listed is UNKNOWN: not a mutation on its own, not a read under
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
-import here is standard library.
+import here is the standard library or a sibling module shipped beside it.
 """
 
 from __future__ import annotations
 
 import re
 
-from _shell_lex import basename
+from _shell_lex import basename, operands
+from _verb_tables import (
+    ALWAYS_MUTATING,
+    ANSIBLE_MUTATING_MODULES,
+    FLAG_MUTATIONS,
+    FLAG_PREFIX_MUTATIONS,
+    GIT_CONFIG_READ_FLAGS,
+    MUTATING_KUBECTL_VERBS,
+    PATH_SCOPED,
+    PROTECTED_PREFIXES,
+    READ_ONLY_HEADS,
+    READ_ONLY_SECOND_LEVEL,
+    READ_ONLY_SUBCOMMANDS,
+    VALUE_FLAGS,
+)
 
 __all__: list[str] = ["MUTATING_KUBECTL_VERBS", "mutation_of", "read_only", "redirect_rule"]
 
@@ -54,112 +76,16 @@ __all__: list[str] = ["MUTATING_KUBECTL_VERBS", "mutation_of", "read_only", "red
 # `50`, which is a value, not a verb, and so convicts nothing.
 _SUBCOMMAND_WORD = re.compile(r"^[a-z][a-z0-9-]*$")
 _DELEGATED_K3S_TOOLS = frozenset({"kubectl", "crictl", "ctr"})
-
-_PROTECTED_PREFIXES = ("/etc", "/usr", "/boot", "/var/lib")
-_ALWAYS_MUTATING = frozenset(
-    "install tee rm rmdir chmod chown chgrp apt apt-get dpkg snap mkdir touch truncate dd "
-    "mkfs fdisk parted mount umount useradd usermod userdel groupadd groupdel passwd reboot "
-    "shutdown poweroff halt modprobe rmmod ln ufw iptables-restore nft swapoff swapon pip "
-    "pip3 npm".split()
-)
-_READ_ONLY_HEADS = frozenset(
-    "cat ls stat grep egrep fgrep rg test [ head tail wc find df du id hostname uname uptime "
-    "ps which pgrep true false echo printf less more dmesg ss lsof lsblk nvidia-smi ip free "
-    "top htop w who last date printenv file readlink realpath md5sum sha256sum awk sed sort "
-    "uniq cut tr diff cmp strings xxd hexdump journalctl iptables ip6tables sysctl getent "
-    "nproc lscpu lsmod lspci lsusb numfmt column jq yq".split()
-)
-_READ_ONLY_SUBCOMMANDS: dict[str, frozenset[str]] = {
-    "systemctl": frozenset(
-        "status show cat list-units list-timers list-unit-files list-dependencies "
-        "list-sockets list-jobs list-machines list-paths list-automounts is-active is-enabled "
-        "is-failed is-system-running get-default show-environment help --version".split()
-    ),
-    "git": frozenset(
-        "status log diff show rev-parse ls-files ls-remote ls-tree describe blame shortlog "
-        "rev-list cat-file name-rev grep show-ref config var help version --version".split()
-    ),
-    "k3s": frozenset(
-        "check-config certificate kubectl crictl ctr version --version -v help".split()
-    ),
-    "kubectl": frozenset(
-        "get describe logs top version explain auth api-resources api-versions diff "
-        "cluster-info config wait events options completion plugin proxy port-forward attach "
-        "help kustomize".split()
-    ),
-    "helm": frozenset(
-        "list ls status get history show search version env template lint verify pull "
-        "dependency repo registry completion help plugin".split()
-    ),
-    "crictl": frozenset(
-        "ps images image img pods inspect inspecti inspectp logs stats statsp info version "
-        "imagefsinfo completion help".split()
-    ),
-    "docker": frozenset(
-        "ps images image logs inspect version info stats top port diff history events search "
-        "context help".split()
-    ),
-    "tailscale": frozenset("status ip netcheck ping version whois bugreport metrics help".split()),
-    "ctr": frozenset("ls list info check tree usage ps version plugins".split()),
-}
-# Read-only sub-subcommands of a verb that is otherwise mutating.
-_READ_ONLY_SECOND_LEVEL: dict[tuple[str, str], frozenset[str]] = {
-    ("k3s", "certificate"): frozenset({"check"}),
-    ("docker", "image"): frozenset({"ls", "list", "inspect", "history"}),
-    ("crictl", "image"): frozenset({"ls", "list", "inspect"}),
-}
-# Global flags that consume the next token, per tool, so the verb is found.
-_VALUE_FLAGS: dict[str, frozenset[str]] = {
-    "kubectl": frozenset(
-        "-n --namespace --context --kubeconfig --cluster --user -s --server --token --as "
-        "--as-group --as-uid --cache-dir --certificate-authority --client-certificate "
-        "--client-key --request-timeout --tls-server-name -v --v --profile --profile-output "
-        "--log-flush-frequency --password --username --vmodule".split()
-    ),
-    "helm": frozenset(
-        "-n --namespace --kube-context --kubeconfig --kube-apiserver --kube-token "
-        "--registry-config --repository-cache --repository-config".split()
-    ),
-    "systemctl": frozenset(
-        "-p --property -t --type --state -M --machine -H --host -n --lines -o --output "
-        "--root".split()
-    ),
-    "git": frozenset("-C -c --git-dir --work-tree --namespace --exec-path".split()),
-    "crictl": frozenset(
-        "-r --runtime-endpoint -i --image-endpoint -t --timeout -c --config".split()
-    ),
-    "ctr": frozenset("-n --namespace -a --address -t --timeout".split()),
-    "docker": frozenset("-H --host --context -l --log-level -c".split()),
-    "tailscale": frozenset({"--socket"}),
-    "k3s": frozenset(),
-}
-MUTATING_KUBECTL_VERBS = frozenset(
-    "apply patch taint delete cordon drain label edit scale create replace annotate set "
-    "rollout exec uncordon run expose certificate cp debug".split()
-)
-_FIND_MUTATIONS = frozenset("-delete -exec -execdir -ok -okdir".split())
-_JOURNALCTL_MUTATIONS = (
-    "--vacuum",
-    "--rotate",
-    "--flush",
-    "--relinquish-var",
-    "--sync",
-    "--setup-keys",
-)
-_IPTABLES_MUTATIONS = frozenset(
-    "-A -D -I -R -F -X -N -P -E -Z --append --delete --insert --replace --flush "
-    "--delete-chain --new-chain --policy --rename-chain --zero".split()
-)
-_IP_MUTATIONS = frozenset("add del delete set change replace flush".split())
-_ANSIBLE_MUTATING_MODULES = frozenset(
-    "shell command raw script apt copy file systemd service lineinfile template user group "
-    "cron mount reboot package pip git synchronize unarchive get_url".split()
-)
+_DRY_RUN_HEADS = frozenset({"kubectl", "helm"})
+_DRY_RUN_OFF = frozenset({"none", "false"})
+# `>`, `>>`, `1>`, `2>>`, `&>`, `>|` — every output redirection spelling.
+_REDIRECT = re.compile(r"^(?:\d*|&)>{1,2}\|?")
+_DESTINATION_ONLY = frozenset({"cp", "mv"})
 
 
 def _positionals(*, head: str, arguments: list[str]) -> list[str]:
     """Operands with the tool's global flags (and their values) removed."""
-    value_flags = _VALUE_FLAGS.get(head, frozenset())
+    value_flags = VALUE_FLAGS.get(head, frozenset())
     out: list[str] = []
     index = 0
     total = len(arguments)
@@ -177,11 +103,11 @@ def _positionals(*, head: str, arguments: list[str]) -> list[str]:
 
 
 def _protected(*, path: str) -> bool:
-    return any(path == prefix or path.startswith(prefix + "/") for prefix in _PROTECTED_PREFIXES)
+    return any(path == prefix or path.startswith(prefix + "/") for prefix in PROTECTED_PREFIXES)
 
 
-def _kubectl_dry_run(*, arguments: list[str]) -> bool:
-    """True when the LAST `--dry-run` is `client`/`server` (kubectl: last flag wins)."""
+def _dry_run(*, arguments: list[str]) -> bool:
+    """True when the LAST `--dry-run` is on (kubectl and helm: last flag wins)."""
     mode = ""
     for index, token in enumerate(arguments):
         if token.startswith("--dry-run="):
@@ -189,7 +115,7 @@ def _kubectl_dry_run(*, arguments: list[str]) -> bool:
         elif token == "--dry-run":
             following = arguments[index + 1] if index + 1 < len(arguments) else ""
             mode = following if following and not following.startswith("-") else "client"
-    return mode in {"client", "server"}
+    return bool(mode) and mode not in _DRY_RUN_OFF
 
 
 def _subcommand_rule(*, head: str, arguments: list[str]) -> str | None:
@@ -197,103 +123,82 @@ def _subcommand_rule(*, head: str, arguments: list[str]) -> str | None:
     if not positionals or not _SUBCOMMAND_WORD.match(positionals[0]):
         return None
     verb = positionals[0]
-    if head == "kubectl" and _kubectl_dry_run(arguments=arguments):
+    if head in _DRY_RUN_HEADS and _dry_run(arguments=arguments):
         return None
     if head == "k3s" and verb in _DELEGATED_K3S_TOOLS:
         # `k3s kubectl …` / `k3s crictl …` / `k3s ctr …` are those tools; judge them as such.
-        index = arguments.index(verb)
-        return mutation_of(head=verb, arguments=arguments[index + 1 :])
-    second = _READ_ONLY_SECOND_LEVEL.get((head, verb))
+        return mutation_of(head=verb, arguments=arguments[arguments.index(verb) + 1 :])
+    if head == "git" and verb == "config":
+        return None if any(a in GIT_CONFIG_READ_FLAGS for a in arguments) else "git+config"
+    nested = positionals[1] if len(positionals) > 1 else ""
+    second = READ_ONLY_SECOND_LEVEL.get((head, verb))
     if second is not None:
-        nested = positionals[1] if len(positionals) > 1 else ""
         return None if nested in second else f"{head}+{verb}+{nested or 'none'}"
+    reads = READ_ONLY_SUBCOMMANDS[head]
     if head == "ctr":
-        nested = positionals[1] if len(positionals) > 1 else ""
-        return (
-            None
-            if verb in _READ_ONLY_SUBCOMMANDS[head] or nested in _READ_ONLY_SUBCOMMANDS[head]
-            else f"{head}+{verb}"
-        )
-    return None if verb in _READ_ONLY_SUBCOMMANDS[head] else f"{head}+{verb}"
+        return None if verb in reads or nested in reads else f"{head}+{verb}"
+    return None if verb in reads else f"{head}+{verb}"
 
 
-def _flag_rule(*, head: str, arguments: list[str]) -> str | None:
-    """Mutating flags of heads that are reads by default."""
-    if head == "find":
-        return next(
-            (
-                f"find+{a}"
-                for a in arguments
-                if a in _FIND_MUTATIONS or a.startswith(("-fprint", "-fls"))
-            ),
-            None,
-        )
-    if head == "journalctl":
-        return next(
-            (
-                f"journalctl+{a.split('=')[0]}"
-                for a in arguments
-                if a.startswith(_JOURNALCTL_MUTATIONS)
-            ),
-            None,
-        )
-    if head == "sed":
-        return (
-            "sed+in-place"
-            if any(
-                a == "--in-place"
-                or a.startswith("--in-place=")
-                or (a.startswith("-") and not a.startswith("--") and "i" in a[1:])
-                for a in arguments
-            )
-            else None
-        )
-    if head in {"iptables", "ip6tables"}:
-        return next((f"{head}+{a}" for a in arguments if a in _IPTABLES_MUTATIONS), None)
-    if head == "ip":
-        return next((f"ip+{a}" for a in arguments if a in _IP_MUTATIONS), None)
-    if head == "dmesg":
-        return (
-            "dmesg+clear"
-            if any(a in {"-c", "-C", "--clear", "--read-clear"} for a in arguments)
-            else None
-        )
-    if head == "sysctl":
-        return (
-            "sysctl+write"
-            if any(
-                a in {"-w", "--write", "-p", "--load"} or ("=" in a and not a.startswith("-"))
-                for a in arguments
-            )
-            else None
-        )
-    if head in {"cp", "mv"}:
-        operands = [a for a in arguments if not a.startswith("-")]
-        return head if operands and _protected(path=operands[-1]) else None
-    if head == "ansible":
-        module = next(
-            (
-                arguments[i + 1]
-                for i, a in enumerate(arguments)
-                if a in {"-m", "--module-name"} and i + 1 < len(arguments)
-            ),
-            "",
-        )
-        become = any(
-            a in {"-b", "--become"}
-            or (a.startswith("-") and not a.startswith("--") and "b" in a[1:])
-            for a in arguments
-        )
-        return "ansible+adhoc" if become or module in _ANSIBLE_MUTATING_MODULES else None
+def _in_place_rule(*, head: str, arguments: list[str]) -> str | None:
+    """`sed -i` / `sed -ni` / `--in-place`, and `awk -i inplace`."""
+    if head == "sed" and any(
+        a.startswith("--in-place")
+        or (a.startswith("-") and not a.startswith("--") and "i" in a[1:])
+        for a in arguments
+    ):
+        return "sed+in-place"
+    if head == "awk" and any(
+        a == "-i" and index + 1 < len(arguments) and arguments[index + 1] == "inplace"
+        for index, a in enumerate(arguments)
+    ):
+        return "awk+inplace"
     return None
 
 
+def _ansible_rule(*, arguments: list[str]) -> str | None:
+    module = next(
+        (
+            arguments[i + 1]
+            for i, a in enumerate(arguments)
+            if a in {"-m", "--module-name"} and i + 1 < len(arguments)
+        ),
+        "",
+    ).rsplit(".", 1)[-1]
+    become = any(
+        a == "--become" or (a.startswith("-") and not a.startswith("--") and "b" in a[1:])
+        for a in arguments
+    )
+    return "ansible+adhoc" if become or module in ANSIBLE_MUTATING_MODULES else None
+
+
+def _flag_rule(*, head: str, arguments: list[str]) -> str | None:
+    """Mutating flags (or operands) of heads that are reads by default."""
+    flags = FLAG_MUTATIONS.get(head, frozenset())
+    prefixes = FLAG_PREFIX_MUTATIONS.get(head, ())
+    for argument in arguments:
+        if argument.split("=", 1)[0] in flags or (prefixes and argument.startswith(prefixes)):
+            return f"{head}+{argument.split('=', 1)[0]}"
+    if head == "sysctl" and any("=" in a and not a.startswith("-") for a in arguments):
+        return "sysctl+write"
+    if head in {"hostname", "mount"} and operands(arguments=arguments):
+        return f"{head}+set"
+    if head in PATH_SCOPED:
+        paths = operands(arguments=arguments)
+        touched = paths[-1:] if head in _DESTINATION_ONLY else paths
+        return head if any(_protected(path=p) for p in touched) else None
+    if head == "ansible":
+        return _ansible_rule(arguments=arguments)
+    return _in_place_rule(head=head, arguments=arguments)
+
+
 def redirect_rule(*, tokens: list[str]) -> str | None:
-    """A `>`/`>>` whose target is under a protected tree is a file write on the host."""
+    """An output redirection whose target is under a protected tree is a file write."""
     for index, token in enumerate(tokens):
-        if not token.startswith(">"):
+        match = _REDIRECT.match(token)
+        if match is None:
             continue
-        path = token.lstrip(">") or (tokens[index + 1] if index + 1 < len(tokens) else "")
+        path = token[match.end() :] or (tokens[index + 1] if index + 1 < len(tokens) else "")
         if _protected(path=path):
             return "redirect-into-protected-tree"
     return None
@@ -302,9 +207,9 @@ def redirect_rule(*, tokens: list[str]) -> str | None:
 def mutation_of(*, head: str, arguments: list[str]) -> str | None:
     """The rule that convicts this head of a host mutation, else None."""
     name = basename(token=head).lower()
-    if name in _ALWAYS_MUTATING:
+    if name in ALWAYS_MUTATING:
         return name
-    if name in _READ_ONLY_SUBCOMMANDS:
+    if name in READ_ONLY_SUBCOMMANDS:
         return _subcommand_rule(head=name, arguments=arguments)
     return _flag_rule(head=name, arguments=arguments)
 
@@ -314,4 +219,4 @@ def read_only(*, head: str, arguments: list[str]) -> bool:
     name = basename(token=head).lower()
     if mutation_of(head=name, arguments=arguments) is not None:
         return False
-    return name in _READ_ONLY_HEADS or name in _READ_ONLY_SUBCOMMANDS
+    return name in READ_ONLY_HEADS or name in READ_ONLY_SUBCOMMANDS
