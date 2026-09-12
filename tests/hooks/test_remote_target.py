@@ -133,10 +133,40 @@ def test_parse_ssh_without_an_operand_reaches_nothing(arguments: list[str]) -> N
         ),
         ("scp", ["./a", "./b"], TransferReach(destination=None)),
         ("scp", ["./a", "./dir:with:colons/b"], TransferReach(destination=None)),
-        # `{}:/x` reaches the parser as `:/x` once the lexer strips the braces.
         ("scp", ["./a", ":/x"], TransferReach(destination=None, unresolvable=True)),
         ("scp", ["-r"], TransferReach(destination=None)),
         ("scp", ["./x", "{}:/etc/x"], TransferReach(destination="{}", unresolvable=True)),
+        # glibc getopt permutes: an option after the operands is still an option.
+        (
+            "scp",
+            ["./x", "poweredge-xubuntu:/etc/x", "-o", "StrictHostKeyChecking=no"],
+            TransferReach(destination="poweredge-xubuntu"),
+        ),
+        (
+            "scp",
+            ["-3", "other:/x", "poweredge-xubuntu:/etc/x"],
+            TransferReach(destination="poweredge-xubuntu", sources=["other"]),
+        ),
+        (
+            "rsync",
+            ["-avne", "ssh", "./x", "poweredge-xubuntu:/opt/x"],
+            TransferReach(destination="poweredge-xubuntu", dry_run=True),
+        ),
+        (
+            "rsync",
+            ["-en", "./x", "poweredge-xubuntu:/opt/x"],
+            TransferReach(destination="poweredge-xubuntu"),
+        ),
+        (
+            "rsync",
+            ["--rsh=ssh", "-av", "./x", "poweredge-xubuntu:/etc/x"],
+            TransferReach(destination="poweredge-xubuntu"),
+        ),
+        (
+            "rsync",
+            ["-av", "./x", "poweredge-xubuntu::mod/"],
+            TransferReach(destination="poweredge-xubuntu"),
+        ),
         (
             "rsync",
             ["-av", "./x", "poweredge-xubuntu:/etc/x", "-e", "ssh -p 22"],
