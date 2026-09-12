@@ -678,6 +678,131 @@ _DENY_CASES = (
         "T10 here-doc through cat into ssh",
         "cat <<'EOF' | cat | ssh poweredge-xubuntu bash -s\nsudo systemctl restart k3s\nEOF",
     ),
+    # --- Reviewer corpus, round four: under-denials and home config (#750) ---------
+    ("R4-T01 sudo tee /etc", "ssh poweredge-xubuntu 'echo x | sudo tee /etc/y'"),
+    ("R4-T02 sudo tee -a /etc", "ssh poweredge-xubuntu 'echo x | sudo tee -a /etc/hosts'"),
+    (
+        "R4-T03 sudo tee /tmp (sudo default-convict)",
+        "ssh poweredge-xubuntu 'echo x | sudo tee " "/tmp/y'",
+    ),
+    ("R4-T05 tee /etc/../tmp/x (deny bias)", "ssh poweredge-xubuntu 'echo x | tee /etc/../tmp/x'"),
+    (
+        "R4-T06 tee /var/lib no sudo",
+        "ssh poweredge-xubuntu 'echo x | tee " "/var/lib/rancher/k3s/server/manifests/x.yaml'",
+    ),
+    ("R4-T08 tee /usr/local/bin", "ssh poweredge-xubuntu 'cat x | tee /usr/local/bin/x'"),
+    ("R4-T10 chmod /etc", "ssh poweredge-xubuntu 'chmod 600 /etc/x'"),
+    ("R4-T11 sudo chmod /tmp (sudo default)", "ssh poweredge-xubuntu 'sudo chmod 600 /tmp/x'"),
+    ("R4-T12 chmod -R /opt", "ssh poweredge-xubuntu 'chmod -R 755 /opt/x'"),
+    ("R4-T14 chown /opt", "ssh poweredge-xubuntu 'chown root:root /opt/x'"),
+    ("R4-T16 chgrp /etc", "ssh poweredge-xubuntu 'chgrp adm /etc/x'"),
+    (
+        "R4-T18 install to /tmp still always-mutating",
+        "ssh poweredge-xubuntu 'install -m 0755 x " "/tmp/y'",
+    ),
+    ("R4-T19 tee via outer pipe into fleet", "echo x | ssh poweredge-xubuntu 'sudo tee /etc/y'"),
+    (
+        "R4-T20 tee ~/.ssh/authorized_keys (HOME is unpoliced) [decision: deny]",
+        "ssh hp-xubuntu 'echo key | " "tee -a ~/.ssh/authorized_keys'",
+    ),
+    (
+        "R4-T21 tee ~/.fabro config (HOME, Ansible-managed on hp) [decision: deny]",
+        "ssh hp-xubuntu 'echo x | tee " "~/.fabro/config.toml'",
+    ),
+    (
+        "R4-T22 cp user unit file (HOME) [decision: deny]",
+        "ssh hp-xubuntu 'cp x " "~/.config/systemd/user/fabro-server.service'",
+    ),
+    (
+        "R4-T23 ...but user daemon-reload is denied",
+        "ssh hp-xubuntu 'systemctl --user " "daemon-reload'",
+    ),
+    (
+        "R4-T24 ...and user restart is denied",
+        "ssh hp-xubuntu 'systemctl --user restart " "fabro-server'",
+    ),
+    (
+        "R4-T25 redirect >> ~/.ssh/authorized_keys (HOME) [decision: deny]",
+        "ssh hp-xubuntu 'cat >> " "~/.ssh/authorized_keys'",
+    ),
+    ("R4-N02 nft -f file", "ssh poweredge-xubuntu 'sudo nft -f /etc/nftables.conf'"),
+    ("R4-N03 nft -f -", "ssh poweredge-xubuntu 'sudo nft -f -'"),
+    ("R4-N04 nft --file", "ssh poweredge-xubuntu 'sudo nft --file /etc/x'"),
+    ("R4-N05 nft -i interactive", "ssh poweredge-xubuntu 'sudo nft -i'"),
+    ("R4-N08 nft add rule", "ssh poweredge-xubuntu 'sudo nft add rule inet filter input drop'"),
+    ("R4-M02 mount -a", "ssh poweredge-xubuntu 'sudo mount -a'"),
+    ("R4-M03 mount --all", "ssh poweredge-xubuntu 'sudo mount --all'"),
+    ("R4-M04 mount -o remount,ro /", "ssh poweredge-xubuntu 'sudo mount -o remount,ro /'"),
+    ("R4-M06 mount -t nfs src dst", "ssh poweredge-xubuntu 'sudo mount -t nfs srv:/x /mnt'"),
+    ("R4-M08 mount device dir", "ssh poweredge-xubuntu 'sudo mount /dev/sdb1 /mnt'"),
+    ("R4-M09 mount --bind", "ssh poweredge-xubuntu 'sudo mount --bind /a /b'"),
+    ("R4-M10 mount -av cluster (miss?)", "ssh poweredge-xubuntu 'sudo mount -av'"),
+    (
+        "R4-M11 mount --source --target (miss?)",
+        "ssh poweredge-xubuntu 'sudo mount --source " "/dev/sdb1 --target /mnt'",
+    ),
+    ("R4-M12 mount -L label dir", "ssh poweredge-xubuntu 'sudo mount -L data /mnt'"),
+    (
+        "R4-C01 case arm mutation one-line",
+        "case $x in k3s) ssh poweredge-xubuntu 'sudo systemctl " "restart k3s';; esac",
+    ),
+    (
+        "R4-C03 case pattern ) in quotes",
+        'case "$x" in "a)") ssh poweredge-xubuntu \'sudo ' "reboot';; esac",
+    ),
+    ("R4-C05 case (pat) form", "case $x in (k3s) ssh poweredge-xubuntu 'sudo reboot';; esac"),
+    (
+        "R4-C07 remote case arm mutation",
+        "ssh poweredge-xubuntu 'case $1 in start) sudo systemctl " "restart k3s;; esac'",
+    ),
+    (
+        "R4-C09 remote case $( ) word then mutation",
+        "ssh poweredge-xubuntu 'case $(hostname) in a) " "sudo systemctl restart k3s;; esac'",
+    ),
+    (
+        "R4-C10 multi-line case still caught",
+        "case $x in\n  k3s) ssh poweredge-xubuntu 'sudo " "reboot';;\nesac",
+    ),
+    ("R4-C11 case a|b) arm", "case $x in a|b) ssh poweredge-xubuntu 'sudo reboot';; esac"),
+    (
+        "R4-C14 case word list names hosts, arm mutation via $h",
+        "case $h in poweredge-xubuntu|gmktec"
+        "-xubuntu) ssh $h 'sudo systemctl restart k3s';; esac",
+    ),
+    (
+        "R4-P01 cat heredoc | tee | ssh bash -s",
+        "cat <<'EOF' | tee /tmp/x | ssh poweredge-xubuntu "
+        "bash -s\nsudo systemctl restart k3s\nEOF",
+    ),
+    (
+        "R4-P04 echo | tee | ssh bash -s",
+        "echo 'sudo reboot' | tee /tmp/x | ssh poweredge-xubuntu " "bash -s",
+    ),
+    (
+        "R4-P06 echo | tee | bash",
+        "echo \"ssh poweredge-xubuntu 'sudo reboot'\" | tee /tmp/x | " "bash",
+    ),
+    (
+        "R4-P07 cat heredoc | cat | ssh",
+        "cat <<'EOF' | cat | ssh poweredge-xubuntu bash -s\nsudo " "reboot\nEOF",
+    ),
+    (
+        "R4-P09 cat -n heredoc | ssh (flags only)",
+        "cat -n <<'EOF' | ssh poweredge-xubuntu bash " "-s\nsudo reboot\nEOF",
+    ),
+    ("HC1 authorized_keys via tee -a", "ssh hp-xubuntu 'echo key | tee -a ~/.ssh/authorized_keys'"),
+    ("HC2 authorized_keys via >>", "ssh hp-xubuntu 'cat key.pub >> ~/.ssh/authorized_keys'"),
+    ("HC3 $HOME/.ssh/config", "ssh hp-xubuntu 'cp x $HOME/.ssh/config'"),
+    ("HC4 /root/.ssh", "ssh hp-xubuntu 'sudo tee /root/.ssh/authorized_keys'"),
+    ("HC5 user unit", "ssh hp-xubuntu 'cp x ~/.config/systemd/user/fabro-server.service'"),
+    ("HC6 fabro state", "ssh hp-xubuntu 'echo x | tee ~/.fabro/config.toml'"),
+    ("HC7 fabro instance state", "ssh hp-xubuntu 'rm -rf /home/cwoolley/.fabro-mi-homelab'"),
+    ("HC8 ${HOME} spelling", "ssh hp-xubuntu 'echo x > ${HOME}/.ssh/rc'"),
+    ("HC9 mount -av cluster", "ssh hp-xubuntu 'sudo mount -av'"),
+    (
+        "HC10 mount --source --target",
+        "ssh hp-xubuntu 'sudo mount --source /dev/sdb1 --target " "/mnt'",
+    ),
 )
 
 # Legitimate work the guard must NOT block. A false positive here pushes agents
@@ -1163,6 +1288,72 @@ _ALLOW_CASES = (
     ("T16 mount listing by type", "ssh hp-xubuntu 'mount -t nfs'"),
     ("T17 nft list through -a", "ssh hp-xubuntu 'sudo nft -a list ruleset'"),
     ("T18 echo through cat into a remote read", "echo ls | cat | ssh poweredge-xubuntu bash -s"),
+    # --- Reviewer corpus, round four: false positives and home scratch (#750) ---------
+    ("R4-T04 tee /tmp no sudo (scratch)", "ssh poweredge-xubuntu 'echo x | tee /tmp/y'"),
+    ("R4-T07 tee no operand passthrough", "ssh poweredge-xubuntu 'cat /etc/x | tee | head'"),
+    ("R4-T09 chmod /tmp", "ssh poweredge-xubuntu 'chmod 600 /tmp/x'"),
+    ("R4-T13 chmod +x ./script", "ssh poweredge-xubuntu 'chmod +x ./script.sh'"),
+    ("R4-T15 chown ~/x", "ssh poweredge-xubuntu 'chown cwoolley ~/x'"),
+    ("R4-T17 chgrp /tmp", "ssh poweredge-xubuntu 'chgrp adm /tmp/x'"),
+    ("R4-N01 nft list ruleset", "ssh poweredge-xubuntu 'sudo nft list ruleset'"),
+    ("R4-N06 nft -I includepath list", "ssh poweredge-xubuntu 'sudo nft -I /etc/nft list ruleset'"),
+    (
+        "R4-N07 nft -c -f check mode (FP?)",
+        "ssh poweredge-xubuntu 'sudo nft -c -f " "/etc/nftables.conf'",
+    ),
+    ("R4-N09 nft list tables", "ssh poweredge-xubuntu 'sudo nft list tables'"),
+    ("R4-M01 mount listing", "ssh poweredge-xubuntu 'mount | grep nfs'"),
+    ("R4-M05 mount -t proc (lists)", "ssh poweredge-xubuntu 'mount -t proc'"),
+    ("R4-M07 mount -l", "ssh poweredge-xubuntu 'mount -l'"),
+    ("R4-M13 findmnt unaffected", "ssh poweredge-xubuntu 'findmnt /'"),
+    (
+        "R4-C02 case arm read-only",
+        "case $x in k3s) ssh poweredge-xubuntu 'systemctl status k3s';; " "esac",
+    ),
+    ("R4-C04 case pattern ) in quotes, read", 'case "$x" in "a)") echo hi;; esac'),
+    (
+        "R4-C06 case with $( ) in word",
+        "case $(hostname) in poweredge-xubuntu) sudo systemctl " "restart k3s;; esac",
+    ),
+    (
+        "R4-C08 remote case arm read",
+        "ssh poweredge-xubuntu 'case $1 in start) systemctl status " "k3s;; esac'",
+    ),
+    ("R4-C12 case no ) yet (data)", "case $x in"),
+    (
+        "R4-C13 case word list names hosts, arm read",
+        "case $h in poweredge-xubuntu|gmktec-xubuntu) " "ssh $h 'systemctl status k3s';; esac",
+    ),
+    ("R4-P02 cat - | ssh bash -s (nothing readable)", "cat - | ssh poweredge-xubuntu bash -s"),
+    (
+        "R4-P03 cat file | tee x | ssh (unreadable)",
+        "cat script.sh | tee /tmp/x | ssh " "poweredge-xubuntu bash -s",
+    ),
+    (
+        "R4-P05 echo | tee file (data to file)",
+        "echo 'ssh poweredge-xubuntu sudo reboot' | tee " "/tmp/notes.txt",
+    ),
+    (
+        "R4-P08 cat heredoc | tee -a x | ssh read-only",
+        "cat <<'EOF' | tee -a /tmp/x | ssh " "poweredge-xubuntu bash -s\nkubectl get nodes\nEOF",
+    ),
+    (
+        "R4-P10 cat heredoc | grep | ssh (unreadable)",
+        "cat <<'EOF' | grep -v '^#' | ssh " "poweredge-xubuntu bash -s\nsudo reboot\nEOF",
+    ),
+    (
+        "R4-P11 cat heredoc | sort | ssh (unreadable)",
+        "cat <<'EOF' | sort | ssh poweredge-xubuntu " "bash -s\nsudo reboot\nEOF",
+    ),
+    ("HA1 tee into home notes", "ssh hp-xubuntu 'tee ~/notes.txt'"),
+    ("HA2 cp into a home repo", "ssh hp-xubuntu 'cp x ~/repos/y'"),
+    ("HA3 rm a worktree", "ssh hp-xubuntu 'rm -rf /home/cwoolley/.worktrees/x'"),
+    ("HA4 mkdir scratch in home", "ssh hp-xubuntu 'mkdir -p $HOME/scratch'"),
+    ("HA5 read ssh config", "ssh hp-xubuntu 'cat ~/.ssh/config'"),
+    ("HA6 dotfile that is not a config tree", "ssh hp-xubuntu 'touch ~/.bash_history'"),
+    ("HA7 nft check mode", "ssh hp-xubuntu 'sudo nft -c -f /etc/nftables.conf'"),
+    ("HA8 nft --check", "ssh hp-xubuntu 'sudo nft --check -f /etc/nftables.conf'"),
+    ("HA9 date -Iseconds is not date -s", "ssh hp-xubuntu 'sudo date -Iseconds'"),
 )
 
 
