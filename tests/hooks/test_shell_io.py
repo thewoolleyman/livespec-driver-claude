@@ -38,23 +38,26 @@ def test_the_head_classes_name_the_interpreters_and_the_data_printers() -> None:
 
 
 @pytest.mark.parametrize(
-    ("tokens", "bodies", "text"),
+    ("tokens", "stdin", "text"),
     [
-        (["echo", "put", "x"], [], "put x"),
-        (["X=1", "printf", "put x\\n"], [], "put x\n"),
-        (["echo", "-e", "a"], [], "a"),
-        (["cat", "<<EOF"], ["ssh host 'sudo x'"], "ssh host 'sudo x'"),
-        (["cat", "-", "<<EOF"], ["body"], "body"),
-        (["cat", "batch.txt"], [], None),
-        (["cat", "<<EOF"], [], None),
-        (["curl", "x"], [], None),
-        (["X=1"], [], None),
+        (["echo", "put", "x"], None, "put x"),
+        (["X=1", "printf", "put x\\n"], None, "put x\n"),
+        (["echo", "-e", "a"], None, "a"),
+        (["cat", "<<EOF"], "ssh host 'sudo x'", "ssh host 'sudo x'"),
+        (["cat", "-", "<<EOF"], "body", "body"),
+        (["cat"], "piped in", "piped in"),
+        (["cat", "batch.txt"], "piped in", None),
+        (["cat", "<<EOF"], None, None),
+        (["tee", "/tmp/x"], "body", "body"),
+        (["tee", "-a", "/tmp/x"], None, None),
+        (["curl", "x"], "body", None),
+        (["X=1"], None, None),
     ],
 )
 def test_produced_text_is_what_a_readable_producer_writes(
-    tokens: list[str], bodies: list[str], text: str | None
+    tokens: list[str], stdin: str | None, text: str | None
 ) -> None:
-    assert produced_text(tokens=tokens, bodies=bodies) == text
+    assert produced_text(tokens=tokens, stdin=stdin) == text
 
 
 def test_stdin_text_collects_here_docs_a_here_string_and_a_data_pipe() -> None:

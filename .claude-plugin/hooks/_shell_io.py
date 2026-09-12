@@ -10,9 +10,9 @@ owns those channels so the classifier can read them as the commands they are:
     here-string (`bash <<< "…"`), or the text a DATA producer piped in
     (`echo 'put x /etc/y' | sftp host`, `cat <<'EOF' | ssh host bash -s`).
     `produced_text` says what a segment writes to stdout when that is
-    readable — `echo`/`printf` operands, or a `cat` with no file operand
-    feeding its here-doc through — and `stdin_text` assembles what the next
-    segment reads. `cat file | bash` produces text the guard cannot read.
+    readable — `echo`/`printf` operands, or the stdin a `tee` or an
+    operand-less `cat` passes through — and `stdin_text` assembles what the
+    next segment reads. `cat file | bash` produces text the guard cannot read.
   - **Payloads handed to an interpreter.** `sh -c '<script>'`, `script -c`,
     `su -c`, a shell fed by stdin, `eval <words>`, `watch '<cmd>'`, and tmux
     `new-session '<cmd>'` / `send-keys '<cmd>'` — each is a command line in
@@ -64,12 +64,13 @@ def without_stdin_redirects(*, tokens: list[str]) -> list[str]:
     return kept
 
 
-def produced_text(*, tokens: list[str], bodies: list[str]) -> str | None:
+def produced_text(*, tokens: list[str], stdin: str | None) -> str | None:
     """What a segment writes to stdout for a pipe into the next one, when readable.
 
-    `echo`/`printf` write their operands; a `cat` with no file operand writes
-    its here-doc bodies (`cat <<'EOF' | ssh host bash -s`). Anything else
-    (`cat file`, `curl …`) produces text the guard cannot read.
+    `echo`/`printf` write their operands; `tee [files]` and a `cat` with no
+    file operand pass their readable stdin through (`cat <<'EOF' | tee /tmp/x
+    | ssh host bash -s`). Anything else (`cat file`, `curl …`) produces text
+    the guard cannot read.
     """
     start = first_command_index(tokens=tokens)
     if start is None:
@@ -78,8 +79,10 @@ def produced_text(*, tokens: list[str], bodies: list[str]) -> str | None:
     arguments = without_stdin_redirects(tokens=tokens[start + 1 :])
     if head in DATA_HEADS:
         return " ".join(operands(arguments=arguments)).replace("\\n", "\n")
-    if head == "cat" and bodies and not [o for o in operands(arguments=arguments) if o != "-"]:
-        return "\n".join(bodies)
+    if head == "tee" or (
+        head == "cat" and not [o for o in operands(arguments=arguments) if o != "-"]
+    ):
+        return stdin
     return None
 
 
