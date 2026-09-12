@@ -24,8 +24,9 @@ Conventions:
     (`dpkg -i`, `iptables -A`, `dmesg -C`); `FLAG_PREFIX_MUTATIONS` the same
     by prefix (`journalctl --vacuum-time=…`).
   - `PATH_SCOPED`: heads judged by the tree their operands touch — a write
-    under a `PROTECTED_PREFIXES` tree is host configuration; the same write
-    under `/tmp` or `$HOME` is scratch and is NOT this guard's concern. `tee`,
+    under a `PROTECTED_PREFIXES` tree, or under a home's `HOME_PROTECTED_*`
+    sub-trees, is host configuration; the same write under `/tmp` or the rest
+    of `$HOME` is scratch and is NOT this guard's concern. `tee`,
     `chmod`, `chown` and `chgrp` are scoped the same way; `install` is not —
     it is a configuration write by construction.
   - `ALWAYS_MUTATING`: the head IS the verb.
@@ -40,9 +41,13 @@ from __future__ import annotations
 __all__: list[str] = [
     "ALWAYS_MUTATING",
     "ANSIBLE_MUTATING_MODULES",
+    "CHECK_FLAGS",
+    "CLUSTERED_FLAG_HEADS",
     "FLAG_MUTATIONS",
     "FLAG_PREFIX_MUTATIONS",
     "GIT_CONFIG_READ_FLAGS",
+    "HOME_PROTECTED_NAME_PREFIXES",
+    "HOME_PROTECTED_TREES",
     "MUTATING_KUBECTL_VERBS",
     "PATH_SCOPED",
     "PROTECTED_PREFIXES",
@@ -58,6 +63,12 @@ def _words(*, text: str) -> frozenset[str]:
 
 
 PROTECTED_PREFIXES = ("/etc", "/usr", "/opt", "/var/lib", "/srv", "/boot")
+# Inside a HOME (`~/`, `$HOME/`, `/home/<user>/`, `/root/`) only three configuration
+# sub-trees are policed: access control, user units, and the Ansible-managed Fabro
+# server state (`.fabro`, `.fabro-<instance>` — matched by name prefix). Repos,
+# worktrees and scratch under a home stay unpoliced.
+HOME_PROTECTED_TREES = (".ssh", ".config/systemd")
+HOME_PROTECTED_NAME_PREFIXES = (".fabro",)
 
 ALWAYS_MUTATING = _words(
     text="install dd mkfs fdisk parted umount useradd usermod userdel groupadd "
@@ -185,7 +196,7 @@ MUTATING_KUBECTL_VERBS = _words(
 # whose ruleset-loading flags carry no verb (`nft -f file`, `mount -a`).
 FLAG_MUTATIONS: dict[str, frozenset[str]] = {
     "nft": _words(text="-f --file -i --interactive"),
-    "mount": _words(text="-a --all -o --options"),
+    "mount": _words(text="-a --all -o --options --source --target"),
     "find": _words(text="-delete -exec -execdir -ok -okdir"),
     "iptables": _words(
         text="-A -D -I -R -F -X -N -P -E -Z --append --delete --insert --replace --flush "
@@ -207,6 +218,12 @@ FLAG_MUTATIONS: dict[str, frozenset[str]] = {
         "--add-architecture --remove-architecture"
     ),
 }
+# A tool's own dry-run flag: the command reads even when a mutating flag is present.
+CHECK_FLAGS: dict[str, frozenset[str]] = {"nft": _words(text="-c --check")}
+# Heads whose single-letter flags cluster (`mount -av`): the cluster is split into
+# letters before the FLAG_MUTATIONS lookup. Deliberately NOT `date` or `find`,
+# whose `-Iseconds` / `-name` would otherwise read as `-s` / `-n -a -m -e`.
+CLUSTERED_FLAG_HEADS = _words(text="mount dpkg iptables ip6tables dmesg nft yq")
 FLAG_PREFIX_MUTATIONS: dict[str, tuple[str, ...]] = {
     "find": ("-fprint", "-fls"),
     "journalctl": ("--vacuum", "--rotate", "--flush", "--relinquish-var", "--sync", "--setup-keys"),

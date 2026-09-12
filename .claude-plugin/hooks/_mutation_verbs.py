@@ -20,11 +20,12 @@ The tables live in `_verb_tables`; this module applies them, in four shapes:
   - **Always mutating**: `install`, `dd`, `useradd`, `reboot`, … — the head IS
     the verb.
   - **Path-scoped**: `cp`, `mv`, `rm`, `mkdir`, `touch`, `ln`, `tee`, `chmod`,
-    `chown`, … write the host
-    only when an operand lies under a protected tree (`/etc`, `/usr`, `/opt`,
-    `/var/lib`, `/srv`, `/boot`); the same verb under `/tmp` or `$HOME` is
-    scratch, which this guard does not police (a deliberate scoping: it
-    guards host CONFIGURATION). A `>`-family redirection into a protected
+    `chown`, … write the host only when an operand lies under a protected
+    tree (`/etc`, `/usr`, `/opt`, `/var/lib`, `/srv`, `/boot`) or under a
+    home's configuration sub-trees (`~/.ssh`, `~/.config/systemd`, `~/.fabro*`
+    in any spelling of the home); the same verb under `/tmp` or the rest of
+    `$HOME` is scratch, which this guard does not police (a deliberate
+    scoping: it guards host CONFIGURATION). A `>`-family redirection into a protected
     tree is the same write spelt differently.
   - **Inverted subcommand heads**: `systemctl`, `git`, `k3s`, `kubectl`,
     `helm`, `crictl`, `ctr`, `docker`, `tailscale`, `apt`, `snap`, `pip`,
@@ -40,8 +41,9 @@ The tables live in `_verb_tables`; this module applies them, in four shapes:
     `find -delete|-exec`, `journalctl --vacuum*|--rotate`, `sed -i`,
     `yq -i`, `awk -i inplace`, `iptables -A|-D|-F|…`, `ip … add|del|set|
     exec`, `dmesg -c|-C`, `sysctl -w|--system|key=value`, `date -s`,
-    `dpkg -i|-r|-P|…`, `hostname <name>`, `mount <operands>|-a|-o`, `nft -f`,
-    and an ad hoc
+    `dpkg -i|-r|-P|…`, `hostname <name>`, `mount <operands>|-a|-o|--source`,
+    `nft -f` (unless `nft -c`, its check mode); single-letter clusters are
+    split for the tools that cluster them (`mount -av`); and an ad hoc
     `ansible` run with `--become` or a mutating module.
 
 Anything not listed is UNKNOWN: not a mutation on its own, not a read under
@@ -60,9 +62,13 @@ from _shell_lex import basename, operands
 from _verb_tables import (
     ALWAYS_MUTATING,
     ANSIBLE_MUTATING_MODULES,
+    CHECK_FLAGS,
+    CLUSTERED_FLAG_HEADS,
     FLAG_MUTATIONS,
     FLAG_PREFIX_MUTATIONS,
     GIT_CONFIG_READ_FLAGS,
+    HOME_PROTECTED_NAME_PREFIXES,
+    HOME_PROTECTED_TREES,
     MUTATING_KUBECTL_VERBS,
     PATH_SCOPED,
     PROTECTED_PREFIXES,
@@ -83,6 +89,11 @@ _DRY_RUN_OFF = frozenset({"none", "false"})
 # `>`, `>>`, `1>`, `2>>`, `&>`, `>|` — every output redirection spelling.
 _REDIRECT = re.compile(r"^(?:\d*|&)>{1,2}\|?")
 _DESTINATION_ONLY = frozenset({"cp", "mv"})
+_CLUSTER = re.compile(r"-[A-Za-z]{2,}")
+# `~`, `$HOME`, `${HOME}`, `/home/<user>`, `/root` — every spelling of a home root.
+_HOME = re.compile(
+    r"^(?:~|\$HOME|\$\{HOME\}|/home/[^/]+|/root)(?=/|$)",
+)
 
 
 def _positionals(*, head: str, arguments: list[str]) -> list[str]:
@@ -97,15 +108,53 @@ def _positionals(*, head: str, arguments: list[str]) -> list[str]:
             out.extend(arguments[index + 1 :])
             break
         if token.startswith("-") and token != "-":
-            index += 2 if "=" not in token and token in value_flags else 1
+            takes_value = "=" not in token and (
+                token in value_flags
+                or (_CLUSTER.fullmatch(token) and f"-{token[-1]}" in value_flags)
+            )
+            index += 2 if takes_value else 1
             continue
         out.append(token)
         index += 1
     return out
 
 
+def _under(*, path: str, trees: tuple[str, ...]) -> bool:
+    return any(path == tree or path.startswith(tree + "/") for tree in trees)
+
+
 def _protected(*, path: str) -> bool:
-    return any(path == prefix or path.startswith(prefix + "/") for prefix in PROTECTED_PREFIXES)
+    """A protected system tree, or a protected configuration sub-tree of a home."""
+    if _under(path=path, trees=PROTECTED_PREFIXES):
+        return True
+    home = _HOME.match(path)
+    if home is None:
+        return False
+    rest = path[home.end() :].lstrip("/")
+    return _under(path=rest, trees=HOME_PROTECTED_TREES) or rest.startswith(
+        HOME_PROTECTED_NAME_PREFIXES
+    )
+
+
+def _flag_words(*, head: str, arguments: list[str]) -> list[str]:
+    """Each argument's flag name, with single-dash clusters split where the tool clusters."""
+    words: list[str] = []
+    for argument in arguments:
+        name = argument.split("=", 1)[0]
+        words.append(name)
+        if head in CLUSTERED_FLAG_HEADS and _CLUSTER.fullmatch(name):
+            words.extend(f"-{letter}" for letter in name[1:])
+    return words
+
+
+def _flagged(*, head: str, arguments: list[str]) -> str | None:
+    """The first mutating flag present, honouring the tool's own check/dry-run flag."""
+    words = _flag_words(head=head, arguments=arguments)
+    if any(word in CHECK_FLAGS.get(head, frozenset()) for word in words):
+        return None
+    flags = FLAG_MUTATIONS.get(head, frozenset())
+    prefixes = FLAG_PREFIX_MUTATIONS.get(head, ())
+    return next((w for w in words if w in flags or (prefixes and w.startswith(prefixes))), None)
 
 
 def _dry_run(*, arguments: list[str]) -> bool:
@@ -121,11 +170,9 @@ def _dry_run(*, arguments: list[str]) -> bool:
 
 
 def _subcommand_rule(*, head: str, arguments: list[str]) -> str | None:
-    flagged = next(
-        (a for a in arguments if a.split("=", 1)[0] in FLAG_MUTATIONS.get(head, ())), None
-    )
+    flagged = _flagged(head=head, arguments=arguments)
     if flagged is not None:
-        return f"{head}+{flagged.split('=', 1)[0]}"
+        return f"{head}+{flagged}"
     positionals = _positionals(head=head, arguments=arguments)
     if not positionals or not _SUBCOMMAND_WORD.match(positionals[0]):
         return None
@@ -181,11 +228,9 @@ def _ansible_rule(*, arguments: list[str]) -> str | None:
 
 def _flag_rule(*, head: str, arguments: list[str]) -> str | None:
     """Mutating flags (or operands) of heads that are reads by default."""
-    flags = FLAG_MUTATIONS.get(head, frozenset())
-    prefixes = FLAG_PREFIX_MUTATIONS.get(head, ())
-    for argument in arguments:
-        if argument.split("=", 1)[0] in flags or (prefixes and argument.startswith(prefixes)):
-            return f"{head}+{argument.split('=', 1)[0]}"
+    flagged = _flagged(head=head, arguments=arguments)
+    if flagged is not None:
+        return f"{head}+{flagged}"
     if head == "sysctl" and any("=" in a and not a.startswith("-") for a in arguments):
         return "sysctl+write"
     if head in {"hostname", "mount"} and _positionals(head=head, arguments=arguments):
