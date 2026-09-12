@@ -8,6 +8,7 @@ than unimplemented behaviour.
 
 from __future__ import annotations
 
+import http.client
 import importlib
 import sys
 import urllib.error
@@ -270,8 +271,9 @@ def test_post_span_targets_the_traces_signal_of_the_receiver(
         ConnectionRefusedError("no receiver"),
         urllib.error.URLError("unreachable"),
         ValueError("unknown url type"),
+        http.client.RemoteDisconnected("closed mid-response"),
     ],
-    ids=["refused", "unreachable", "malformed-endpoint"],
+    ids=["refused", "unreachable", "malformed-endpoint", "malformed-response"],
 )
 def test_post_span_swallows_every_telemetry_failure(
     monkeypatch: pytest.MonkeyPatch, failure: Exception
@@ -286,6 +288,75 @@ def test_post_span_swallows_every_telemetry_failure(
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen)
 
     telemetry.post_span(endpoint="http://receiver:4318", payload=_build(telemetry=telemetry))
+
+
+def test_a_generic_guard_verdict_carries_the_shared_columns_and_its_own_classification() -> None:
+    telemetry = _load_telemetry()
+
+    payload = telemetry.build_guard_verdict_payload(
+        guard="fleet_host_guard",
+        matched_rule="ssh+systemctl+restart",
+        attributes={"host_source": "project-inventory", "fallback_in_force": False},
+        session_id="abc-123",
+        now_ns=1_700_000_000_000_000_000,
+    )
+
+    attributes = _attributes(payload=cast("dict[str, object]", payload))
+    assert attributes == {
+        "verdict": "denied",
+        "matched_rule": "ssh+systemctl+restart",
+        "check_id": "fleet-host-guard-verdict",
+        "host_source": "project-inventory",
+        "fallback_in_force": False,
+        "session_id": "abc-123",
+    }
+    span = _span(payload=cast("dict[str, object]", payload))
+    assert span["name"] == "fleet_host_guard.verdict"
+    resource_spans = cast("list[dict[str, object]]", payload["resourceSpans"])
+    scope_spans = cast("list[dict[str, object]]", resource_spans[0]["scopeSpans"])
+    assert cast("dict[str, object]", scope_spans[0]["scope"])["name"] == "fleet_host_guard"
+
+
+def test_a_generic_allow_verdict_is_spelled_allowed_with_a_none_rule() -> None:
+    telemetry = _load_telemetry()
+
+    payload = telemetry.build_guard_verdict_payload(
+        guard="fleet_host_guard",
+        matched_rule=None,
+        attributes={},
+        session_id=None,
+        now_ns=1,
+    )
+
+    attributes = _attributes(payload=cast("dict[str, object]", payload))
+    assert attributes["verdict"] == "allowed"
+    assert attributes["matched_rule"] == "none"
+    assert "session_id" not in attributes
+
+
+def test_emit_guard_verdict_posts_to_the_endpoint_named_in_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    telemetry = _load_telemetry()
+    posted: list[tuple[str, dict[str, object]]] = []
+
+    def _record(*, endpoint: str, payload: dict[str, object]) -> None:
+        posted.append((endpoint, payload))
+
+    monkeypatch.setattr(telemetry, "post_span", _record)
+    monkeypatch.setenv(_ENDPOINT_ENV, "http://collector.invalid:4318")
+    monkeypatch.setenv(_SESSION_ENV, "session-9")
+
+    telemetry.emit_guard_verdict(
+        guard="fleet_host_guard", matched_rule=None, attributes={"host_source": "fallback"}
+    )
+
+    assert len(posted) == 1
+    endpoint, payload = posted[0]
+    assert endpoint == "http://collector.invalid:4318"
+    attributes = _attributes(payload=payload)
+    assert attributes["session_id"] == "session-9"
+    assert attributes["host_source"] == "fallback"
 
 
 def test_the_transport_decision_is_recorded_beside_the_measurement() -> None:
