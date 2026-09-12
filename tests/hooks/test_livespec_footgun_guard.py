@@ -36,6 +36,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -72,7 +74,11 @@ def _assert_silent(*, result: subprocess.CompletedProcess[str]) -> None:
     assert result.stdout == ""
 
 
+@pytest.mark.integration
 def test_denies_commit_no_verify() -> None:
+    # Integration-tier: drives the shipped footgun guard as a subprocess over its
+    # PreToolUse protocol, realizing scenarios.md's commit-at-primary-checkout
+    # refusal (the Driver-side fast guard) end to end (mapped from heading-coverage).
     result = _run_hook(stdin=_bash_input(command="git commit --no-verify -m wip"))
     _assert_denied(result=result, reason_substring="--no-verify")
 

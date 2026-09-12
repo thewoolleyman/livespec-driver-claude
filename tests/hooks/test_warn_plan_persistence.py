@@ -22,6 +22,8 @@ import sys
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -108,8 +110,13 @@ def test_warns_on_headings_without_persist(monkeypatch, capsys, tmp_path: Path) 
     assert "3 headings" in message
 
 
+@pytest.mark.integration
 def test_subprocess_smoke_warns_on_headings(tmp_path: Path) -> None:
-    """The shipped script path still speaks the Stop hook stdin/stdout protocol."""
+    """The shipped script path still speaks the Stop hook stdin/stdout protocol.
+
+    Integration-tier: drives the shipped Stop hook as a subprocess over its real
+    stdin/stdout protocol, realizing scenarios.md's plan-artifact-persistence
+    warning scenario end to end (mapped from tests/heading-coverage.json)."""
     transcript = _write_transcript(
         root=tmp_path,
         entries=[
