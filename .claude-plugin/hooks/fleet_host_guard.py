@@ -8,8 +8,11 @@ would change a fleet-managed host BY HAND, outside the committed provisioning:
 - a mutating `ssh` / `scp` / `rsync` / `sftp` whose target is a fleet host
   (a `sudo`, `install`, `tee`, `chmod`, a `cp` into `/etc`, a
   `systemctl restart`, an upload, …);
-- a cluster-mutating `kubectl` (`apply`, `patch`, `taint`, `delete`, `cordon`,
-  `drain`, `label`, `edit`, `scale`).
+- a cluster-mutating `kubectl`/`helm` (`apply`, `patch`, `taint`, `delete`,
+  `cordon`, `drain`, `label`, `edit`, `scale`, `create`, `rollout`, … — every
+  verb that is not a read);
+- an ad hoc `ansible --become`, or a playbook run from outside the committed
+  tree.
 
 The sanctioned path stays allowed and is THE answer the deny reason gives:
 `just ansible-drift <playbook>` reports, `just ansible-apply <playbook>`
@@ -22,8 +25,9 @@ stdin, resolving the governed project's fleet host set and its
 `.ai/gitops-deployment*.md` topic, emitting the deny decision and the verdict
 record, and always exiting 0. The verdict itself comes from the sibling
 `_host_mutation` module, whose docstring documents the deny matrix, the allow
-list, the wrapper-prefix scan, and how the host set is read from the
-provisioning inventory rather than hardcoded.
+list, the wrapper-prefix scan, and the known limits; `_fleet_inventory`
+documents how the host set is read from the provisioning inventory rather
+than hardcoded.
 
 Fail-closed safety: ANY parsing or main-loop failure on a command that carries
 the hazard hints (a remote-shell head together with a fleet host name, or
@@ -31,12 +35,14 @@ the hazard hints (a remote-shell head together with a fleet host name, or
 without those hints fail open silently with exit 0 — the guard acts only on
 POSITIVE identification, per the Driver-shipped-hooks footgun discipline.
 
-Telemetry: every IN-SCOPE command (one carrying an `ssh`/`scp`/`rsync`/`sftp`/
-`kubectl` token) publishes one verdict record through `_guard_telemetry`, on
-the allow path as well as the deny path, so "how often does this guard convict
-a read-only reach" is a dataset query. The record carries the rule and where
-the host set came from — never the command, never a host name. Emission
-happens after the decision is settled and cannot change it.
+Telemetry: every IN-SCOPE command (one whose lexed tokens carry a remote-shell
+or cluster head, or that looks like a fleet-host mutation) publishes one
+verdict record through `_guard_telemetry`, on the allow path as well as the
+deny path, so "how often does this guard convict a read-only reach" is a
+dataset query. The record carries the rule and where the host set came from —
+never the command, never a host name. Emission happens AFTER the decision has
+been written to stdout, so a raising exporter cannot change the verdict: the
+boundary sees the verdict is already settled and writes nothing more.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
@@ -48,14 +54,14 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
 from _fleet_inventory import FALLBACK_HOSTS, resolve_fleet_hosts
 from _guard_telemetry import emit_guard_verdict
-from _host_mutation import classify, hazard_hint
+from _host_mutation import classify, hazard_hint, in_scope
 
 __all__: list[str] = []
 
@@ -66,9 +72,15 @@ _GENERIC_TOPIC = (
     "the governed project's `.ai/gitops-deployment*.md` topic (fleet-canonical "
     "statement: livespec `.ai/gitops-deployment-discipline.md`)"
 )
-# The cheap pre-filter: a command with none of these words cannot be convicted
-# by any rule, so it is neither classified nor counted.
-_IN_SCOPE = re.compile(r"\b(?:ssh|scp|rsync|sftp|kubectl)\b")
+
+
+@dataclass(frozen=True, kw_only=True)
+class _Verdict:
+    """What the guard decided and what, if anything, telemetry should record."""
+
+    decision: str | None
+    rule: str | None
+    host_source: str | None
 
 
 def _as_object_dict(*, value: object) -> dict[str, object] | None:
@@ -130,11 +142,11 @@ def _bash_command(*, raw: str) -> str | None:
     return command
 
 
-def _decision(*, raw: str) -> str | None:
-    """Return the deny-decision JSON, or None for a pass-through."""
+def _verdict(*, raw: str) -> _Verdict:
+    """Decide; `host_source` is set only when the command is in scope for telemetry."""
     command = _bash_command(raw=raw)
-    if command is None or not _IN_SCOPE.search(command):
-        return None
+    if command is None:
+        return _Verdict(decision=None, rule=None, host_source=None)
     project_dir = _project_dir()
     fleet = resolve_fleet_hosts(project_dir=project_dir or None)
     rule = classify(command=command, hosts=fleet.hosts)
@@ -143,10 +155,8 @@ def _decision(*, raw: str) -> str | None:
         if rule is None
         else _deny_decision(rule=rule, topic=_topic_reference(project_dir=project_dir))
     )
-    # LAST, and after `decision` is already settled: a telemetry outage can
-    # only cost the record, never the verdict.
-    emit_guard_verdict(guard=_GUARD, matched_rule=rule, attributes={"host_source": fleet.source})
-    return decision
+    counted = rule is not None or in_scope(command=command, hosts=fleet.hosts)
+    return _Verdict(decision=decision, rule=rule, host_source=fleet.source if counted else None)
 
 
 def _has_hazard_hint(*, raw: str) -> bool:
@@ -157,13 +167,22 @@ def _has_hazard_hint(*, raw: str) -> bool:
 def main() -> int:
     """Guard entry point: deny hinted hazards even when classification fails; exit 0."""
     raw = ""
+    settled = False
     try:
         raw = sys.stdin.read()
-        decision = _decision(raw=raw)
-        if decision is not None:
-            _ = sys.stdout.write(decision + "\n")
+        verdict = _verdict(raw=raw)
+        if verdict.decision is not None:
+            _ = sys.stdout.write(verdict.decision + "\n")
+        settled = True
+        # Only now, with the verdict on the wire: a failure here costs the record.
+        if verdict.host_source is not None:
+            emit_guard_verdict(
+                guard=_GUARD,
+                matched_rule=verdict.rule,
+                attributes={"host_source": verdict.host_source},
+            )
     except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
-        if _has_hazard_hint(raw=raw):
+        if not settled and _has_hazard_hint(raw=raw):
             with contextlib.suppress(OSError):
                 decision = _deny_decision(rule="classification-failure", topic=_GENERIC_TOPIC)
                 _ = sys.stdout.write(decision + "\n")

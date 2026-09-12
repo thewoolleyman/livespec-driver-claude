@@ -48,7 +48,9 @@ calling here, so this module cannot move a verdict by returning. It cannot move
 one by raising either: every input is an already-typed primitive, so the payload
 shaping has no failure mode, and the one surface that can fail -- the network --
 is narrowly suppressed in `post_span` (`OSError` covers connection-refused, DNS
-and timeout; `URLError` and `ValueError` cover an unusable endpoint). A host
+and timeout; `URLError` and `ValueError` cover an unusable endpoint;
+`http.client.HTTPException` a receiver that answers with a malformed response
+-- the one case a settled ALLOW could otherwise have flipped). A host
 with no receiver refuses the connection immediately and the guard proceeds
 unchanged. The timeout is deliberately far below the step timer's, because this
 runs on the critical path of EVERY Bash tool call rather than once per sandbox
@@ -69,6 +71,7 @@ import here is from the standard library.
 from __future__ import annotations
 
 import contextlib
+import http.client
 import json
 import os
 import time
@@ -224,7 +227,7 @@ def post_span(
     silently turn every DENY into an ALLOW. Measured, not hypothesised -- the
     pass-through test caught exactly this.
     """
-    with contextlib.suppress(urllib.error.URLError, OSError, ValueError):
+    with contextlib.suppress(urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
         request = urllib.request.Request(
             url=f"{endpoint}/v1/traces",
             data=json.dumps(payload).encode("utf-8"),

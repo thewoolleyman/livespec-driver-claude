@@ -12,10 +12,19 @@ the false-positive traps live, so it is written ONCE here:
     arrive as ONE segment whose second token is data, never as a segment that
     begins `tmux kill-server`. A regex split on `;` cuts inside quotes; the
     scanner here tracks quote state and backslash escapes character by
-    character, splitting only on UNQUOTED `;` `&&` `||` `|` `&` and newline.
+    character, splitting only on UNQUOTED `;` `&&` `||` `|` `&` and newline,
+    and reports WHICH separator preceded each segment so a classifier can
+    tell `echo x | sftp host` (a pipe feeding stdin) from `echo x; sftp host`.
+  - **Comments are stripped the way bash strips them.** A `#` starts a comment
+    only at the START of a word, outside quotes. `shlex`'s own `comments=True`
+    cuts `a#b` to `a`, which bash never does, so a guard using it would drop
+    real executed words (`env x#y=1 ssh …` runs ssh).
   - **Here-doc bodies are stdin data, not executed shell.** `cat > x <<'EOF'`
     followed by a body that mentions a hazard is a file write, not a hazard, so
-    bodies are removed before tokenizing. They are also RETURNED, because a
+    bodies are removed before tokenizing. The `<<` operator is recognised only
+    OUTSIDE quotes (`echo '<<EOF'` is a string, not a here-doc that would
+    swallow the next line), `<<<` is a here-string and not a here-doc, and a
+    terminator may carry a dash (`END-X`). Bodies are also RETURNED, because a
     classifier may need to read a body as the payload of the command it feeds
     (`ssh host bash -s <<'EOF'` runs the body on the remote host).
   - **Nested interpreter payloads.** `sh -lc '<payload>'`, `bash -ctmux …`
@@ -33,24 +42,45 @@ import here is standard library.
 from __future__ import annotations
 
 import re
+import shlex
 
 __all__: list[str] = [
+    "DATA_HEADS",
+    "PAYLOAD_HEADS",
+    "SCRIPT_HEADS",
     "SHELLS",
     "basename",
+    "first_command_index",
+    "operands",
+    "payload_of",
+    "produced_text",
     "shell_payload",
     "split_heredocs",
     "split_segments",
+    "split_segments_with_separators",
+    "stdin_text",
     "strip_heredoc_bodies",
+    "tokens_or_none",
     "ungrouped",
     "without_continuations",
+    "without_stdin_redirects",
 ]
 
 SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+# Heads that hand a script to another interpreter: a shell (`-c`, a here-string,
+# a pipe), `script -c`, `su -c`; and heads whose OPERANDS are a command line —
+# `eval`, `watch`, and tmux `new-session '…'` / `send-keys '…'`.
+SCRIPT_HEADS = SHELLS | {"script", "su"}
+PAYLOAD_HEADS = frozenset({"eval", "watch", "tmux"})
+# Heads whose operands are printed, never run — data even when unquoted.
+DATA_HEADS = frozenset({"echo", "printf"})
+_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _GROUPING = "(){}"
-_HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
+_COMMENT_PRECEDERS = " \t\n;|&("
 _LINE_CONTINUATION = re.compile(r"\\\n")
 # `-c`, `-lc`, `-ic`, `-lic` — any clustered shell flag ending in `c`.
 _SHELL_COMMAND_FLAG = re.compile(r"^-[a-zA-Z]*c$")
+_TERMINATOR = re.compile(r"-?\s*['\"]?([\w-]+)['\"]?")
 
 
 def basename(*, token: str) -> str:
@@ -67,6 +97,44 @@ def without_continuations(*, command: str) -> str:
     return _LINE_CONTINUATION.sub(" ", command)
 
 
+def tokens_or_none(*, seg: str) -> list[str] | None:
+    """The segment's words with grouping punctuation stripped, or None if unlexable."""
+    try:
+        return [ungrouped(token=token) for token in shlex.split(seg, posix=True)]
+    except ValueError:
+        return None
+
+
+def _heredoc_terminator(*, line: str) -> str | None:
+    """The terminator word of an UNQUOTED `<<` on this line, else None."""
+    quote = ""
+    index = 0
+    total = len(line)
+    while index < total:
+        char = line[index]
+        if quote:
+            if char == quote:
+                quote = ""
+            index += 1
+            continue
+        if char in "'\"":
+            quote = char
+            index += 1
+            continue
+        if char == "\\":
+            index += 2
+            continue
+        if line.startswith("<<<", index):
+            index += 3
+            continue
+        if line.startswith("<<", index):
+            match = _TERMINATOR.match(line, index + 2)
+            if match is not None:
+                return match.group(1)
+        index += 1
+    return None
+
+
 def split_heredocs(*, command: str) -> tuple[str, list[str]]:
     """Separate here-doc BODIES from the shell that feeds them.
 
@@ -81,12 +149,10 @@ def split_heredocs(*, command: str) -> tuple[str, list[str]]:
     while i < n:
         line = lines[i]
         kept.append(line)
-        match = _HEREDOC.search(line)
-        if match is None:
-            i += 1
-            continue
-        terminator = match.group(1)
+        terminator = _heredoc_terminator(line=line)
         i += 1
+        if terminator is None:
+            continue
         body: list[str] = []
         while i < n and lines[i].strip() != terminator:
             body.append(lines[i])
@@ -102,10 +168,16 @@ def strip_heredoc_bodies(*, command: str) -> str:
     return split_heredocs(command=command)[0]
 
 
-def split_segments(*, command: str) -> list[str]:
-    """Split into shell segments on unquoted `;` `&&` `||` `|` `&` and newline."""
-    found: list[str] = []
+def split_segments_with_separators(*, command: str) -> list[tuple[str, str]]:
+    """Segments paired with the unquoted separator that PRECEDED each one.
+
+    The first segment's separator is the empty string; the others carry one of
+    `;`, `&&`, `||`, `|`, `&`, or a newline. Word-initial `#` comments are
+    dropped as bash drops them.
+    """
+    found: list[tuple[str, str]] = []
     current: list[str] = []
+    separator = ""
     quote = ""
     index = 0
     total = len(command)
@@ -127,20 +199,32 @@ def split_segments(*, command: str) -> list[str]:
             current.append(command[index + 1])
             index += 2
             continue
-        if command[index : index + 2] in ("&&", "||"):
-            found.append("".join(current))
+        if char == "#" and (index == 0 or command[index - 1] in _COMMENT_PRECEDERS):
+            while index < total and command[index] != "\n":
+                index += 1
+            continue
+        pair = command[index : index + 2]
+        if pair in ("&&", "||"):
+            found.append((separator, "".join(current)))
             current = []
+            separator = pair
             index += 2
             continue
         if char in ";|&\n":
-            found.append("".join(current))
+            found.append((separator, "".join(current)))
             current = []
+            separator = char
             index += 1
             continue
         current.append(char)
         index += 1
-    found.append("".join(current))
-    return [segment.strip() for segment in found if segment.strip()]
+    found.append((separator, "".join(current)))
+    return [(sep, seg.strip()) for sep, seg in found if seg.strip()]
+
+
+def split_segments(*, command: str) -> list[str]:
+    """Split into shell segments on unquoted `;` `&&` `||` `|` `&` and newline."""
+    return [seg for _, seg in split_segments_with_separators(command=command)]
 
 
 def shell_payload(*, arguments: list[str]) -> str | None:
@@ -151,3 +235,59 @@ def shell_payload(*, arguments: list[str]) -> str | None:
         if token.startswith("-c") and len(token) > 2:
             return token[2:]
     return None
+
+
+def first_command_index(*, tokens: list[str]) -> int | None:
+    """The index of the first token that is not a leading `NAME=value` assignment."""
+    return next((i for i, token in enumerate(tokens) if not _ASSIGNMENT.match(token)), None)
+
+
+def operands(*, arguments: list[str]) -> list[str]:
+    return [argument for argument in arguments if not argument.startswith("-")]
+
+
+def produced_text(*, tokens: list[str]) -> str | None:
+    """What an `echo`/`printf` segment writes to stdout, for a pipe into the next segment."""
+    start = first_command_index(tokens=tokens)
+    if start is None or basename(token=tokens[start]).lower() not in DATA_HEADS:
+        return None
+    return " ".join(operands(arguments=tokens[start + 1 :])).replace("\\n", "\n")
+
+
+def stdin_text(*, seg: str, tokens: list[str], bodies: list[str], piped: str | None) -> str | None:
+    """The readable stdin of a segment: here-doc bodies, a here-string, an echo pipe."""
+    parts: list[str] = []
+    if "<<<" in tokens:
+        index = tokens.index("<<<")
+        parts.extend(tokens[index + 1 : index + 2])
+    elif "<<" in seg:
+        parts.extend(bodies)
+    if piped is not None:
+        parts.append(piped)
+    return "\n".join(parts) if parts else None
+
+
+def without_stdin_redirects(*, tokens: list[str]) -> list[str]:
+    """Drop `<<EOF`, `<<< word`, and `< file` so a re-scanned command does not re-read them."""
+    kept: list[str] = []
+    skip = False
+    for token in tokens:
+        if skip:
+            skip = False
+            continue
+        if token.startswith("<<") or token == "<":
+            skip = token == "<<<" or token == "<"
+            continue
+        kept.append(token)
+    return kept
+
+
+def payload_of(*, head: str, arguments: list[str], stdin: str | None) -> str | None:
+    """The script a SCRIPT or PAYLOAD head hands to another interpreter, when visible."""
+    if head in SCRIPT_HEADS:
+        return shell_payload(arguments=arguments) or stdin
+    if head == "eval":
+        return " ".join(arguments) or None
+    if head == "watch":
+        return " ".join(operands(arguments=arguments)) or None
+    return "\n".join(a for a in operands(arguments=arguments) if " " in a) or None
