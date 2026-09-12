@@ -63,20 +63,24 @@ import os
 import re
 import shlex
 
+from _shell_lex import (
+    SHELLS,
+    basename,
+    shell_payload,
+    split_segments,
+    strip_heredoc_bodies,
+    ungrouped,
+    without_continuations,
+)
+
 __all__: list[str] = ["classify"]
 
 _COMMAND_SUBSTITUTION = re.compile(r"\$\(|`")
 _DEFAULT_NAMESPACE = re.compile(r"^/tmp/tmux-\d+(?:/.*)?$")
-_GROUPING = "(){}"
-_HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
 _KILL_SERVER = re.compile(r"\bkill-server\b")
-_LINE_CONTINUATION = re.compile(r"\\\n")
 _MAX_DEPTH = 4
 _PROCESS_KILLERS = frozenset({"kill", "killall", "pkill"})
 _PROCESS_KILLER_WORD = re.compile(r"\b(?:pkill|killall)\b")
-_SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
-# `-c`, `-lc`, `-ic`, `-lic` — any clustered shell flag ending in `c`.
-_SHELL_COMMAND_FLAG = re.compile(r"^-[a-zA-Z]*c$")
 _TMUX_WORD = re.compile(r"\btmux\b")
 _XARGS_FLAGS_WITH_ARG = (
     "-a",
@@ -100,93 +104,6 @@ _XARGS_FLAGS_WITH_ARG = (
 )
 
 
-def _basename(*, token: str) -> str:
-    return token.rsplit("/", 1)[-1]
-
-
-def _ungrouped(*, token: str) -> str:
-    """Strip shell grouping punctuation fused onto a token's edges."""
-    return token.strip(_GROUPING)
-
-
-def _strip_heredoc_bodies(*, command: str) -> str:
-    """Remove here-doc BODIES because they are stdin data, not executed shell."""
-    lines = command.split("\n")
-    out: list[str] = []
-    i = 0
-    n = len(lines)
-    while i < n:
-        line = lines[i]
-        out.append(line)
-        match = _HEREDOC.search(line)
-        if match is None:
-            i += 1
-            continue
-        terminator = match.group(1)
-        i += 1
-        while i < n and lines[i].strip() != terminator:
-            i += 1
-        if i < n:
-            i += 1
-    return "\n".join(out)
-
-
-def _split_segments(*, command: str) -> list[str]:
-    """Split into shell segments on unquoted `;` `&&` `||` `|` `&` and newline.
-
-    QUOTING-AWARE by construction. A regex split cuts inside quoted strings, so
-    `echo 'first; tmux kill-server'` would arrive as a segment beginning
-    `tmux kill-server` — a false positive on text that is pure DATA.
-    """
-    found: list[str] = []
-    current: list[str] = []
-    quote = ""
-    index = 0
-    total = len(command)
-    while index < total:
-        char = command[index]
-        if quote:
-            current.append(char)
-            if char == quote:
-                quote = ""
-            index += 1
-            continue
-        if char in "'\"":
-            quote = char
-            current.append(char)
-            index += 1
-            continue
-        if char == "\\" and index + 1 < total:
-            current.append(char)
-            current.append(command[index + 1])
-            index += 2
-            continue
-        if command[index : index + 2] in ("&&", "||"):
-            found.append("".join(current))
-            current = []
-            index += 2
-            continue
-        if char in ";|&\n":
-            found.append("".join(current))
-            current = []
-            index += 1
-            continue
-        current.append(char)
-        index += 1
-    found.append("".join(current))
-    return [segment.strip() for segment in found if segment.strip()]
-
-
-def _shell_payload(*, arguments: list[str]) -> str | None:
-    """The inline script of a `sh -c` / `bash -lc` / `zsh -ic` invocation."""
-    for index, token in enumerate(arguments):
-        if _SHELL_COMMAND_FLAG.match(token):
-            return arguments[index + 1] if index + 1 < len(arguments) else None
-        if token.startswith("-c") and len(token) > 2:
-            return token[2:]
-    return None
-
-
 def _socket_is_hazardous(*, socket: str) -> bool:
     """True when a `-S` value names the fleet socket or its namespace dir."""
     if not socket:
@@ -198,7 +115,7 @@ def _socket_is_hazardous(*, socket: str) -> bool:
     # LEXICAL normalization only: collapses `//` and resolves `.`/`..` without
     # touching the filesystem, which a PreToolUse hook must never do.
     normalized = os.path.normpath(socket)
-    if _basename(token=normalized) == "default":
+    if basename(token=normalized) == "default":
         return True
     return bool(_DEFAULT_NAMESPACE.match(normalized))
 
@@ -206,7 +123,7 @@ def _socket_is_hazardous(*, socket: str) -> bool:
 def _label_is_hazardous(*, label: str) -> bool:
     if not label:
         return True
-    return _basename(token=os.path.normpath(label)) == "default"
+    return basename(token=os.path.normpath(label)) == "default"
 
 
 def _flag_values(*, arguments: list[str], flag: str) -> list[str]:
@@ -267,8 +184,8 @@ def _targets_tmux_process(*, arguments: list[str]) -> bool:
 
 def _nested_hazard(*, command: str, arguments: list[str], depth: int) -> bool:
     """Recurse into a payload this token hands to another interpreter."""
-    if command in _SHELLS:
-        payload = _shell_payload(arguments=arguments)
+    if command in SHELLS:
+        payload = shell_payload(arguments=arguments)
         if payload is not None:
             return classify(command=payload, depth=depth + 1)
     if command == "eval" and arguments:
@@ -280,7 +197,7 @@ def _direct_hazard(*, command: str, arguments: list[str]) -> bool:
     """Is THIS token a tmux/process-killer command head reaching the hazard?"""
     if command == "xargs":
         target = _xargs_target(arguments=arguments)
-        if target and _basename(token=target[0]) == "tmux":
+        if target and basename(token=target[0]) == "tmux":
             return not _scope_permits_kill(arguments=target[1:])
     if command == "tmux" and "kill-server" in arguments:
         return not _scope_permits_kill(arguments=arguments)
@@ -290,7 +207,7 @@ def _direct_hazard(*, command: str, arguments: list[str]) -> bool:
 def _tokens_are_hazard(*, tokens: list[str], depth: int) -> bool:
     """Scan EVERY position for a hazardous command head."""
     for index, token in enumerate(tokens):
-        command = _basename(token=token)
+        command = basename(token=token)
         arguments = tokens[index + 1 :]
         if _nested_hazard(command=command, arguments=arguments, depth=depth):
             return True
@@ -315,7 +232,7 @@ def _segment_is_hazard(*, seg: str, depth: int) -> bool:
         tokens = shlex.split(seg, posix=True)
     except ValueError:
         return _looks_like_tmux_kill_hazard(seg=seg)
-    return _tokens_are_hazard(tokens=[_ungrouped(token=token) for token in tokens], depth=depth)
+    return _tokens_are_hazard(tokens=[ungrouped(token=token) for token in tokens], depth=depth)
 
 
 def classify(*, command: str, depth: int = 0) -> bool:
@@ -324,5 +241,5 @@ def classify(*, command: str, depth: int = 0) -> bool:
         # Out of budget with content still unexamined. Nothing legitimate nests
         # this deep, so exhaustion is evidence of evasion: fail CLOSED.
         return True
-    cleaned = _LINE_CONTINUATION.sub(" ", _strip_heredoc_bodies(command=command))
-    return any(_segment_is_hazard(seg=seg, depth=depth) for seg in _split_segments(command=cleaned))
+    cleaned = without_continuations(command=strip_heredoc_bodies(command=command))
+    return any(_segment_is_hazard(seg=seg, depth=depth) for seg in split_segments(command=cleaned))

@@ -28,6 +28,7 @@ _HOOK_MODULES = (
     "warn_plan_persistence",
     "no_shadow_ledger",
     "primary_checkout_playwright_guard",
+    "fleet_host_guard",
 )
 
 
