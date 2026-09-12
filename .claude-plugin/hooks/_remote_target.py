@@ -190,11 +190,20 @@ def _transfer_host(*, operand: str) -> str | None:
     return host_of_target(target=head)
 
 
-def _rsync_operands(*, arguments: list[str]) -> tuple[list[str], bool, bool]:
-    """rsync's operands with popt's permuted options removed, plus dry-run / remove-source."""
+def _permuted(
+    *, arguments: list[str], short_values: frozenset[str], long_values: frozenset[str]
+) -> tuple[list[str], set[str], str]:
+    """Operands, long-option names, and short-option letters, with options ANYWHERE.
+
+    popt (rsync) and glibc getopt (scp on Linux) both permute: an option after
+    the operands is still an option, so `scp ./x host:/etc/x -o K=V` names
+    `host:/etc/x` as the destination. A short letter that takes a value eats
+    the rest of its cluster or the next token (`-avne ssh`: `n` is a flag,
+    `e` takes `ssh`; `-en`: `e` takes `n`).
+    """
     operands: list[str] = []
-    dry_run = False
-    remove_source = False
+    longs: set[str] = set()
+    shorts = ""
     index = 0
     total = len(arguments)
     while index < total:
@@ -204,30 +213,35 @@ def _rsync_operands(*, arguments: list[str]) -> tuple[list[str], bool, bool]:
             break
         if token.startswith("--"):
             name = token[2:].split("=", 1)[0]
-            dry_run = dry_run or name == "dry-run"
-            remove_source = remove_source or name == "remove-source-files"
-            index += 2 if "=" not in token and name in _RSYNC_VALUE_LONG else 1
+            longs.add(name)
+            index += 2 if "=" not in token and name in long_values else 1
             continue
         if token.startswith("-") and token != "-":
             letters = token[1:]
-            dry_run = dry_run or "n" in letters.split("e", 1)[0]
-            taking = next(
-                (i for i, letter in enumerate(letters) if letter in _RSYNC_VALUE_SHORT), None
-            )
-            index += 2 if taking is not None and taking == len(letters) - 1 else 1
+            for position, letter in enumerate(letters):
+                if letter in short_values:
+                    index += 1 if position == len(letters) - 1 else 0
+                    break
+                shorts += letter
+            index += 1
             continue
         operands.append(token)
         index += 1
-    return operands, dry_run, remove_source
+    return operands, longs, shorts
 
 
 def parse_transfer(*, head: str, arguments: list[str]) -> TransferReach:
     """Destination and source hosts of an `scp` or `rsync`."""
     if head == "rsync":
-        operands, dry_run, remove_source = _rsync_operands(arguments=arguments)
+        operands, longs, shorts = _permuted(
+            arguments=arguments, short_values=_RSYNC_VALUE_SHORT, long_values=_RSYNC_VALUE_LONG
+        )
     else:
-        _, index = _getopt(arguments=arguments, value_flags=_SCP_VALUE_FLAGS)
-        operands, dry_run, remove_source = arguments[index:], False, False
+        operands, longs, shorts = _permuted(
+            arguments=arguments, short_values=_SCP_VALUE_FLAGS, long_values=frozenset()
+        )
+    dry_run = head == "rsync" and ("dry-run" in longs or "n" in shorts)
+    remove_source = "remove-source-files" in longs
     if len(operands) < 2:
         return TransferReach(destination=None)
     destination = operands[-1]

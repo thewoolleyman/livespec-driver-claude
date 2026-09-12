@@ -48,6 +48,9 @@ _SHIPPED_HOOKS = (
     _HOOKS_DIR / "_fleet_inventory.py",
     _HOOKS_DIR / "_remote_target.py",
     _HOOKS_DIR / "_mutation_verbs.py",
+    _HOOKS_DIR / "_verb_tables.py",
+    _HOOKS_DIR / "_shell_io.py",
+    _HOOKS_DIR / "_sanctioned_apply.py",
 )
 _SHIPPED_RAILWAY_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",

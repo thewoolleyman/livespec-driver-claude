@@ -45,38 +45,35 @@ import re
 import shlex
 
 __all__: list[str] = [
-    "DATA_HEADS",
-    "PAYLOAD_HEADS",
-    "SCRIPT_HEADS",
     "SHELLS",
+    "SHELL_KEYWORDS_DATA",
+    "SHELL_KEYWORDS_PASS",
     "basename",
     "first_command_index",
+    "heredoc_count",
     "operands",
-    "payload_of",
-    "produced_text",
     "shell_payload",
     "split_heredocs",
     "split_segments",
     "split_segments_with_separators",
-    "stdin_text",
     "strip_heredoc_bodies",
+    "substitutions",
     "tokens_or_none",
     "ungrouped",
     "without_continuations",
-    "without_stdin_redirects",
 ]
 
 SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
-# Heads that hand a script to another interpreter: a shell (`-c`, a here-string,
-# a pipe), `script -c`, `su -c`; and heads whose OPERANDS are a command line —
-# `eval`, `watch`, and tmux `new-session '…'` / `send-keys '…'`.
-SCRIPT_HEADS = SHELLS | {"script", "su"}
-PAYLOAD_HEADS = frozenset({"eval", "watch", "tmux"})
-# Heads whose operands are printed, never run — data even when unquoted.
-DATA_HEADS = frozenset({"echo", "printf"})
+# `for x in a b c`, `select`, `case x in` name WORDS, not commands: the whole
+# segment is data. `if`, `do`, `then`, … merely precede a command.
+SHELL_KEYWORDS_DATA = frozenset({"for", "select", "case"})
+SHELL_KEYWORDS_PASS = frozenset(
+    "if then else elif fi while until do done esac ! time coproc".split()
+)
 _ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _GROUPING = "(){}"
-_COMMENT_PRECEDERS = " \t\n;|&("
+_XARGS_PLACEHOLDER = "{}"
+_COMMENT_PRECEDERS = " \t\n;|&({"
 _LINE_CONTINUATION = re.compile(r"\\\n")
 # `-c`, `-lc`, `-ic`, `-lic` — any clustered shell flag ending in `c`.
 _SHELL_COMMAND_FLAG = re.compile(r"^-[a-zA-Z]*c$")
@@ -88,8 +85,8 @@ def basename(*, token: str) -> str:
 
 
 def ungrouped(*, token: str) -> str:
-    """Strip shell grouping punctuation fused onto a token's edges."""
-    return token.strip(_GROUPING)
+    """Strip shell grouping punctuation fused onto a token's edges; `{}` (xargs) stays."""
+    return token if token == _XARGS_PLACEHOLDER else token.strip(_GROUPING)
 
 
 def without_continuations(*, command: str) -> str:
@@ -98,11 +95,71 @@ def without_continuations(*, command: str) -> str:
 
 
 def tokens_or_none(*, seg: str) -> list[str] | None:
-    """The segment's words with grouping punctuation stripped, or None if unlexable."""
+    """The segment's words, grouping punctuation stripped, or None if unlexable.
+
+    A token that IS grouping punctuation (`{`, `}`, `(`, `)`) is dropped — it
+    was never a word. An empty token from `''` is kept: it is a word, and an
+    empty command head is one the guard cannot resolve.
+    """
     try:
-        return [ungrouped(token=token) for token in shlex.split(seg, posix=True)]
+        raw = shlex.split(seg, posix=True)
     except ValueError:
         return None
+    return [
+        ungrouped(token=token)
+        for token in raw
+        if not token or token == _XARGS_PLACEHOLDER or token.strip(_GROUPING)
+    ]
+
+
+def heredoc_count(*, tokens: list[str]) -> int:
+    """How many here-doc bodies this segment consumes (`<<EOF`, not `<<<`)."""
+    return sum(1 for t in tokens if t.startswith("<<") and not t.startswith("<<<"))
+
+
+def substitutions(*, text: str) -> list[str]:
+    """The command text inside every `$(…)` and backtick pair, outside single quotes.
+
+    A substitution is EXECUTED shell, so a classifier must read it as a
+    command in its own right — `$(ssh host 'sudo x')` hidden in an `echo` or a
+    playbook extra-var is a mutation; `$(date +%s)` in a file name is not.
+    """
+    found: list[str] = []
+    quote = ""
+    index = 0
+    total = len(text)
+    while index < total:
+        char = text[index]
+        if quote == "'":
+            quote = "" if char == "'" else quote
+            index += 1
+            continue
+        if char == "\\":
+            index += 2
+            continue
+        if char in "'\"":
+            if not quote:
+                quote = char
+            elif quote == char:
+                quote = ""
+            index += 1
+            continue
+        if text.startswith("$(", index):
+            depth = 1
+            end = index + 2
+            while end < total and depth:
+                depth += (text[end] == "(") - (text[end] == ")")
+                end += 1
+            found.append(text[index + 2 : end - 1 if depth == 0 else end])
+            index = end
+            continue
+        if char == "`":
+            end = text.find("`", index + 1)
+            found.append(text[index + 1 : end if end >= 0 else total])
+            index = (end if end >= 0 else total) + 1
+            continue
+        index += 1
+    return [s for s in found if s.strip()]
 
 
 def _heredoc_terminator(*, line: str) -> str | None:
@@ -168,6 +225,16 @@ def strip_heredoc_bodies(*, command: str) -> str:
     return split_heredocs(command=command)[0]
 
 
+def _starts_comment(*, command: str, index: int) -> bool:
+    """A `#` at a word start (bash); `${#x}` and `$#` are expansions, not comments."""
+    if index == 0:
+        return True
+    previous = command[index - 1]
+    if previous not in _COMMENT_PRECEDERS:
+        return False
+    return not (previous == "{" and index >= 2 and command[index - 2] == "$")
+
+
 def split_segments_with_separators(*, command: str) -> list[tuple[str, str]]:
     """Segments paired with the unquoted separator that PRECEDED each one.
 
@@ -199,7 +266,7 @@ def split_segments_with_separators(*, command: str) -> list[tuple[str, str]]:
             current.append(command[index + 1])
             index += 2
             continue
-        if char == "#" and (index == 0 or command[index - 1] in _COMMENT_PRECEDERS):
+        if char == "#" and _starts_comment(command=command, index=index):
             while index < total and command[index] != "\n":
                 index += 1
             continue
@@ -210,7 +277,7 @@ def split_segments_with_separators(*, command: str) -> list[tuple[str, str]]:
             separator = pair
             index += 2
             continue
-        if char in ";|&\n":
+        if char in ";|&\n" and not (char == "|" and current and current[-1] == ">"):
             found.append((separator, "".join(current)))
             current = []
             separator = char
@@ -244,50 +311,3 @@ def first_command_index(*, tokens: list[str]) -> int | None:
 
 def operands(*, arguments: list[str]) -> list[str]:
     return [argument for argument in arguments if not argument.startswith("-")]
-
-
-def produced_text(*, tokens: list[str]) -> str | None:
-    """What an `echo`/`printf` segment writes to stdout, for a pipe into the next segment."""
-    start = first_command_index(tokens=tokens)
-    if start is None or basename(token=tokens[start]).lower() not in DATA_HEADS:
-        return None
-    return " ".join(operands(arguments=tokens[start + 1 :])).replace("\\n", "\n")
-
-
-def stdin_text(*, seg: str, tokens: list[str], bodies: list[str], piped: str | None) -> str | None:
-    """The readable stdin of a segment: here-doc bodies, a here-string, an echo pipe."""
-    parts: list[str] = []
-    if "<<<" in tokens:
-        index = tokens.index("<<<")
-        parts.extend(tokens[index + 1 : index + 2])
-    elif "<<" in seg:
-        parts.extend(bodies)
-    if piped is not None:
-        parts.append(piped)
-    return "\n".join(parts) if parts else None
-
-
-def without_stdin_redirects(*, tokens: list[str]) -> list[str]:
-    """Drop `<<EOF`, `<<< word`, and `< file` so a re-scanned command does not re-read them."""
-    kept: list[str] = []
-    skip = False
-    for token in tokens:
-        if skip:
-            skip = False
-            continue
-        if token.startswith("<<") or token == "<":
-            skip = token == "<<<" or token == "<"
-            continue
-        kept.append(token)
-    return kept
-
-
-def payload_of(*, head: str, arguments: list[str], stdin: str | None) -> str | None:
-    """The script a SCRIPT or PAYLOAD head hands to another interpreter, when visible."""
-    if head in SCRIPT_HEADS:
-        return shell_payload(arguments=arguments) or stdin
-    if head == "eval":
-        return " ".join(arguments) or None
-    if head == "watch":
-        return " ".join(operands(arguments=arguments)) or None
-    return "\n".join(a for a in operands(arguments=arguments) if " " in a) or None
