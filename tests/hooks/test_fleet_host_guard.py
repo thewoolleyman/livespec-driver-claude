@@ -144,6 +144,10 @@ def no_project_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
         "bash -c \"ssh poweredge-xubuntu 'sudo systemctl restart k3s'\"",
         "ssh poweredge-xubuntu bash -s <<'EOF'\nsudo systemctl restart k3s\nEOF",
         "ssh poweredge-xubuntu 'sudo systemctl restart k3s",
+        # The head is found on lexed tokens, not on raw text: no regex prefilter to evade.
+        "s''sh poweredge-xubuntu 'sudo systemctl restart k3s'",
+        "SSH poweredge-xubuntu 'sudo systemctl restart k3s'",
+        "H=poweredge-xubuntu; ssh $H 'sudo systemctl restart k3s'",
     ],
 )
 def test_denies_hand_mutation_of_a_fleet_host(command: str) -> None:
@@ -170,6 +174,8 @@ def test_denies_hand_mutation_of_a_fleet_host(command: str) -> None:
         "cat > /tmp/x <<'EOF'\nkubectl delete node x\nEOF",
         "git status",
         "echo 'unterminated",
+        "git status # next: ssh poweredge-xubuntu sudo systemctl restart k3s",
+        "ssh poweredge-xubuntu 'sudo journalctl -u k3s -n 50'",
     ],
 )
 def test_allows_reads_the_sanctioned_apply_and_quoted_mentions(command: str) -> None:
@@ -290,14 +296,49 @@ def test_an_in_scope_allow_emits_a_none_rule(monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.usefixtures("no_project")
-def test_an_out_of_scope_command_emits_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    "command",
+    ["git status", "git status # ssh poweredge-xubuntu", "echo 'ssh x'"],
+)
+def test_an_out_of_scope_command_emits_nothing(
+    monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
     """`git status` pays no POST: nothing could convict it, so nothing is counted."""
     hook = _load_hook()
     emitted = _capture_telemetry(hook=hook, monkeypatch=monkeypatch)
 
-    _assert_silent(result=_run_loaded(hook=hook, stdin=_bash_input(command="git status")))
+    _assert_silent(result=_run_loaded(hook=hook, stdin=_bash_input(command=command)))
 
     assert emitted == []
+
+
+@pytest.mark.usefixtures("no_project")
+def test_a_quote_split_head_is_still_in_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    hook = _load_hook()
+    emitted = _capture_telemetry(hook=hook, monkeypatch=monkeypatch)
+
+    _assert_silent(result=_run_loaded(hook=hook, stdin=_bash_input(command="s''sh -G build-box")))
+
+    assert [record.matched_rule for record in emitted] == [None]
+
+
+@pytest.mark.usefixtures("no_project")
+@pytest.mark.parametrize(("command", "denied"), [(_MUTATION, True), (_READ, False)])
+def test_a_telemetry_failure_never_flips_the_verdict(
+    monkeypatch: pytest.MonkeyPatch, command: str, denied: bool
+) -> None:
+    """The verdict is settled before emission; a raising exporter costs the record only."""
+    hook = _load_hook()
+
+    def _broken(*, guard: str, matched_rule: str | None, attributes: dict[str, str | bool]) -> None:
+        raise RuntimeError(f"{guard} {matched_rule} {attributes}")
+
+    monkeypatch.setattr(hook, "emit_guard_verdict", _broken)
+    result = _run_loaded(hook=hook, stdin=_bash_input(command=command))
+    if denied:
+        _assert_denied(result=result)
+    else:
+        _assert_silent(result=result)
 
 
 # --- Boundary: pass-through shapes and the fail-closed rule -------------------
@@ -368,8 +409,8 @@ def test_main_fails_open_when_decision_raises_without_hazard_hint(
 ) -> None:
     hook = _load_hook()
 
-    def broken_decision(*, raw: str) -> str | None:
+    def broken_verdict(*, raw: str) -> object:
         raise ValueError(raw)
 
-    monkeypatch.setattr(hook, "_decision", broken_decision)
+    monkeypatch.setattr(hook, "_verdict", broken_verdict)
     _assert_silent(result=_run_loaded(hook=hook, stdin=_bash_input(command="git status")))

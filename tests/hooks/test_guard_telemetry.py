@@ -8,6 +8,7 @@ than unimplemented behaviour.
 
 from __future__ import annotations
 
+import http.client
 import importlib
 import sys
 import urllib.error
@@ -270,8 +271,9 @@ def test_post_span_targets_the_traces_signal_of_the_receiver(
         ConnectionRefusedError("no receiver"),
         urllib.error.URLError("unreachable"),
         ValueError("unknown url type"),
+        http.client.RemoteDisconnected("closed mid-response"),
     ],
-    ids=["refused", "unreachable", "malformed-endpoint"],
+    ids=["refused", "unreachable", "malformed-endpoint", "malformed-response"],
 )
 def test_post_span_swallows_every_telemetry_failure(
     monkeypatch: pytest.MonkeyPatch, failure: Exception

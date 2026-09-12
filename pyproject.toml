@@ -340,6 +340,8 @@ include = [
     # by nothing and reads as covered.
     ".claude-plugin/hooks/_shell_lex.py",
     ".claude-plugin/hooks/_fleet_inventory.py",
+    ".claude-plugin/hooks/_remote_target.py",
+    ".claude-plugin/hooks/_mutation_verbs.py",
     ".claude-plugin/hooks/_host_mutation.py",
     ".claude-plugin/hooks/fleet_host_guard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
