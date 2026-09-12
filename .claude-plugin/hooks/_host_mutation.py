@@ -11,46 +11,63 @@ is deliberately no checkout on a target. "I would have to do this by hand on a
 host" names a gap in the committed automation to FIX, never a task. This module
 owns the single question "does this command change a fleet-managed host by
 hand?", so `fleet_host_guard.py` keeps only the hook boundary. The host set it
-judges against is resolved by the sibling `_fleet_inventory` module.
+judges against comes from `_fleet_inventory`; the argv grammars of the
+remote-shell heads from `_remote_target`; the per-head verb tables from
+`_mutation_verbs`; the lexing and stdin/payload plumbing from `_shell_lex`.
 
-THE DENY MATRIX (every row is a POSITIVE identification; anything the classifier
-cannot show to be a mutation of a fleet host passes through):
+THE DENY MATRIX, every row a POSITIVE identification unless marked (†):
 
-  - `ssh` whose target is a fleet host AND whose remote command carries a
-    mutation verb: `sudo` (unless what it escalates is itself read-only),
-    `install`, `tee`, `rm`, `chmod`, `chown`, `apt`/`apt-get`, `cp`/`mv` whose
-    destination is under `/etc` or `/usr`, a `>`/`>>` redirection into those
-    trees, `systemctl start|stop|restart|reload|enable|disable|mask|unmask|
-    daemon-reload`, `git clone|pull`, a cluster-mutating `kubectl`, or a
-    mutating `k3s` subcommand. The remote command is itself shell text (ssh
-    joins its operands and the remote shell re-parses them), so it is split
-    and scanned exactly like the outer command; a here-doc fed to the ssh
-    segment is the remote script and is scanned as part of it.
-  - `scp` / `rsync` whose DESTINATION is a fleet host: an upload writes the
-    host's filesystem. A download (fleet host as the source) is read-only.
-  - `sftp` to a fleet host whose inline batch (a here-doc) carries `put`, `rm`,
-    `rename`, `mkdir`, `chmod`, … — the only form in which the batch is visible.
-  - `kubectl apply|patch|taint|delete|cordon|drain|label|edit|scale` from
-    anywhere — the cluster IS fleet state — unless `--dry-run` (other than
-    `=none`) makes it a read.
+  - `ssh` whose target is a fleet host AND whose remote command (its operands,
+    an `-o RemoteCommand=`, a here-doc, a here-string, or an `echo`/`printf`
+    piped into it) carries a mutation: `sudo` escalating anything not provably
+    read-only (†), or any head `_mutation_verbs` convicts — always-mutating
+    heads, an inverted subcommand head with a non-read verb, a flag-judged head
+    with a mutating flag, `cp`/`mv`/`>` into a protected tree, a shell reading
+    a script from a non-`echo` pipe (`curl … | sh`). The remote command is shell
+    text and is scanned exactly like the outer command, one level down.
+  - `scp`/`rsync` whose DESTINATION is a fleet host (an upload) unless
+    `rsync -n`/`--dry-run`; `rsync --remove-source-files` from a fleet host.
+  - `sftp` to a fleet host whose readable batch carries a writing verb.
+  - `kubectl`/`helm` with a non-read verb from anywhere — the cluster IS fleet
+    state — unless `--dry-run=client|server`.
+  - An ad hoc `ansible` run with `--become` or a mutating module; an
+    `ansible-playbook` (or `just ansible-apply`) of a playbook outside the
+    committed tree (an absolute or `~` path) without `--check`.
+  - FAIL CLOSED (†) when the command LOOKS like a fleet-host mutation (a
+    remote-shell word beside a fleet host name, or `kubectl`/`helm` beside a
+    mutating verb) but cannot be read: a segment that will not tokenize, a
+    `$(…)`/backtick substitution, a host or command head holding `$…` or an
+    xargs `{}`, or nesting past the depth budget. Precedent: `_tmux_hazard`.
 
 THE ALLOW LIST, stated so its members are proven rather than assumed: the
 sanctioned apply and drift (`just ansible-apply`, `just ansible-drift`,
-`ansible-playbook` with or without `--check`); read-only reaches over ssh
-(`kubectl get|describe|logs`, `cat`, `ls`, `stat`, `systemctl status|cat|
-is-active`, `journalctl`, `grep`, `test`, …, with or without `sudo`); an ssh
-with no remote command; any of these to a host that is NOT in the fleet set;
-and every mention that is quoted data (a commit message, a grep pattern, an
-`echo`, a here-doc written to a file).
+`ansible-playbook` of a committed playbook, with or without `--check`) when it
+is the segment's actual command head; read-only reaches over ssh (`kubectl
+get|describe|logs`, `cat`, `ls`, `stat`, `systemctl status|cat|is-active`,
+`journalctl`, `grep`, `test`, `dmesg`, `ss`, `lsof`, `docker ps`, …, with or
+without `sudo`; `sudo -l`; `sudo bash -c '<read-only script>'`); an ssh with
+no remote command; any of these to a host that is NOT in the fleet set; every
+mention that is quoted data (a commit message, a grep pattern, a here-doc
+written to a file); and an `echo`/`printf` line, whose operands are data even
+unquoted.
 
-THE DESIGN RULE, inherited from `_tmux_hazard`: scan EVERY token position for a
-command head, never just position 0, so `timeout 30 ssh …`, `mise exec -- ssh
-…` and `env -i kubectl …` are defeated by the scan rather than by an allowlist
-of known wrappers. Quoting is what keeps this from over-blocking.
+THE SCAN RULE, inherited from `_tmux_hazard` and sharpened: walk the tokens of
+a segment until a RECOGNISED command head is met, judge it with the tokens
+after it as ITS arguments, and stop there — the arguments of a recognised head
+are data (`journalctl -u k3s` names a unit, not a `k3s` command). Tokens the
+guard does not recognise (`timeout 30`, `env -i`, `mise exec --`, `nohup`) are
+walked past, so a wrapper is defeated by the walk rather than by an allowlist.
+Heads are matched case-insensitively. Payloads handed to another interpreter
+are re-classified one level down: `sh -c`, `bash <<<`, `eval`, `script -c`,
+`watch`, and tmux `new-session`/`send-keys` operands.
 
-Fail-closed only on a hazard-hinted parse failure: a segment that names a
-remote-shell head and a fleet host (or `kubectl` and a mutating verb) but will
-not tokenize is denied; anything else that cannot be classified passes.
+KNOWN LIMITS, documented rather than pretended: a script assembled inside
+another language (`python3 -c "subprocess.run(['ssh', …])"`), a `-b <file>`
+sftp batch, `sudo bash -s < script.sh` (denied as a root shell, never read),
+and a remote `curl | sh` whose script the guard cannot fetch (denied as a
+piped shell). An unquoted mention in the arguments of an unrecognised head
+(`cat notes ssh host sudo …`) is judged as if it ran — the accepted deny bias;
+`echo`/`printf` operands are the one exception.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
@@ -60,259 +77,233 @@ import here is the standard library or a sibling module shipped beside it.
 from __future__ import annotations
 
 import re
-import shlex
+from dataclasses import dataclass, replace
 
+from _mutation_verbs import MUTATING_KUBECTL_VERBS, mutation_of, read_only, redirect_rule
+from _remote_target import is_fleet_host, parse_sftp, parse_ssh, parse_transfer, sftp_batch_mutates
 from _shell_lex import (
-    SHELLS,
+    DATA_HEADS,
+    PAYLOAD_HEADS,
+    SCRIPT_HEADS,
     basename,
+    first_command_index,
+    operands,
+    payload_of,
+    produced_text,
     shell_payload,
     split_heredocs,
-    split_segments,
-    ungrouped,
+    split_segments_with_separators,
+    stdin_text,
+    tokens_or_none,
     without_continuations,
+    without_stdin_redirects,
 )
 
-__all__: list[str] = ["classify", "hazard_hint"]
+__all__: list[str] = ["classify", "hazard_hint", "in_scope"]
 
 _MAX_DEPTH = 4
 _REMOTE_HEADS = frozenset({"ssh", "scp", "rsync", "sftp"})
-_REMOTE_WORD = re.compile(r"\b(?:ssh|scp|rsync|sftp)\b")
-_KUBECTL_WORD = re.compile(r"\bkubectl\b")
-_KUBECTL_MUTATIONS = frozenset("apply patch taint delete cordon drain label edit scale".split())
-_KUBECTL_MUTATION_WORD = re.compile(r"\b(?:" + "|".join(sorted(_KUBECTL_MUTATIONS)) + r")\b")
-_SUBCOMMAND_MUTATIONS: dict[str, frozenset[str]] = {
-    "systemctl": frozenset(
-        "start stop restart reload try-restart reload-or-restart enable disable mask unmask "
-        "daemon-reload".split()
-    ),
-    "git": frozenset({"clone", "pull"}),
-    "k3s": frozenset("server agent etcd-snapshot secrets-encrypt certificate".split()),
-}
-_ALWAYS_MUTATING = frozenset("install tee rm chmod chown apt apt-get".split())
-_COPIERS = frozenset({"cp", "mv"})
-_PROTECTED_PREFIXES = ("/etc", "/usr")
-_SFTP_MUTATIONS = frozenset("put rm rmdir mkdir rename chmod chown chgrp symlink ln".split())
-# What `sudo` may escalate without convicting on its own: heads whose every
-# subcommand is a read, plus heads judged by their own subcommand rule above.
-_READ_ONLY_HEADS = frozenset(
-    "cat ls stat journalctl grep test head tail wc find df du id hostname uname uptime ps "
-    "which pgrep true echo kubectl systemctl git k3s crictl ctr".split()
-)
-_SANCTIONED_HEADS = frozenset({"ansible-playbook", "ansible"})
+_CLUSTER_HEADS = frozenset({"kubectl", "helm", "ansible"})
+_SCOPE_HEADS = _REMOTE_HEADS | _CLUSTER_HEADS | {"ansible-playbook"}
 _SANCTIONED_RECIPES = frozenset({"ansible-apply", "ansible-drift"})
-# ssh(1) options that consume the next token as their value.
-_SSH_VALUE_FLAGS = frozenset("BbcDEeFIiJLlmOopQRSWw")
-_SFTP_VALUE_FLAGS = frozenset("-b -B -c -D -F -i -J -l -o -P -R -S -s".split())
-_SUDO_VALUE_FLAGS = frozenset("-u -g -h -p -C -r -t -T -U".split())
-_SUDO_SHELL_FLAGS = frozenset({"-i", "-s"})
+_KNOWN_HEADS = _SCOPE_HEADS | SCRIPT_HEADS | PAYLOAD_HEADS | {"just"}
+_SUBSTITUTION = re.compile(r"\$\(|`")
+_REMOTE_WORD = re.compile(r"\b(?:ssh|scp|rsync|sftp)\b")
+_CLUSTER_WORD = re.compile(r"\b(?:kubectl|helm)\b")
+_CLUSTER_MUTATION_WORD = re.compile(
+    r"\b(?:"
+    + "|".join(sorted(MUTATING_KUBECTL_VERBS | {"upgrade", "install", "uninstall", "rollback"}))
+    + r")\b"
+)
+_SUDO_VALUE_FLAGS = frozenset(
+    "-u -g -h -p -C -r -t -T -U -D --user --group --host --prompt --chdir".split()
+)
+_SUDO_SHELL_FLAGS = frozenset({"-i", "-s", "--login", "--shell"})
 
 
-def _is_fleet_host(*, name: str, hosts: frozenset[str]) -> bool:
-    host = name.lower().rstrip(".")
-    return host in hosts or host.split(".", 1)[0] in hosts
+@dataclass(frozen=True, kw_only=True)
+class _Scan:
+    """One scan's fixed context: the host set, whether text looks hazardous, where it runs."""
+
+    hosts: frozenset[str]
+    hinted: bool
+    remote: bool
+    depth: int
 
 
-def _host_of_target(*, target: str) -> str:
-    """`user@host`, `ssh://user@host:port/`, `host:path`, `rsync://host/` → `host`."""
-    rest = target
-    for scheme in ("ssh://", "sftp://", "rsync://"):
-        if rest.startswith(scheme):
-            rest = rest[len(scheme) :]
-    rest = rest.rsplit("@", 1)[-1]
-    return rest.split(":", 1)[0].split("/", 1)[0]
+def _unresolvable(*, token: str) -> bool:
+    return not token or "$" in token or "`" in token or "{}" in token
 
 
-def _operands(*, arguments: list[str]) -> list[str]:
-    return [argument for argument in arguments if not argument.startswith("-")]
+def _head(*, token: str) -> str:
+    return basename(token=token).lower()
 
 
-def _remote_destination_host(*, arguments: list[str]) -> str | None:
-    """The host of an `scp`/`rsync` DESTINATION operand (`host:path`, `rsync://host/`)."""
-    operands = _operands(arguments=arguments)
-    if not operands:
+def _playbook_rule(*, head: str, arguments: list[str]) -> str | None:
+    """A committed playbook is sanctioned; one outside the tree is a hand deploy."""
+    if "--check" in arguments:
         return None
-    destination = operands[-1]
-    if destination.startswith("rsync://") or (
-        ":" in destination and not destination.startswith("/")
-    ):
-        return _host_of_target(target=destination)
+    playbooks = [a for a in operands(arguments=arguments) if a.endswith((".yml", ".yaml"))]
+    if any(p.startswith(("/", "~")) or ".." in p for p in playbooks):
+        return f"{head}+uncommitted-playbook"
     return None
 
 
-def _ssh_target(*, arguments: list[str]) -> tuple[str | None, list[str]]:
-    """ssh's host operand and the remote-command tokens after it, options consumed."""
+def _sanction(*, tokens: list[str]) -> tuple[bool, str | None]:
+    """(sanctioned, rule) judged on the segment's FIRST known command head only."""
+    for index, token in enumerate(tokens):
+        head = _head(token=token)
+        if head == "ansible-playbook":
+            return True, _playbook_rule(head=head, arguments=tokens[index + 1 :])
+        if head == "just" and index + 1 < len(tokens) and tokens[index + 1] in _SANCTIONED_RECIPES:
+            recipe = tokens[index + 1]
+            if recipe == "ansible-drift":
+                return True, None
+            return True, _playbook_rule(head=recipe, arguments=tokens[index + 2 :])
+        if head in _KNOWN_HEADS:
+            return False, None
+    return False, None
+
+
+def _sudo_rule(*, arguments: list[str], scan: _Scan) -> str | None:
+    """`sudo` convicts on its own unless what it escalates is positively read-only."""
     index = 0
     total = len(arguments)
-    while index < total:
-        token = arguments[index]
-        if token == "--":
+    while index < total and (arguments[index].startswith("-") or "=" in arguments[index]):
+        flag = arguments[index]
+        if flag == "--":
             index += 1
             break
-        if not token.startswith("-") or token == "-":
-            break
-        index += 2 if len(token) == 2 and token[1] in _SSH_VALUE_FLAGS else 1
+        if flag in _SUDO_SHELL_FLAGS:
+            return "sudo+shell"
+        index += 2 if flag in _SUDO_VALUE_FLAGS else 1
     if index >= total:
-        return None, []
-    return _host_of_target(target=arguments[index]), arguments[index + 1 :]
-
-
-def _first_operand(*, arguments: list[str], value_flags: frozenset[str]) -> str | None:
-    index = 0
-    total = len(arguments)
-    while index < total:
-        token = arguments[index]
-        if not token.startswith("-"):
-            return token
-        index += 2 if token in value_flags else 1
-    return None
-
-
-def _targets_protected_tree(*, path: str) -> bool:
-    return any(path == prefix or path.startswith(prefix + "/") for prefix in _PROTECTED_PREFIXES)
-
-
-def _kubectl_rule(*, arguments: list[str]) -> str | None:
-    verbs = [argument for argument in arguments if argument in _KUBECTL_MUTATIONS]
-    if not verbs:
         return None
-    dry_run = any(a.startswith("--dry-run") and a != "--dry-run=none" for a in arguments)
-    return None if dry_run else f"kubectl+{verbs[0]}"
-
-
-def _sudo_rule(*, arguments: list[str]) -> str | None:
-    """`sudo` convicts on its own unless what it escalates is positively read-only."""
-    if any(argument in _SUDO_SHELL_FLAGS for argument in arguments):
-        return "sudo+shell"
-    escalated = _first_operand(arguments=arguments, value_flags=_SUDO_VALUE_FLAGS)
-    if escalated is None:
-        return "sudo+shell"
-    head = basename(token=escalated)
-    return None if head in _READ_ONLY_HEADS else f"sudo+{head}"
-
-
-def _redirect_rule(*, tokens: list[str]) -> str | None:
-    """A `>`/`>>` whose target is under a protected tree is a file write on the host."""
-    for index, token in enumerate(tokens):
-        if not token.startswith(">"):
-            continue
-        path = token.lstrip(">") or (tokens[index + 1] if index + 1 < len(tokens) else "")
-        if _targets_protected_tree(path=path):
-            return "redirect-into-protected-tree"
-    return None
-
-
-def _head_mutation(*, head: str, arguments: list[str], depth: int) -> str | None:
-    """Is THIS token a mutation verb on the remote host?"""
-    if head in SHELLS:
-        payload = shell_payload(arguments=arguments)
-        if payload is not None:
-            return _mutation_rule(payload=payload, depth=depth + 1)
+    head = _head(token=arguments[index])
+    rest = arguments[index + 1 :]
     if head == "sudo":
-        return _sudo_rule(arguments=arguments)
-    if head == "kubectl":
-        return _kubectl_rule(arguments=arguments)
-    if head in _ALWAYS_MUTATING:
-        return head
-    if head in _COPIERS:
-        operands = _operands(arguments=arguments)
-        return head if operands and _targets_protected_tree(path=operands[-1]) else None
-    verbs = _SUBCOMMAND_MUTATIONS.get(head)
-    if verbs is not None:
-        subcommand = _first_operand(arguments=arguments, value_flags=frozenset())
-        return f"{head}+{subcommand}" if subcommand in verbs else None
-    return None
+        return _sudo_rule(arguments=rest, scan=scan)
+    if head in SCRIPT_HEADS:
+        payload = shell_payload(arguments=rest)
+        return _scan(text=payload, scan=_deeper(scan=scan)) if payload else "sudo+shell"
+    rule = mutation_of(head=head, arguments=rest)
+    if rule is not None:
+        return rule
+    return None if read_only(head=head, arguments=rest) else f"sudo+{head}"
 
 
-def _tokens_or_none(*, seg: str) -> list[str] | None:
-    try:
-        return [ungrouped(token=token) for token in shlex.split(seg, posix=True)]
-    except ValueError:
-        return None
+def _deeper(*, scan: _Scan) -> _Scan:
+    return replace(scan, remote=True, hinted=True, depth=scan.depth + 1)
 
 
-def _mutation_rule(*, payload: str, depth: int) -> str | None:
-    """The mutation verb a remote shell payload carries, or None."""
-    if depth > _MAX_DEPTH:
-        return "nesting-depth"
-    for seg in split_segments(command=without_continuations(command=payload)):
-        tokens = _tokens_or_none(seg=seg)
-        if tokens is None:
-            return "unparseable-remote-command"
-        rule = _redirect_rule(tokens=tokens)
-        for index, token in enumerate(tokens):
-            rule = rule or _head_mutation(
-                head=basename(token=token), arguments=tokens[index + 1 :], depth=depth
-            )
-        if rule is not None:
-            return rule
-    return None
-
-
-def _sftp_rule(*, arguments: list[str], hosts: frozenset[str], bodies: list[str]) -> str | None:
-    target = _first_operand(arguments=arguments, value_flags=_SFTP_VALUE_FLAGS)
-    if target is None or not _is_fleet_host(name=_host_of_target(target=target), hosts=hosts):
-        return None
-    lines = [line for body in bodies for line in body.splitlines() if line.strip()]
-    return "sftp+batch" if any(line.split()[0] in _SFTP_MUTATIONS for line in lines) else None
-
-
-def _remote_rule(
-    *, head: str, arguments: list[str], hosts: frozenset[str], bodies: list[str], depth: int
-) -> str | None:
+def _remote_rule(*, head: str, arguments: list[str], stdin: str | None, scan: _Scan) -> str | None:
     """Does this remote-shell head reach a fleet host with a mutation?"""
-    if head in {"scp", "rsync"}:
-        destination = _remote_destination_host(arguments=arguments)
-        if destination is not None and _is_fleet_host(name=destination, hosts=hosts):
-            return f"{head}+upload"
-        return None
+    hosts = scan.hosts
+    if head == "ssh":
+        reach = parse_ssh(arguments=without_stdin_redirects(tokens=arguments))
+        if reach.host is None:
+            return None
+        if reach.unresolvable:
+            return "unresolvable-target" if scan.hinted else None
+        if not is_fleet_host(name=reach.host, hosts=hosts):
+            return None
+        lines = [*reach.remote, *([stdin] if stdin else [])]
+        rule = _scan(text="\n".join(lines), scan=_deeper(scan=scan)) if lines else None
+        return None if rule is None else f"ssh+{rule}"
     if head == "sftp":
-        return _sftp_rule(arguments=arguments, hosts=hosts, bodies=bodies)
-    target, remote = _ssh_target(arguments=arguments)
-    if target is None or not _is_fleet_host(name=target, hosts=hosts):
-        return None
-    rule = _mutation_rule(payload="\n".join([" ".join(remote), *bodies]), depth=depth + 1)
-    return None if rule is None else f"ssh+{rule}"
-
-
-def _is_sanctioned(*, tokens: list[str]) -> bool:
-    """`just ansible-apply|ansible-drift …` and `ansible-playbook …` are THE deploy path."""
-    for index, token in enumerate(tokens):
-        head = basename(token=token)
-        if head in _SANCTIONED_HEADS:
-            return True
-        if head == "just" and index + 1 < len(tokens) and tokens[index + 1] in _SANCTIONED_RECIPES:
-            return True
-    return False
-
-
-def _position_rule(
-    *, head: str, arguments: list[str], hosts: frozenset[str], bodies: list[str], depth: int
-) -> str | None:
-    if head in SHELLS:
-        payload = shell_payload(arguments=arguments)
-        return None if payload is None else classify(command=payload, hosts=hosts, depth=depth + 1)
-    if head in _REMOTE_HEADS:
-        return _remote_rule(head=head, arguments=arguments, hosts=hosts, bodies=bodies, depth=depth)
-    return _kubectl_rule(arguments=arguments) if head == "kubectl" else None
-
-
-def _segment_rule(*, seg: str, hosts: frozenset[str], bodies: list[str], depth: int) -> str | None:
-    tokens = _tokens_or_none(seg=seg)
-    if tokens is None:
-        return "unparseable" if hazard_hint(command=seg, hosts=hosts) else None
-    if _is_sanctioned(tokens=tokens):
-        return None
-    segment_bodies = bodies if "<<" in seg else []
-    for index, token in enumerate(tokens):
-        rule = _position_rule(
-            head=basename(token=token),
-            arguments=tokens[index + 1 :],
-            hosts=hosts,
-            bodies=segment_bodies,
-            depth=depth,
+        sftp = parse_sftp(arguments=arguments)
+        if sftp.host is None or not is_fleet_host(name=sftp.host, hosts=hosts):
+            return None
+        return (
+            "sftp+batch"
+            if sftp.batch_from_stdin and stdin and sftp_batch_mutates(batch=stdin)
+            else None
         )
+    transfer = parse_transfer(head=head, arguments=arguments)
+    if transfer.unresolvable:
+        return "unresolvable-target" if scan.hinted else None
+    if transfer.destination is not None and is_fleet_host(name=transfer.destination, hosts=hosts):
+        return None if transfer.dry_run else f"{head}+upload"
+    if transfer.remove_source and any(is_fleet_host(name=h, hosts=hosts) for h in transfer.sources):
+        return "rsync+remove-source-files"
+    return None
+
+
+def _position(
+    *, head: str, arguments: list[str], fed_by: str, stdin: str | None, scan: _Scan
+) -> tuple[str | None, bool]:
+    """(rule, terminal): this token judged as a head, and whether its arguments are data."""
+    if head in SCRIPT_HEADS or head in PAYLOAD_HEADS:
+        payload = payload_of(head=head, arguments=arguments, stdin=stdin)
+        if payload:
+            return _scan(text=payload, scan=replace(scan, depth=scan.depth + 1)), True
+        return ("piped-shell" if scan.remote and fed_by == "pipe" else None), True
+    if head in _REMOTE_HEADS:
+        return _remote_rule(head=head, arguments=arguments, stdin=stdin, scan=scan), True
+    if head in _CLUSTER_HEADS:
+        return mutation_of(head=head, arguments=arguments), True
+    if not scan.remote:
+        return None, False
+    if head == "sudo":
+        return _sudo_rule(arguments=arguments, scan=scan), True
+    rule = mutation_of(head=head, arguments=arguments)
+    return rule, rule is not None or read_only(head=head, arguments=arguments)
+
+
+def _segment_rule(
+    *, seg: str, tokens: list[str], fed_by: str, stdin: str | None, scan: _Scan
+) -> str | None:
+    if scan.hinted and _SUBSTITUTION.search(seg):
+        return "command-substitution"
+    if scan.remote and (rule := redirect_rule(tokens=tokens)) is not None:
+        return rule
+    start = first_command_index(tokens=tokens)
+    if start is None or _head(token=tokens[start]) in DATA_HEADS:
+        return None
+    if scan.hinted and _unresolvable(token=tokens[start]):
+        return "unresolvable-command"
+    if not scan.remote:
+        sanctioned, rule = _sanction(tokens=tokens[start:])
+        if sanctioned:
+            return rule
+    for index in range(start, len(tokens)):
+        rule, terminal = _position(
+            head=_head(token=tokens[index]),
+            arguments=tokens[index + 1 :],
+            fed_by=fed_by,
+            stdin=stdin,
+            scan=scan,
+        )
+        if rule is not None or terminal:
+            return rule
+    return None
+
+
+def _scan(*, text: str, scan: _Scan) -> str | None:
+    """Scan shell text — the outer command, or a payload one level down — for a mutation."""
+    if scan.depth > _MAX_DEPTH:
+        # Out of budget with content still unexamined. Nothing legitimate nests
+        # this deep, so exhaustion is evidence of evasion: fail CLOSED.
+        return "nesting-depth"
+    stripped, bodies = split_heredocs(command=text)
+    piped: str | None = None
+    for separator, seg in split_segments_with_separators(
+        command=without_continuations(command=stripped)
+    ):
+        tokens = tokens_or_none(seg=seg)
+        if tokens is None:
+            if scan.hinted:
+                return "unparseable-remote-command" if scan.remote else "unparseable"
+            piped = None
+            continue
+        fed_by = "" if separator != "|" else ("data" if piped is not None else "pipe")
+        stdin = stdin_text(
+            seg=seg, tokens=tokens, bodies=bodies, piped=piped if fed_by == "data" else None
+        )
+        rule = _segment_rule(seg=seg, tokens=tokens, fed_by=fed_by, stdin=stdin, scan=scan)
         if rule is not None:
             return rule
+        piped = produced_text(tokens=tokens)
     return None
 
 
@@ -320,19 +311,30 @@ def hazard_hint(*, command: str, hosts: frozenset[str]) -> bool:
     """True when raw text LOOKS like a fleet-host mutation — the fail-closed trigger."""
     lowered = command.lower()
     remote = bool(_REMOTE_WORD.search(lowered)) and any(host in lowered for host in hosts)
-    kube = bool(_KUBECTL_WORD.search(lowered)) and bool(_KUBECTL_MUTATION_WORD.search(lowered))
-    return remote or kube
+    cluster = bool(_CLUSTER_WORD.search(lowered)) and bool(_CLUSTER_MUTATION_WORD.search(lowered))
+    return remote or cluster
+
+
+def in_scope(*, command: str, hosts: frozenset[str]) -> bool:
+    """True when the command carries a head this guard judges (or looks like one).
+
+    Judged on the comment-stripped segments, so `git status # ssh host` is out
+    of scope exactly as the scan sees it.
+    """
+    stripped, _ = split_heredocs(command=command)
+    segments = split_segments_with_separators(command=without_continuations(command=stripped))
+    if hazard_hint(command="\n".join(seg for _, seg in segments), hosts=hosts):
+        return True
+    for _, seg in segments:
+        tokens = tokens_or_none(seg=seg)
+        if tokens is not None and any(_head(token=token) in _SCOPE_HEADS for token in tokens):
+            return True
+    return False
 
 
 def classify(*, command: str, hosts: frozenset[str], depth: int = 0) -> str | None:
     """The rule that convicts this command of mutating a fleet host by hand, or None."""
-    if depth > _MAX_DEPTH:
-        # Out of budget with content still unexamined. Nothing legitimate nests
-        # this deep, so exhaustion is evidence of evasion: fail CLOSED.
-        return "nesting-depth"
-    stripped, bodies = split_heredocs(command=command)
-    for seg in split_segments(command=without_continuations(command=stripped)):
-        rule = _segment_rule(seg=seg, hosts=hosts, bodies=bodies, depth=depth)
-        if rule is not None:
-            return rule
-    return None
+    scan = _Scan(
+        hosts=hosts, hinted=hazard_hint(command=command, hosts=hosts), remote=False, depth=depth
+    )
+    return _scan(text=command, scan=scan)
