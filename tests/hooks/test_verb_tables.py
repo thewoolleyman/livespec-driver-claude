@@ -57,13 +57,13 @@ def test_second_level_entries_hang_off_inverted_heads() -> None:
         assert verb in READ_ONLY_SUBCOMMANDS[head], (head, verb)
 
 
-def test_value_flags_belong_to_heads_that_are_judged_by_verb() -> None:
-    assert set(VALUE_FLAGS) <= set(READ_ONLY_SUBCOMMANDS)
+def test_value_flags_belong_to_heads_judged_by_verb_or_operand() -> None:
+    assert set(VALUE_FLAGS) <= set(READ_ONLY_SUBCOMMANDS) | READ_ONLY_HEADS
 
 
-def test_flag_judged_heads_are_reads_by_default() -> None:
+def test_flag_judged_heads_are_reads_by_default_or_inverted() -> None:
     for head in set(FLAG_MUTATIONS) | set(FLAG_PREFIX_MUTATIONS):
-        assert head in READ_ONLY_HEADS, head
+        assert head in READ_ONLY_HEADS or head in READ_ONLY_SUBCOMMANDS, head
 
 
 def test_protected_prefixes_are_absolute_and_unslashed() -> None:
@@ -84,8 +84,18 @@ def test_the_shapes_do_not_overlap() -> None:
 
 def test_the_scoping_decision_is_recorded_in_the_tables() -> None:
     """Scratch writes (`mkdir /tmp/x`) are not mutations; configuration writes are."""
-    assert {"rm", "mkdir", "touch", "ln", "cp", "mv"} <= PATH_SCOPED
-    assert "tee" in ALWAYS_MUTATING
+    assert {
+        "rm",
+        "mkdir",
+        "touch",
+        "ln",
+        "cp",
+        "mv",
+        "tee",
+        "chmod",
+        "chown",
+        "chgrp",
+    } <= PATH_SCOPED
     assert "install" in ALWAYS_MUTATING
 
 

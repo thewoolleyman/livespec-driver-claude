@@ -17,9 +17,10 @@ questions about each head it meets, with that head's own argument run:
 
 The tables live in `_verb_tables`; this module applies them, in four shapes:
 
-  - **Always mutating**: `install`, `tee`, `chmod`, `dd`, `useradd`, `reboot`,
-    … — the head IS the verb.
-  - **Path-scoped**: `cp`, `mv`, `rm`, `mkdir`, `touch`, `ln`, … write the host
+  - **Always mutating**: `install`, `dd`, `useradd`, `reboot`, … — the head IS
+    the verb.
+  - **Path-scoped**: `cp`, `mv`, `rm`, `mkdir`, `touch`, `ln`, `tee`, `chmod`,
+    `chown`, … write the host
     only when an operand lies under a protected tree (`/etc`, `/usr`, `/opt`,
     `/var/lib`, `/srv`, `/boot`); the same verb under `/tmp` or `$HOME` is
     scratch, which this guard does not police (a deliberate scoping: it
@@ -39,7 +40,8 @@ The tables live in `_verb_tables`; this module applies them, in four shapes:
     `find -delete|-exec`, `journalctl --vacuum*|--rotate`, `sed -i`,
     `yq -i`, `awk -i inplace`, `iptables -A|-D|-F|…`, `ip … add|del|set|
     exec`, `dmesg -c|-C`, `sysctl -w|--system|key=value`, `date -s`,
-    `dpkg -i|-r|-P|…`, `hostname <name>`, `mount <operands>`, and an ad hoc
+    `dpkg -i|-r|-P|…`, `hostname <name>`, `mount <operands>|-a|-o`, `nft -f`,
+    and an ad hoc
     `ansible` run with `--become` or a mutating module.
 
 Anything not listed is UNKNOWN: not a mutation on its own, not a read under
@@ -119,6 +121,11 @@ def _dry_run(*, arguments: list[str]) -> bool:
 
 
 def _subcommand_rule(*, head: str, arguments: list[str]) -> str | None:
+    flagged = next(
+        (a for a in arguments if a.split("=", 1)[0] in FLAG_MUTATIONS.get(head, ())), None
+    )
+    if flagged is not None:
+        return f"{head}+{flagged.split('=', 1)[0]}"
     positionals = _positionals(head=head, arguments=arguments)
     if not positionals or not _SUBCOMMAND_WORD.match(positionals[0]):
         return None
@@ -181,7 +188,7 @@ def _flag_rule(*, head: str, arguments: list[str]) -> str | None:
             return f"{head}+{argument.split('=', 1)[0]}"
     if head == "sysctl" and any("=" in a and not a.startswith("-") for a in arguments):
         return "sysctl+write"
-    if head in {"hostname", "mount"} and operands(arguments=arguments):
+    if head in {"hostname", "mount"} and _positionals(head=head, arguments=arguments):
         return f"{head}+set"
     if head in PATH_SCOPED:
         paths = operands(arguments=arguments)
