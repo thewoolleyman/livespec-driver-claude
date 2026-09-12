@@ -42,6 +42,10 @@ _SHIPPED_HOOKS = (
     _HOOKS_DIR / "tmux_fleet_guard.py",
     _HOOKS_DIR / "primary_checkout_playwright_guard.py",
     _HOOKS_DIR / "_tmux_hazard.py",
+    _HOOKS_DIR / "fleet_host_guard.py",
+    _HOOKS_DIR / "_host_mutation.py",
+    _HOOKS_DIR / "_shell_lex.py",
+    _HOOKS_DIR / "_fleet_inventory.py",
 )
 _SHIPPED_RAILWAY_HOOKS = (
     _HOOKS_DIR / "block_auto_memory.py",

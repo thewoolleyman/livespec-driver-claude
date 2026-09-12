@@ -257,6 +257,7 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_no_shadow_ledger.py",
     "tests/hooks/test_primary_checkout_playwright_guard.py",
     "tests/hooks/test_tmux_fleet_guard.py",
+    "tests/hooks/test_fleet_host_guard.py",
     "tests/hooks/test_shipped_hooks_install_shape.py",
     "tests/hooks/test_livespec_footgun_guard.py",
 ]
@@ -292,6 +293,7 @@ supervisor_entry_files = [
     ".claude-plugin/hooks/no_shadow_ledger.py",
     ".claude-plugin/hooks/primary_checkout_playwright_guard.py",
     ".claude-plugin/hooks/tmux_fleet_guard.py",
+    ".claude-plugin/hooks/fleet_host_guard.py",
     ".claude/hooks/livespec_footgun_guard.py",
 ]
 
@@ -332,6 +334,14 @@ include = [
     ".claude-plugin/hooks/_livespec_project.py",
     ".claude-plugin/hooks/_result.py",
     ".claude-plugin/hooks/_tmux_hazard.py",
+    # The shell lexer both Bash classifiers share, and the fleet-host mutation
+    # classifier + its hook boundary. Same reason as every entry here: these
+    # keys are explicit ALLOWLISTS, so an unlisted shipped module is measured
+    # by nothing and reads as covered.
+    ".claude-plugin/hooks/_shell_lex.py",
+    ".claude-plugin/hooks/_fleet_inventory.py",
+    ".claude-plugin/hooks/_host_mutation.py",
+    ".claude-plugin/hooks/fleet_host_guard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/block_raw_bd_create.py",
     ".claude-plugin/hooks/github_rate_limit_guard.py",

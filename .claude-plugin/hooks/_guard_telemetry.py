@@ -54,6 +54,13 @@ unchanged. The timeout is deliberately far below the step timer's, because this
 runs on the critical path of EVERY Bash tool call rather than once per sandbox
 prepare step.
 
+ONE EXPORTER, MANY GUARDS. `emit_verdict` is the GitHub guard's record, with
+its audit fields fixed. `emit_guard_verdict` is the generic seam every other
+Bash guard publishes through: the same dataset, the same span shape, `verdict`
+(`allowed` / `denied`) and `matched_rule` as the two columns every guard
+shares, `check_id` derived from the guard's name, plus whatever CLASSIFICATION
+attributes that guard adds -- still never the command, never a hostname.
+
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
 import here is from the standard library.
@@ -76,6 +83,7 @@ from collections.abc import Mapping
 __all__: list[str] = [
     "DATASET",
     "DEFAULT_ENDPOINT",
+    "emit_guard_verdict",
     "emit_verdict",
 ]
 
@@ -101,11 +109,18 @@ _POST_TIMEOUT_S = 0.5
 _NO_RULE = "none"
 
 
-def build_verdict_payload(
+def _attribute(*, key: str, value: str | bool) -> dict[str, object]:
+    typed: dict[str, object] = (
+        {"boolValue": value} if isinstance(value, bool) else {"stringValue": value}
+    )
+    return {"key": key, "value": typed}
+
+
+def build_span_payload(
     *,
-    matched_rule: str | None,
-    gh_cached: bool,
-    gh_at_command_position: bool,
+    scope: str,
+    span_name: str,
+    attributes: list[dict[str, object]],
     session_id: str | None,
     now_ns: int,
 ) -> dict[str, object]:
@@ -116,22 +131,12 @@ def build_verdict_payload(
     expects, and the trace/span ids are freshly random (an independent,
     un-parented span -- the harness's own trace is not reachable from a hook).
     """
-    attributes: list[dict[str, object]] = [
-        {
-            "key": "verdict",
-            "value": {"stringValue": "allowed" if matched_rule is None else "rate_limited"},
-        },
-        {"key": "matched_rule", "value": {"stringValue": matched_rule or _NO_RULE}},
-        {"key": "gh_cached", "value": {"boolValue": gh_cached}},
-        {"key": "gh_at_command_position", "value": {"boolValue": gh_at_command_position}},
-        {"key": "check_id", "value": {"stringValue": _CHECK_ID}},
-    ]
     if session_id:
-        attributes.append({"key": "session_id", "value": {"stringValue": session_id}})
+        attributes.append(_attribute(key="session_id", value=session_id))
     span: dict[str, object] = {
         "traceId": os.urandom(16).hex(),
         "spanId": os.urandom(8).hex(),
-        "name": _SPAN_NAME,
+        "name": span_name,
         "kind": 1,
         "startTimeUnixNano": str(now_ns),
         "endTimeUnixNano": str(now_ns),
@@ -146,10 +151,59 @@ def build_verdict_payload(
                         {"key": "service.name", "value": {"stringValue": DATASET}},
                     ],
                 },
-                "scopeSpans": [{"scope": {"name": _SCOPE_NAME}, "spans": [span]}],
+                "scopeSpans": [{"scope": {"name": scope}, "spans": [span]}],
             },
         ],
     }
+
+
+def build_verdict_payload(
+    *,
+    matched_rule: str | None,
+    gh_cached: bool,
+    gh_at_command_position: bool,
+    session_id: str | None,
+    now_ns: int,
+) -> dict[str, object]:
+    """The GitHub rate-limit guard's verdict record, audit fields fixed."""
+    attributes = [
+        _attribute(key="verdict", value="allowed" if matched_rule is None else "rate_limited"),
+        _attribute(key="matched_rule", value=matched_rule or _NO_RULE),
+        _attribute(key="gh_cached", value=gh_cached),
+        _attribute(key="gh_at_command_position", value=gh_at_command_position),
+        _attribute(key="check_id", value=_CHECK_ID),
+    ]
+    return build_span_payload(
+        scope=_SCOPE_NAME,
+        span_name=_SPAN_NAME,
+        attributes=attributes,
+        session_id=session_id,
+        now_ns=now_ns,
+    )
+
+
+def build_guard_verdict_payload(
+    *,
+    guard: str,
+    matched_rule: str | None,
+    attributes: Mapping[str, str | bool],
+    session_id: str | None,
+    now_ns: int,
+) -> dict[str, object]:
+    """A generic guard's verdict record: the shared columns plus its own classification."""
+    items = [
+        _attribute(key="verdict", value="allowed" if matched_rule is None else "denied"),
+        _attribute(key="matched_rule", value=matched_rule or _NO_RULE),
+        _attribute(key="check_id", value=f"{guard.replace('_', '-')}-verdict"),
+        *(_attribute(key=key, value=value) for key, value in attributes.items()),
+    ]
+    return build_span_payload(
+        scope=guard,
+        span_name=f"{guard}.verdict",
+        attributes=items,
+        session_id=session_id,
+        now_ns=now_ns,
+    )
 
 
 def post_span(
@@ -181,6 +235,10 @@ def post_span(
             _ = response.read()
 
 
+def _endpoint(*, environ: Mapping[str, str]) -> str:
+    return (environ.get(_ENDPOINT_ENV) or "").strip() or DEFAULT_ENDPOINT
+
+
 def emit_verdict(
     *,
     matched_rule: str | None,
@@ -196,5 +254,22 @@ def emit_verdict(
         session_id=environ.get(_SESSION_ENV) or None,
         now_ns=time.time_ns(),
     )
-    endpoint = (environ.get(_ENDPOINT_ENV) or "").strip() or DEFAULT_ENDPOINT
-    post_span(endpoint=endpoint, payload=payload)
+    post_span(endpoint=_endpoint(environ=environ), payload=payload)
+
+
+def emit_guard_verdict(
+    *,
+    guard: str,
+    matched_rule: str | None,
+    attributes: Mapping[str, str | bool],
+    environ: Mapping[str, str] = os.environ,
+) -> None:
+    """Publish one record for any guard. `matched_rule` None IS the allow verdict."""
+    payload = build_guard_verdict_payload(
+        guard=guard,
+        matched_rule=matched_rule,
+        attributes=attributes,
+        session_id=environ.get(_SESSION_ENV) or None,
+        now_ns=time.time_ns(),
+    )
+    post_span(endpoint=_endpoint(environ=environ), payload=payload)

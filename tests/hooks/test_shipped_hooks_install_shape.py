@@ -176,6 +176,26 @@ _BENIGN_PAYLOADS = (
         "primary_checkout_playwright_guard.py",
         {"tool_name": "mcp__playwright__browser_snapshot", "cwd": "/nonexistent"},
     ),
+    (
+        "fleet_host_guard.py",
+        {
+            "tool_name": "Bash",
+            "tool_input": {"command": "ssh poweredge-xubuntu 'kubectl get nodes'"},
+        },
+    ),
+)
+
+# Commands the fleet-host guard MUST deny and MUST allow under the install
+# shape, judged against its documented fallback host set (no project dir).
+_FLEET_HOST_DENY_COMMANDS = (
+    "ssh poweredge-xubuntu 'sudo systemctl restart k3s'",
+    "mise exec -- scp ./unit gmktec-xubuntu:/etc/systemd/system/x.service",
+    "kubectl delete node gmktec-xubuntu",
+)
+_FLEET_HOST_ALLOW_COMMANDS = (
+    "ssh poweredge-xubuntu 'kubectl get nodes'",
+    "just ansible-apply ansible/ci-pool.yml",
+    "echo 'ssh poweredge-xubuntu sudo systemctl restart k3s'",
 )
 
 
@@ -200,9 +220,14 @@ def _install_shaped_hooks_dir(*, root: Path) -> Path:
 
 
 def _bare_env() -> dict[str, str]:
-    """Environment of an installed hook: no repo on the path, no user site."""
+    """Environment of an installed hook: no repo on the path, no user site.
+
+    `CLAUDE_PROJECT_DIR` is dropped too: an installed hook's project facts come
+    from the governed project the HARNESS names, and the one the test runner
+    happens to sit in would make the fleet-host guard read a real inventory.
+    """
     env = dict(os.environ)
-    for leaky in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
+    for leaky in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV", "CLAUDE_PROJECT_DIR"):
         env.pop(leaky, None)
     env["PYTHONNOUSERSITE"] = "1"
     return env
@@ -295,6 +320,32 @@ def test_installed_fleet_guard_allows_scoped_and_benign_commands(
 ) -> None:
     run = _run_hook(
         script=installed_hooks / "tmux_fleet_guard.py",
+        payload=_bash_payload(command=command),
+        cwd=tmp_path,
+    )
+    assert run.returncode == 0, run.stderr
+    assert not _is_deny(stdout=run.stdout), f"install-shaped guard wrongly denied: {command!r}"
+
+
+@pytest.mark.parametrize("command", _FLEET_HOST_DENY_COMMANDS)
+def test_installed_fleet_host_guard_denies_hand_mutation(
+    installed_hooks: Path, tmp_path: Path, command: str
+) -> None:
+    run = _run_hook(
+        script=installed_hooks / "fleet_host_guard.py",
+        payload=_bash_payload(command=command),
+        cwd=tmp_path,
+    )
+    assert run.returncode == 0, run.stderr
+    assert _is_deny(stdout=run.stdout), f"install-shaped guard failed to deny: {command!r}"
+
+
+@pytest.mark.parametrize("command", _FLEET_HOST_ALLOW_COMMANDS)
+def test_installed_fleet_host_guard_allows_reads_and_the_sanctioned_apply(
+    installed_hooks: Path, tmp_path: Path, command: str
+) -> None:
+    run = _run_hook(
+        script=installed_hooks / "fleet_host_guard.py",
         payload=_bash_payload(command=command),
         cwd=tmp_path,
     )
