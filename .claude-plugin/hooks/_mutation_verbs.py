@@ -25,8 +25,10 @@ The tables live in `_verb_tables`; this module applies them, in four shapes:
     home's configuration sub-trees (`~/.ssh`, `~/.config/systemd`, `~/.fabro*`
     in any spelling of the home); the same verb under `/tmp` or the rest of
     `$HOME` is scratch, which this guard does not police (a deliberate
-    scoping: it guards host CONFIGURATION). A `>`-family redirection into a protected
-    tree is the same write spelt differently.
+    scoping: it guards host CONFIGURATION). `cp` is judged by its DESTINATION
+    only (`cp /etc/x /tmp/x` reads `/etc`); `mv` by its source AND its
+    destination (`mv /etc/x /tmp/` removes `x` from `/etc`). A `>`-family
+    redirection into a protected tree is the same write spelt differently.
   - **Inverted subcommand heads**: `systemctl`, `git`, `k3s`, `kubectl`,
     `helm`, `crictl`, `ctr`, `docker`, `tailscale`, `apt`, `snap`, `pip`,
     `npm`, `nft`. Their READ-ONLY verbs are enumerated and every other verb
@@ -88,7 +90,9 @@ _DRY_RUN_HEADS = frozenset({"kubectl", "helm"})
 _DRY_RUN_OFF = frozenset({"none", "false"})
 # `>`, `>>`, `1>`, `2>>`, `&>`, `>|` — every output redirection spelling.
 _REDIRECT = re.compile(r"^(?:\d*|&)>{1,2}\|?")
-_DESTINATION_ONLY = frozenset({"cp", "mv"})
+# `cp` writes only where it lands; `mv` also removes its source, so it is judged
+# on every operand and is deliberately NOT in this set.
+_DESTINATION_ONLY = frozenset({"cp"})
 _CLUSTER = re.compile(r"-[A-Za-z]{2,}")
 # `~`, `$HOME`, `${HOME}`, `/home/<user>`, `/root` — every spelling of a home root.
 _HOME = re.compile(

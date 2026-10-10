@@ -14,16 +14,18 @@ would change a fleet-managed host BY HAND, outside the committed provisioning:
 - an ad hoc `ansible --become`, or a playbook run from outside the committed
   tree.
 
-The sanctioned path stays allowed and is THE answer the deny reason gives:
-`just ansible-drift <playbook>` reports, `just ansible-apply <playbook>`
-converges, from the control node over committed source. Read-only reaches
+The deny reason names the GitOps deployment discipline, and the sanctioned
+path stays allowed and is THE answer the reason gives: `just ansible-drift
+<playbook>` reports, then `just ansible-apply <playbook>` converges, from the
+control node over committed source. Read-only reaches
 (`ssh <host> 'kubectl get nodes'`, `journalctl`, `systemctl status`, `cat`)
 stay allowed, as does anything aimed at a host that is not in the fleet set.
 
 This module owns the hook BOUNDARY only — reading the PreToolUse payload from
 stdin, resolving the governed project's fleet host set and its
-`.ai/gitops-deployment*.md` topic, emitting the deny decision and the verdict
-record, and always exiting 0. The verdict itself comes from the sibling
+`.ai/gitops-deployment*.md` topic (the deny reason routes there only when one
+exists, else to the discipline's fleet-canonical statement), emitting the deny
+decision and the verdict record, and always exiting 0. The verdict itself comes from the sibling
 `_host_mutation` module, whose docstring documents the deny matrix, the allow
 list, the wrapper-prefix scan, and the known limits; `_fleet_inventory`
 documents how the host set is read from the provisioning inventory rather
@@ -68,9 +70,13 @@ __all__: list[str] = []
 _GUARD = "fleet_host_guard"
 _PROJECT_DIR_ENV = "CLAUDE_PROJECT_DIR"
 _TOPIC_GLOB = "gitops-deployment*.md"
+# The route when the governed project carries no topic of its own. It names the
+# discipline and a file that EXISTS on livespec master; the fleet `.ai/` topic
+# is deferred, and routing a denied agent to a missing file is a dead end.
 _GENERIC_TOPIC = (
-    "the governed project's `.ai/gitops-deployment*.md` topic (fleet-canonical "
-    "statement: livespec `.ai/gitops-deployment-discipline.md`)"
+    "the GitOps deployment discipline (fleet-canonical statement: livespec "
+    "`plan/gitops-deployment-discipline/research/"
+    "000-failures-root-causes-and-binding-fixes-2026-09-12.md` section 3)"
 )
 
 
@@ -106,10 +112,11 @@ def _topic_reference(*, project_dir: str) -> str:
 def _deny_reason(*, rule: str, topic: str) -> str:
     return (
         f"BLOCKED by fleet_host_guard.py ({rule}): this command would change a "
-        "fleet-managed host BY HAND. No live host is changed by hand — a deploy is a "
-        "git change plus the committed apply, run from the control node over committed "
-        "source: `just ansible-drift <playbook>` reports the drift, `just ansible-apply "
-        "<playbook>` converges (livespec-dev-tooling/ansible/). If the committed "
+        "fleet-managed host BY HAND, which the GitOps deployment discipline forbids. No "
+        "live host is changed by hand — a deploy is a git change plus the committed apply, "
+        "run from the control node over committed source: `just ansible-drift <playbook>` "
+        "reports the drift, then `just ansible-apply <playbook>` converges "
+        "(livespec-dev-tooling/ansible/). If the committed "
         "automation cannot do what you need, that is a gap in the role or playbook to "
         "FIX, never a reason to do it by hand and never a task for the maintainer. "
         "Read-only reaches (`ssh <host> 'kubectl get nodes'`, `systemctl status`, "

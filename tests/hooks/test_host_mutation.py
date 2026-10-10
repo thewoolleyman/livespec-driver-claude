@@ -72,6 +72,9 @@ _DENY_CASES = (
     ("V2 tee via pipe", "ssh hp-xubuntu 'echo x | sudo tee /etc/y'"),
     ("V3 cp into /etc", 'ssh poweredge-xubuntu "cp ./unit /etc/systemd/system/"'),
     ("V4 mv into /usr", "ssh poweredge-xubuntu 'mv ./x /usr/local/bin/x'"),
+    # Found at C1 ratification review: `mv` was judged by destination only, so a
+    # move OUT of /etc (which removes the file from /etc) was allowed.
+    ("V4b mv out of /etc (source judged)", "ssh vps 'mv /etc/k3s/config.yaml /tmp/'"),
     ("V5 cp -r into /etc exact", "ssh poweredge-xubuntu 'cp -r ./tree /etc'"),
     ("V6 chmod", "ssh hp-xubuntu 'chmod +x /usr/local/bin/x'"),
     ("V7 chown", "ssh hp-xubuntu 'chown root:root /opt/x'"),
@@ -830,6 +833,7 @@ _ALLOW_CASES = (
     ("R19 uptime after --", "ssh -i key poweredge-xubuntu -- uptime"),
     ("R20 cp out of /etc", "ssh hp-xubuntu 'cp /etc/x /tmp/x'"),
     ("R21 mv within /tmp", "ssh hp-xubuntu 'mv /tmp/a /tmp/b'"),
+    ("R21b mv within /tmp on the control node", "ssh vps 'mv /tmp/a /tmp/b'"),
     ("R22 redirect into /tmp", "ssh hp-xubuntu 'echo x > /tmp/y'"),
     ("R23 k3s check-config", "ssh poweredge-xubuntu 'k3s check-config'"),
     ("R24 systemctl list-units", "ssh vps 'systemctl list-units --type=service'"),
