@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.9.1...v0.10.0) (2026-10-10)
+
+
+### Features
+
+* deny hand mutation of fleet hosts outside the sanctioned apply ([2f4c821](https://github.com/thewoolleyman/livespec-driver-claude/commit/2f4c821328b1391adf9a007ebdad72cfbefac80f))
+
+
+### Bug Fixes
+
+* close the fleet-host guard evasions found in review ([fa3a2c1](https://github.com/thewoolleyman/livespec-driver-claude/commit/fa3a2c1fdf6389ef1a7914e5a647287db3179d1e))
+* **hooks:** fleet-host guard names the GitOps deployment discipline in its deny reason and judges a mv source under a protected tree (livespec-ggs36t) ([ec3bbfd](https://github.com/thewoolleyman/livespec-driver-claude/commit/ec3bbfdd5b002b43aa344babe91b5712b541261a))
+* protect a home's configuration sub-trees and honour nft check mode and mount flag clusters ([be4eaf1](https://github.com/thewoolleyman/livespec-driver-claude/commit/be4eaf1e2d9f21c43c9a54e4ed3d630032215853))
+* remove the fleet-host guard's false positives and close the round-two evasions ([328510f](https://github.com/thewoolleyman/livespec-driver-claude/commit/328510fa1bf2a0e2c7e407e79cf80366c7851edf))
+* scope tee/chmod/chown to protected trees and close the four remaining under-denials ([e3d8178](https://github.com/thewoolleyman/livespec-driver-claude/commit/e3d817875e783d7096ad00c5deaa73a28f1f2a85))
+
 ## [0.9.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.9.0...v0.9.1) (2026-09-10)
 
 
