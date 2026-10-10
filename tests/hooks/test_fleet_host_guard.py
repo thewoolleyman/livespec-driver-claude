@@ -9,9 +9,13 @@ Contract under test (work-item livespec-ggs36t, livespec
 `plan/gitops-deployment-discipline/research/000-…` section 3):
 
 - DENY a positively-identified mutating `ssh`/`scp`/`rsync`/`sftp` to a fleet
-  host, and a cluster-mutating `kubectl`, with a reason that routes to the
-  governed project's `.ai/gitops-deployment*.md` topic and names the
-  sanctioned `just ansible-drift` / `just ansible-apply` path.
+  host, and a cluster-mutating `kubectl`, with a reason that NAMES the GitOps
+  deployment discipline, names the sanctioned `just ansible-drift` then
+  `just ansible-apply` path, and routes to the governed project's own
+  `.ai/gitops-deployment*.md` topic ONLY when one exists; otherwise it points
+  at the discipline's fleet-canonical statement (livespec
+  `plan/gitops-deployment-discipline/research/000-…` section 3), never at a
+  file that does not exist.
 - ALLOW the sanctioned apply, read-only reaches, non-fleet targets, and quoted
   mentions; the host set comes from the project's inventory, never from code.
 - FAIL CLOSED when a raw command carries the hazard hints but classification
@@ -45,6 +49,11 @@ _HOOK_SCRIPT = _HOOKS_DIR / "fleet_host_guard.py"
 _ENDPOINT_ENV = "LIVESPEC_SANDBOX_OTEL_ENDPOINT"
 _MUTATION = "ssh poweredge-xubuntu 'sudo systemctl restart k3s'"
 _READ = "ssh poweredge-xubuntu 'kubectl get nodes'"
+# The discipline's fleet-canonical statement: a file that exists on livespec master.
+_CANONICAL_STATEMENT = (
+    "livespec `plan/gitops-deployment-discipline/research/"
+    "000-failures-root-causes-and-binding-fixes-2026-09-12.md` section 3"
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -112,8 +121,12 @@ def _reason(*, result: HookResult | subprocess.CompletedProcess[str]) -> str:
 def _assert_denied(*, result: HookResult | subprocess.CompletedProcess[str]) -> None:
     reason = _reason(result=result)
     assert "BLOCKED by fleet_host_guard.py" in reason
+    assert "GitOps deployment discipline" in reason
     assert "just ansible-drift <playbook>" in reason
     assert "just ansible-apply <playbook>" in reason
+    assert reason.index("just ansible-drift <playbook>") < reason.index(
+        "just ansible-apply <playbook>"
+    )
     assert "gitops-deployment" in reason
 
 
@@ -210,20 +223,27 @@ def test_reason_names_the_projects_own_gitops_topic_when_it_has_one(
 
     reason = _reason(result=_run(stdin=_bash_input(command=_MUTATION)))
 
+    assert "GitOps deployment discipline" in reason
     assert "Read `.ai/gitops-deployment.md` before any host or infra action" in reason
+    assert _CANONICAL_STATEMENT not in reason
 
 
-def test_reason_falls_back_to_the_fleet_canonical_topic_when_the_project_has_none(
+def test_reason_falls_back_to_the_fleet_canonical_statement_when_the_project_has_none(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """The generic route names the discipline and a file that EXISTS on livespec master."""
     project = tmp_path / "governed"
     project.mkdir()
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project))
 
     reason = _reason(result=_run(stdin=_bash_input(command=_MUTATION)))
 
-    assert "`.ai/gitops-deployment*.md`" in reason
-    assert "livespec `.ai/gitops-deployment-discipline.md`" in reason
+    assert "GitOps deployment discipline" in reason
+    assert _CANONICAL_STATEMENT in reason
+    # `.ai/gitops-deployment-discipline.md` is deferred on livespec master: routing
+    # a denied agent to a file that does not exist is a dead end, not a route.
+    assert ".ai/gitops-deployment-discipline.md" not in reason
+    assert ".ai/" not in reason
 
 
 def test_reason_names_the_rule_that_convicted() -> None:
@@ -377,6 +397,8 @@ def test_fail_closes_when_classify_raises_with_hazard_hint(monkeypatch: pytest.M
     monkeypatch.setattr(hook, "classify", broken_classify)
     reason = _reason(result=_run_loaded(hook=hook, stdin=_bash_input(command=_MUTATION)))
     assert "(classification-failure)" in reason
+    assert "GitOps deployment discipline" in reason
+    assert _CANONICAL_STATEMENT in reason
 
 
 def test_fails_open_when_classify_raises_without_hazard_hint(
