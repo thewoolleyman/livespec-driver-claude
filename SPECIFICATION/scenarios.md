@@ -161,12 +161,29 @@ And it reports that the marketplace description must duplicate plugin.json's ver
 
 ```gherkin
 Given a governed project whose .livespec.jsonc declares an implementation.plugin
-When an agent attempts Write to a path matching **/memory/*.md
+When an agent attempts Write, Edit or MultiEdit to a path matching **/memory/*.md
 Then the PreToolUse hook blocks the write
 And the block reason routes trackable work to the active impl-plugin's capture-work-item skill
 And the block reason routes spec-level rules to /livespec:propose-change
-And the block reason routes durable agent guidance and conventions to AGENTS.md or a referenced .ai/<topic>.md file
+And the block reason routes durable agent guidance and conventions to a short AGENTS.md entry pointing at a .ai/<topic>.md file
 And only genuinely session-only notes may be dropped
+```
+
+## Scenario: shell write into an agent memory directory in a governed project is refused by the block-auto-memory hook
+
+```gherkin
+Given a governed project whose .livespec.jsonc declares an implementation.plugin
+When an agent runs a Bash command that writes a file into ~/.claude/projects/<slug>/memory/ or ~/.codex/memories/ by redirection, tee, sed -i, cp, mv, a here-document or an inline interpreter write
+Then the PreToolUse hook blocks the command
+And the block reason is the same intent-routing reason the file-tool route gives
+```
+
+## Scenario: reading or removing a memory note is not refused by the block-auto-memory hook
+
+```gherkin
+Given a governed project whose .livespec.jsonc declares an implementation.plugin
+When an agent runs a Bash command that only reads a memory directory, or removes a note there with rm
+Then the PreToolUse hook lets the command run
 ```
 
 ## Scenario: plan-artifact persistence warning on a bare assistant turn

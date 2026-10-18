@@ -212,15 +212,22 @@ unit tests live in THIS repo (`tests/hooks/`).
 
 The bundle carries four upstream-required hooks:
 
-- a **PreToolUse** hook on `Write` that intercepts auto-memory writes
-  (`Write(**/memory/*.md)`) in livespec-governed projects and
-  intent-routes the would-be write by what it IS: trackable work to the
-  active impl-plugin's `/<plugin>:capture-work-item` skill (resolved from
-  `.livespec.jsonc` `implementation.plugin`); spec-level rules to
-  `/livespec:propose-change`; durable agent guidance, learned preferences,
-  and conventions to `AGENTS.md` or a referenced `.ai/<topic>.md` file;
-  and only genuinely session-only notes may be dropped. A no-op
-  pass-through when the project is not livespec-governed;
+- a **PreToolUse** auto-memory redirect (`block_auto_memory.py`)
+  registered on `Write`, `Edit`, `MultiEdit` and `Bash` that, in a
+  livespec-governed project, refuses every write into an agent memory
+  directory — a file tool targeting `**/memory/*.md` or a file under
+  `~/.codex/memories/`, and a shell command it positively identifies as
+  writing into either (redirection, `tee`, `sed -i`, `cp`/`mv`/`install`,
+  a here-document, an inline interpreter write) — while letting reads
+  and `rm` through. Its reason intent-routes the would-be write by what
+  it IS: trackable work to the active impl-plugin's
+  `/<plugin>:capture-work-item` skill (resolved from `.livespec.jsonc`
+  `implementation.plugin`); spec-level rules to `/livespec:propose-change`;
+  durable agent guidance, learned preferences and conventions to a short
+  discoverable `AGENTS.md` entry pointing at a `.ai/<topic>.md` file that
+  holds the content; and only genuinely session-only notes may be
+  dropped. A no-op pass-through when the project is not
+  livespec-governed;
 - a **PreToolUse** primary-checkout Playwright guard
   (`primary_checkout_playwright_guard.py`) registered in `hooks.json`
   for every `mcp__playwright__*` tool. Its behavioral discipline and
