@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.10.0...v0.10.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **hooks:** refuse Edit, MultiEdit and shell writes into agent memory (livespec-driver-claude-cb2mzo) ([7900f5b](https://github.com/thewoolleyman/livespec-driver-claude/commit/7900f5b273f30fcb0c6c07bd2f9f1eb3d96c3967))
+
 ## [0.10.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.9.1...v0.10.0) (2026-10-10)
 
 
