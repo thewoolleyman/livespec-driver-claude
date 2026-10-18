@@ -321,6 +321,22 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: shell write into an agent memory directory in a governed project is refused by the block-auto-memory hook",
+    "test": "TODO",
+    "reason": "Owed integration-tier (subprocess) test: drive the shipped block-auto-memory hook over its real stdin/stdout protocol with Bash payloads writing into a memory directory and assert the deny decision; livespec-driver-claude-cb2mzo lands it.",
+    "work_item": "livespec-driver-claude-cb2mzo"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: reading or removing a memory note is not refused by the block-auto-memory hook",
+    "test": "TODO",
+    "reason": "Owed integration-tier (subprocess) test: drive the shipped block-auto-memory hook with Bash payloads that read a memory directory or rm a note and assert no decision is emitted; livespec-driver-claude-cb2mzo lands it.",
+    "work_item": "livespec-driver-claude-cb2mzo"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: plan-artifact persistence warning on a bare assistant turn",
     "test": "tests.hooks.test_warn_plan_persistence.test_subprocess_smoke_warns_on_headings",
     "reason": "Integration-tier (subprocess): the shipped plan-persistence Stop hook, driven over its protocol, warns when the last turn carried substantial planning artifacts with no persisting tool call.",
