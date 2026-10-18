@@ -348,6 +348,8 @@ include = [
     ".claude-plugin/hooks/_host_mutation.py",
     ".claude-plugin/hooks/fleet_host_guard.py",
     ".claude-plugin/hooks/block_auto_memory.py",
+    # The shell memory-write classifier the auto-memory redirect consults on Bash.
+    ".claude-plugin/hooks/_memory_write.py",
     ".claude-plugin/hooks/block_raw_bd_create.py",
     ".claude-plugin/hooks/github_rate_limit_guard.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
