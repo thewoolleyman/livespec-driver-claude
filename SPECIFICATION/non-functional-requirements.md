@@ -9,8 +9,9 @@ is operated.
 
 This file covers the operational disciplines of developing the Driver
 plugin: the task runner, the repo layout, the enforcement suite that
-guards the contracts, the build/release flow, test discipline, and
-spec-evolution rules. It does not restate the seam contracts themselves
+guards the contracts, the build/release flow, test discipline,
+spec-evolution rules, and how the repo's dispatches are routed to a
+factory. It does not restate the seam contracts themselves
 (`contracts.md`) or the architectural constraints (`constraints.md`).
 
 ## Inherited from livespec
@@ -88,3 +89,13 @@ out-of-process drift. Wiring the doctor static phase and a heading-coverage
 gate into `just check` / CI (so the spec gains the same mechanical teeth
 the sibling libraries carry) is tracked as follow-up impl work in the
 repo's beads tenant.
+
+## Factory routing
+
+Every entry this repository commits in `.livespec.jsonc` under `dispatcher.factories` MUST be
+registry-backed: it declares `"registry": true` and carries no `server` and no `docker_host`
+value, so no committed factory entry names a machine. Which Fabro server answers to a factory
+name is bound only in the fleet gitops inventory's factory registry (livespec-dev-tooling
+`non-functional-requirements.md` §"Fabro factory registry"), which each dispatching host
+renders as `/etc/livespec/fabro-factories.json`; a dispatch resolves a registry-backed entry
+from that file by name. `dispatcher.default_factory` MUST name `legacy`.

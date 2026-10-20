@@ -200,6 +200,14 @@
   },
   {
     "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Factory routing",
+    "test": "TODO",
+    "reason": "Owed: no test exercises this heading yet; the registry-switch work-item filed in this tenant under References: ## Factory routing carries the host-captured proof that a dispatch resolves legacy through the control node's factory registry.",
+    "work_item": "livespec-driver-claude-axs"
+  },
+  {
+    "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: installed Driver exposes the eight /livespec:* commands",
     "test": "tests.e2e-cli.test_cli_e2e.test_cli_e2e_full_round_trip_mock_tier",

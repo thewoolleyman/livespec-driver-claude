@@ -66,9 +66,14 @@
   // is what makes the Driver's step 3 a realization rather than a restatement,
   // and restating it here is exactly what the no-cross-spec-reference rule
   // exists to prevent (livespec-dev-tooling-e01t).
+  // §"Factory routing" cites livespec-dev-tooling's factory registry heading
+  // because that clause owns the registry the committed factory table defers to.
   "external_references": {
     "livespec": [
       "SPECIFICATION/contracts.md §\"Plugin distribution\""
+    ],
+    "livespec-dev-tooling": [
+      "SPECIFICATION/non-functional-requirements.md §\"Fabro factory registry\""
     ]
   },
   // Planning/work-item-resolution registry. These targets are the repo slugs
