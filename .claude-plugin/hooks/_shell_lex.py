@@ -38,7 +38,9 @@ the false-positive traps live, so it is written ONCE here:
     that reads the token list as operands sees the LOG FILE as a second
     operand and judges it. `without_redirections` drops every redirect
     operator and its target first, whether the target stands as its own word
-    (`> $L`) or is fused onto the operator (`>$L`, `2>&1`).
+    (`> $L`) or is fused onto the operator (`>$L`, `2>&1`). EVERY spelling
+    counts, down to `>&` and `<>`: a stripper that recognises all but one
+    leaves the next correct command a session writes to be the one it misses.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
@@ -87,10 +89,12 @@ _LINE_CONTINUATION = re.compile(r"\\\n")
 _SHELL_COMMAND_FLAG = re.compile(r"^-[a-zA-Z]*c$")
 _TERMINATOR = re.compile(r"-?\s*['\"]?([\w-]+)['\"]?")
 # Every redirection spelling, at the START of a token: an optional file
-# descriptor or `&`, then `>`, `>>`, `>|`, `<`, `<<` (here-doc) or `<<<`
-# (here-string). A word only CONTAINING a digit or a path never matches,
-# because the operator itself is required.
-_REDIRECTION = re.compile(r"(?:\d+|&)?(?:>>?\|?|<<?<?)")
+# descriptor or `&`, then one of `>` `>>` `>|` `>&` `<` `<&` `<>` `<<`
+# (here-doc) `<<<` (here-string). A word only CONTAINING a digit or a path
+# never matches, because the operator itself is required. The alternation is
+# longest-first so `>>` is not read as a `>` with a fused target — which is
+# the difference between dropping the target word and judging it.
+_REDIRECTION = re.compile(r"(?:\d+|&)?(?:>>|>[|&]?|<<<?|<[&>]?)")
 
 
 def basename(*, token: str) -> str:
