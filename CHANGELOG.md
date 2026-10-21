@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.10.1...v0.11.0) (2026-10-21)
+
+
+### Features
+
+* **hooks:** convict every mkfs.* head, not only a bare mkfs ([295fd90](https://github.com/thewoolleyman/livespec-driver-claude/commit/295fd902d33c6a4c2cfbc701c022e220b166d1ba))
+* **hooks:** deny a hinted remote-shell reach to an unreadable target ([703e536](https://github.com/thewoolleyman/livespec-driver-claude/commit/703e536dcc16b2d772743a538c9159df8c8ca630))
+* **hooks:** judge the fail-closed hint over the command, not the payload ([f4f2ae0](https://github.com/thewoolleyman/livespec-driver-claude/commit/f4f2ae0d6910521cbb7dac2da3de5a625e612823))
+* **hooks:** report a remote-shell target whose host cannot be read ([109df0d](https://github.com/thewoolleyman/livespec-driver-claude/commit/109df0d4410f85dc9da30ef8aae52ab2fdc1bc5e))
+* **hooks:** route the fail-closed deny reason to the project topic ([ce4ddba](https://github.com/thewoolleyman/livespec-driver-claude/commit/ce4ddba9a380c80d87703b50b0e59b228c467387))
+
+
+### Bug Fixes
+
+* **hooks:** repoint the generic deny route at livespec's GitOps topic ([2fc5ccd](https://github.com/thewoolleyman/livespec-driver-claude/commit/2fc5ccd82e0290a732cd18f7e0f0cc3e3ea399f6))
+
 ## [0.10.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.10.0...v0.10.1) (2026-10-18)
 
 
