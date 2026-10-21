@@ -74,12 +74,15 @@ _GUARD = "fleet_host_guard"
 _PROJECT_DIR_ENV = "CLAUDE_PROJECT_DIR"
 _TOPIC_GLOB = "gitops-deployment*.md"
 # The route when the governed project carries no topic of its own. It names the
-# discipline and a file that EXISTS on livespec master; the fleet `.ai/` topic
-# is deferred, and routing a denied agent to a missing file is a dead end.
+# discipline and a file that EXISTS on livespec master: routing a denied agent
+# to a missing file is a dead end, not a route. This was the
+# gitops-deployment-discipline plan's research note until that plan archived on
+# 2026-10-10 and the path 404'd; the `.ai/` topic the plan landed is the durable
+# statement, and it is qualified by `livespec` so it never reads as a file the
+# governed project — the one that by definition has none — should carry.
 _GENERIC_TOPIC = (
-    "the GitOps deployment discipline (fleet-canonical statement: livespec "
-    "`plan/gitops-deployment-discipline/research/"
-    "000-failures-root-causes-and-binding-fixes-2026-09-12.md` section 3)"
+    "the GitOps deployment discipline (fleet-canonical statement: "
+    "livespec `.ai/gitops-deployment-discipline.md`)"
 )
 
 

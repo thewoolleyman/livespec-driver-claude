@@ -6,7 +6,7 @@ for real per-file coverage, plus ONE retained subprocess smoke that proves
 the shipped script still speaks the PreToolUse stdin/stdout protocol.
 
 Contract under test (work-item livespec-ggs36t, livespec
-`plan/gitops-deployment-discipline/research/000-…` section 3):
+`.ai/gitops-deployment-discipline.md`):
 
 - DENY a positively-identified mutating `ssh`/`scp`/`rsync`/`sftp` to a fleet
   host, and a cluster-mutating `kubectl`, with a reason that NAMES the GitOps
@@ -14,8 +14,7 @@ Contract under test (work-item livespec-ggs36t, livespec
   `just ansible-apply` path, and routes to the governed project's own
   `.ai/gitops-deployment*.md` topic ONLY when one exists; otherwise it points
   at the discipline's fleet-canonical statement (livespec
-  `plan/gitops-deployment-discipline/research/000-…` section 3), never at a
-  file that does not exist.
+  `.ai/gitops-deployment-discipline.md`), never at a file that does not exist.
 - ALLOW the sanctioned apply, read-only reaches, non-fleet targets, and quoted
   mentions; the host set comes from the project's inventory, never from code.
 - FAIL CLOSED when a raw command carries the hazard hints but classification
@@ -49,11 +48,11 @@ _HOOK_SCRIPT = _HOOKS_DIR / "fleet_host_guard.py"
 _ENDPOINT_ENV = "LIVESPEC_SANDBOX_OTEL_ENDPOINT"
 _MUTATION = "ssh poweredge-xubuntu 'sudo systemctl restart k3s'"
 _READ = "ssh poweredge-xubuntu 'kubectl get nodes'"
-# The discipline's fleet-canonical statement: a file that exists on livespec master.
-_CANONICAL_STATEMENT = (
-    "livespec `plan/gitops-deployment-discipline/research/"
-    "000-failures-root-causes-and-binding-fixes-2026-09-12.md` section 3"
-)
+# The discipline's fleet-canonical statement: a file that exists on livespec
+# master. It was the gitops-deployment-discipline plan's research note until
+# that plan archived on 2026-10-10 and the path 404'd; the durable topic is the
+# `.ai/` one the plan landed.
+_CANONICAL_STATEMENT = "livespec `.ai/gitops-deployment-discipline.md`"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -240,10 +239,10 @@ def test_reason_falls_back_to_the_fleet_canonical_statement_when_the_project_has
 
     assert "GitOps deployment discipline" in reason
     assert _CANONICAL_STATEMENT in reason
-    # `.ai/gitops-deployment-discipline.md` is deferred on livespec master: routing
-    # a denied agent to a file that does not exist is a dead end, not a route.
-    assert ".ai/gitops-deployment-discipline.md" not in reason
-    assert ".ai/" not in reason
+    # Every `.ai/` path on the generic route is qualified by the repo that
+    # carries it. A bare one would read as the GOVERNED project's own topic —
+    # and this is precisely the project that has none, so it is a dead end.
+    assert reason.count(".ai/") == reason.count("livespec `.ai/")
 
 
 def test_reason_names_the_rule_that_convicted() -> None:
