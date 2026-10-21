@@ -46,13 +46,18 @@ THE DENY MATRIX, every row a POSITIVE identification unless marked (†):
   - FAIL CLOSED (†) when the COMMAND names a fleet host beside a remote-shell
     word (or `kubectl`/`helm` beside a mutating verb) and something cannot be
     read: an unlexable segment; a command head holding `$…`, a backtick or an
-    xargs `{}`; an ssh/scp/rsync target holding one whose payload is not
+    xargs `{}`; a remote-shell target holding one whose payload is not
     provably read-only (empty, or convicted once read — `for h in
     poweredge-xubuntu …; do ssh $h 'systemctl status k3s'; done` is ALLOWED,
     the same loop with `sudo systemctl restart` is denied); nesting past the
-    depth budget. Precedent: `_tmux_hazard`. The hint is judged over the whole
-    command because the host names commonly live in a `for` word list, not in
-    the segment that runs `ssh $h`.
+    depth budget. EVERY host operand counts as a target, not just an upload
+    destination: an `scp`/`rsync` SOURCE reaches a host too (and
+    `--remove-source-files` deletes there), and an `sftp` target with an
+    unreadable batch is a write nobody can rule out — `rsync -n` and a
+    readable read-only sftp batch are the carve-outs. Precedent:
+    `_tmux_hazard`. The hint is judged over the whole command because the host
+    names commonly live in a `for` word list, not in the segment that runs
+    `ssh $h`.
 
 THE ALLOW LIST, stated so its members are proven rather than assumed: the
 sanctioned apply and drift (`just ansible-apply`, `just ansible-drift`,
@@ -206,6 +211,23 @@ def _unresolvable_target_rule(*, lines: list[str], scan: _Scan) -> str | None:
     return None if rule is None else "unresolvable-target"
 
 
+def _sftp_rule(*, arguments: list[str], stdin: str | None, scan: _Scan) -> str | None:
+    """Does this `sftp` reach a fleet host — or an unreadable one — with a write?"""
+    sftp = parse_sftp(arguments=arguments)
+    batch = stdin if sftp.batch_from_stdin else None
+    mutates = batch is not None and sftp_batch_mutates(batch=batch)
+    if sftp.unresolvable:
+        # The bias `_unresolvable_target_rule` applies to an unreadable ssh
+        # target, in sftp's own grammar: a target the guard cannot read convicts
+        # unless the batch is readable AND provably a read.
+        if not scan.hinted or (batch is not None and not mutates):
+            return None
+        return "unresolvable-target"
+    if sftp.host is None or not is_fleet_host(name=sftp.host, hosts=scan.hosts):
+        return None
+    return "sftp+batch" if mutates else None
+
+
 def _remote_rule(*, head: str, arguments: list[str], stdin: str | None, scan: _Scan) -> str | None:
     """Does this remote-shell head reach a fleet host with a mutation?"""
     hosts = scan.hosts
@@ -221,16 +243,9 @@ def _remote_rule(*, head: str, arguments: list[str], stdin: str | None, scan: _S
         rule = _scan(text="\n".join(lines), scan=_deeper(scan=scan, remote=True))
         return None if rule is None else f"ssh+{rule}"
     if head == "sftp":
-        sftp = parse_sftp(arguments=arguments)
-        if sftp.host is None or not is_fleet_host(name=sftp.host, hosts=hosts):
-            return None
-        return (
-            "sftp+batch"
-            if sftp.batch_from_stdin and stdin and sftp_batch_mutates(batch=stdin)
-            else None
-        )
+        return _sftp_rule(arguments=arguments, stdin=stdin, scan=scan)
     transfer = parse_transfer(head=head, arguments=arguments)
-    if transfer.unresolvable:
+    if transfer.unresolvable or transfer.source_unresolvable:
         return "unresolvable-target" if scan.hinted and not transfer.dry_run else None
     if transfer.destination is not None and is_fleet_host(name=transfer.destination, hosts=hosts):
         return None if transfer.dry_run else f"{head}+upload"
