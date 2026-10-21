@@ -33,9 +33,12 @@ than hardcoded.
 
 Fail-closed safety: ANY parsing or main-loop failure on a command that carries
 the hazard hints (a remote-shell head together with a fleet host name, or
-`kubectl` together with a mutating verb) emits a deny decision. Commands
-without those hints fail open silently with exit 0 — the guard acts only on
-POSITIVE identification, per the Driver-shipped-hooks footgun discipline.
+`kubectl` together with a mutating verb) emits a deny decision, routed to the
+project's own topic exactly as a classified deny is — that path denies when the
+guard understood the command LEAST, which is when the route matters most.
+Commands without those hints fail open silently with exit 0 — the guard acts
+only on POSITIVE identification, per the Driver-shipped-hooks footgun
+discipline.
 
 Telemetry: every IN-SCOPE command (one whose lexed tokens carry a remote-shell
 or cluster head, or that looks like a fleet-host mutation) publishes one
@@ -190,8 +193,14 @@ def main() -> int:
             )
     except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
         if not settled and _has_hazard_hint(raw=raw):
+            topic = _GENERIC_TOPIC
+            # The project's own topic routes the denied agent here too — this is
+            # the path that denies when the guard understood the command LEAST.
+            # A failure reading it costs the ROUTE, never the denial.
             with contextlib.suppress(OSError):
-                decision = _deny_decision(rule="classification-failure", topic=_GENERIC_TOPIC)
+                topic = _topic_reference(project_dir=_project_dir())
+            with contextlib.suppress(OSError):
+                decision = _deny_decision(rule="classification-failure", topic=topic)
                 _ = sys.stdout.write(decision + "\n")
     return 0
 

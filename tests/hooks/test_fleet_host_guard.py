@@ -388,6 +388,7 @@ def test_allows_missing_command() -> None:
     _assert_silent(result=_run(stdin=json.dumps({"tool_name": "Bash", "tool_input": {}})))
 
 
+@pytest.mark.usefixtures("no_project")
 def test_fail_closes_when_classify_raises_with_hazard_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     hook = _load_hook()
 
@@ -399,6 +400,33 @@ def test_fail_closes_when_classify_raises_with_hazard_hint(monkeypatch: pytest.M
     assert "(classification-failure)" in reason
     assert "GitOps deployment discipline" in reason
     assert _CANONICAL_STATEMENT in reason
+
+
+def test_fail_closed_reason_routes_to_the_projects_own_gitops_topic(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The boundary path routes like the classified path.
+
+    A denial is only as useful as the route it hands the denied agent, and the
+    boundary path denies exactly when the guard understood the command LEAST —
+    so sending it to the generic statement while the project carries its own
+    topic is the one moment the route matters most.
+    """
+    project = tmp_path / "governed"
+    (project / ".ai").mkdir(parents=True)
+    _ = (project / ".ai" / "gitops-deployment.md").write_text("# topic\n", encoding="utf-8")
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project))
+    hook = _load_hook()
+
+    def broken_classify(*, command: str, hosts: frozenset[str]) -> str | None:
+        raise ValueError(f"{command} {sorted(hosts)}")
+
+    monkeypatch.setattr(hook, "classify", broken_classify)
+    reason = _reason(result=_run_loaded(hook=hook, stdin=_bash_input(command=_MUTATION)))
+
+    assert "(classification-failure)" in reason
+    assert "Read `.ai/gitops-deployment.md` before any host or infra action" in reason
+    assert _CANONICAL_STATEMENT not in reason
 
 
 def test_fails_open_when_classify_raises_without_hazard_hint(
