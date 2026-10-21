@@ -194,6 +194,35 @@ def test_allows_reads_the_sanctioned_apply_and_quoted_mentions(command: str) -> 
     _assert_silent(result=_run(stdin=_bash_input(command=command)))
 
 
+@pytest.mark.usefixtures("no_project")
+@pytest.mark.parametrize(
+    "command",
+    [
+        # The exact refusal measured on the dev host 2026-10-21 ~08:00Z against
+        # the installed build 489f1b89023f (work-item
+        # livespec-driver-claude-q2urvj): the playbook IS the committed
+        # `ansible/dev-host.yml`, and the `$` the guard convicted on was the LOG
+        # FILE the segment redirects to.
+        "mise exec -- just ansible-apply ansible/dev-host.yml --tags otel_collector"
+        " > $L 2>&1; echo rc=$?",
+        "mise exec -- just ansible-apply ansible/dev-host.yml --tags otel_collector > $L 2>&1",
+        "mise exec -- just ansible-apply ansible/dev-host.yml --tags otel_collector"
+        " > /tmp/x.log 2>&1",
+    ],
+)
+def test_allows_the_sanctioned_apply_when_its_output_is_redirected(command: str) -> None:
+    """A redirect target is not a playbook operand, so a log file never convicts."""
+    _assert_silent(result=_run(stdin=_bash_input(command=command)))
+
+
+@pytest.mark.usefixtures("no_project")
+def test_still_refuses_an_apply_of_a_playbook_outside_committed_source() -> None:
+    """Stripping redirects must not blunt the rule it shares a segment with."""
+    result = _run(stdin=_bash_input(command="just ansible-apply /tmp/play.yml"))
+    _assert_denied(result=result)
+    assert "(ansible-apply+uncommitted-playbook)" in _reason(result=result)
+
+
 def test_subprocess_smoke_denies_a_mutating_ssh() -> None:
     """The shipped script path still speaks the PreToolUse hook protocol."""
     _assert_denied(result=_run_hook_subprocess(stdin=_bash_input(command=_MUTATION)))
