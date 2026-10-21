@@ -1,9 +1,9 @@
 """Unit tests for `.claude-plugin/hooks/_sanctioned_apply.py`.
 
 The sanctioned deploy path, pinned by property: the sanction attaches only to
-the segment's first recognised head; option values are never playbooks; only a
-playbook positively outside committed source convicts; `--check` and
-`ansible-drift` read. Every argv is inert data.
+the segment's first recognised head; option values and redirect targets are
+never playbooks; only a playbook positively outside committed source convicts;
+`--check` and `ansible-drift` read. Every argv is inert data.
 """
 
 from __future__ import annotations
@@ -61,6 +61,10 @@ _KNOWN = frozenset({"ssh", "scp", "kubectl", "bash", "just", "ansible", "ansible
         (["ansible-playbook", "./../x.yml"], (True, "ansible-playbook+uncommitted-playbook")),
         (["ansible-playbook", "$PWD/../x.yml"], (True, "ansible-playbook+uncommitted-playbook")),
         (["just", "ansible-apply", "~/adhoc.yml"], (True, "ansible-apply+uncommitted-playbook")),
+        (
+            ["just", "ansible-apply", "/tmp/play.yml"],
+            (True, "ansible-apply+uncommitted-playbook"),
+        ),
         (["just", "ansible-apply"], (True, None)),
         (["just", "check"], (False, None)),
         (["just"], (False, None)),
@@ -75,3 +79,65 @@ def test_sanction_judges_the_first_known_head_only(
     tokens: list[str], expected: tuple[bool, str | None]
 ) -> None:
     assert sanction(tokens=tokens, known_heads=_KNOWN) == expected
+
+
+# Every redirection spelling, with the target as its own word and fused onto the
+# operator. The fd-duplication and read-write forms (`>&`, `<&`, `<>`) are the
+# same non-operand as the `>` the dev host reported: a target the rule must not
+# read as a playbook. Separated from the matrix above because this parametrize
+# supplies only the TAIL after a fixed sanctioned head.
+_REDIRECTIONS = [
+    [">", "/tmp/run.log"],
+    [">/tmp/run.log"],
+    [">>", "$L"],
+    [">>$L"],
+    ["2>", "$L"],
+    ["2>&1"],
+    ["&>", "/tmp/run.log"],
+    ["&>/tmp/run.log"],
+    [">|", "/tmp/run.log"],
+    ["<", "/tmp/in.txt"],
+    ["</tmp/in.txt"],
+    [">&", "/tmp/run.log"],
+    ["<&", "/tmp/in.txt"],
+    ["<>", "/tmp/io.txt"],
+    [">", "$L", "2>&1"],
+]
+
+
+@pytest.mark.parametrize("redirection", _REDIRECTIONS)
+def test_a_redirect_target_is_never_read_as_a_playbook(redirection: list[str]) -> None:
+    """A bare `ansible-playbook <playbook> > <target>` deploys committed source."""
+    tokens = ["ansible-playbook", "ansible/ci-pool.yml", *redirection]
+    assert sanction(tokens=tokens, known_heads=_KNOWN) == (True, None)
+
+
+@pytest.mark.parametrize("redirection", _REDIRECTIONS)
+def test_an_ansible_apply_recipes_redirect_target_is_never_read_as_a_playbook(
+    redirection: list[str],
+) -> None:
+    """The reported shape: the recipe form, with its `--tags` value and a log."""
+    tokens = [
+        "mise",
+        "exec",
+        "--",
+        "just",
+        "ansible-apply",
+        "ansible/dev-host.yml",
+        "--tags",
+        "otel_collector",
+        *redirection,
+    ]
+    assert sanction(tokens=tokens, known_heads=_KNOWN) == (True, None)
+
+
+@pytest.mark.parametrize("redirection", _REDIRECTIONS)
+def test_a_playbook_outside_committed_source_still_convicts_past_a_redirect(
+    redirection: list[str],
+) -> None:
+    """Stripping the target must not blunt the rule it shares a segment with."""
+    tokens = ["just", "ansible-apply", "/tmp/play.yml", *redirection]
+    assert sanction(tokens=tokens, known_heads=_KNOWN) == (
+        True,
+        "ansible-apply+uncommitted-playbook",
+    )
