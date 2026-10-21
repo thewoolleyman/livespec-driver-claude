@@ -249,6 +249,56 @@ def test_parse_sftp_reports_whether_the_batch_is_readable(
     assert parse_sftp(arguments=arguments) == reach
 
 
+# --- Unreadable TARGETS: the operands the guard cannot resolve by reading -------
+# The fleet-host-mutation-guard clause (livespec v223) stated two of these as a
+# LIMIT: only an `scp`/`rsync` DESTINATION was treated as possibly unreadable and
+# `parse_sftp` never reported one at all, so `sftp $h` and
+# `rsync --remove-source-files $h:/opt/x ./` reached a host nobody could read and
+# nothing said so. The field names asserted below are the classifier's contract.
+
+
+@pytest.mark.parametrize(
+    ("head", "arguments", "unreadable"),
+    [
+        ("rsync", ["-av", "--remove-source-files", "$h:/opt/x", "./"], True),
+        ("scp", [":/x", "./"], True),
+        ("rsync", ["-av", "rsync://$h/mod/", "./"], True),
+        ("scp", ["{}:/opt/x", "./"], True),
+        ("scp", ["poweredge-xubuntu:/x", "./x"], False),
+        # A LOCAL path carrying a substitution is not a remote target: the lexer
+        # splits `./syslog-$(date +%F)` in two and neither half names a host.
+        ("scp", ["poweredge-xubuntu:/var/log/syslog", "./syslog-$(date", "+%F"], False),
+    ],
+)
+def test_parse_transfer_flags_a_source_whose_host_cannot_be_read(
+    head: str, arguments: list[str], unreadable: bool
+) -> None:
+    reach = parse_transfer(head=head, arguments=arguments)
+    assert (
+        "source_unresolvable" in reach.__dataclass_fields__
+    ), "TransferReach must report an unreadable SOURCE, not only an unreadable destination"
+    assert reach.source_unresolvable is unreadable
+
+
+@pytest.mark.parametrize(
+    ("arguments", "unreadable"),
+    [
+        (["$h"], True),
+        (["-b", "-", "{}"], True),
+        (["poweredge-xubuntu"], False),
+        ([], False),
+    ],
+)
+def test_parse_sftp_flags_a_host_operand_that_cannot_be_read(
+    arguments: list[str], unreadable: bool
+) -> None:
+    reach = parse_sftp(arguments=arguments)
+    assert (
+        "unresolvable" in reach.__dataclass_fields__
+    ), "SftpReach must report an sftp host operand the guard cannot resolve by reading"
+    assert reach.unresolvable is unreadable
+
+
 @pytest.mark.parametrize(
     ("batch", "mutates"),
     [
