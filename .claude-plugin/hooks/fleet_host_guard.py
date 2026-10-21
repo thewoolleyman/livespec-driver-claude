@@ -169,9 +169,23 @@ def _verdict(*, raw: str) -> _Verdict:
     return _Verdict(decision=decision, rule=rule, host_source=fleet.source if counted else None)
 
 
+def _hinted_text(*, raw: str) -> str:
+    """The Bash command alone when the payload still reads; else the raw payload.
+
+    Judging the hint over the WHOLE payload let a `description` naming a fleet
+    host deny a command that never reaches one — the agent's own narration,
+    which teaches it to stop narrating rather than to stop reaching. A payload
+    that will not parse leaves the raw text as all there is to judge.
+    """
+    text = raw
+    with contextlib.suppress(ValueError):
+        text = _bash_command(raw=raw) or raw
+    return text
+
+
 def _has_hazard_hint(*, raw: str) -> bool:
     """The fail-closed trigger, judged against the fallback set — resolution may be what failed."""
-    return hazard_hint(command=raw, hosts=FALLBACK_HOSTS)
+    return hazard_hint(command=_hinted_text(raw=raw), hosts=FALLBACK_HOSTS)
 
 
 def main() -> int:
