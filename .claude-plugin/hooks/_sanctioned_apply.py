@@ -18,7 +18,10 @@ not committed source.
     `~`, `/tmp`, `/var/tmp` or `/dev/shm`, or carrying `..` or a `$`. An
     absolute path INTO a checkout is not positively uncommitted and passes —
     the guard identifies, it does not guess. Option values (`-i <inventory>`,
-    `-e <vars>`, `--vault-password-file <file>`, …) are never playbooks.
+    `-e <vars>`, `--vault-password-file <file>`, …) are never playbooks, and
+    neither is a redirect target: `… > $L 2>&1` writes a LOG, so reading `$L`
+    as a second playbook convicts the log file and refuses the sanctioned
+    apply (work-item livespec-driver-claude-q2urvj).
   - `--check` (and `just ansible-drift`, which IS `--check --diff`) reads.
 
 Self-contained by contract: the plugin installer ships this file under bare
@@ -28,7 +31,7 @@ import here is the standard library or a sibling module shipped beside it.
 
 from __future__ import annotations
 
-from _shell_lex import basename
+from _shell_lex import basename, without_redirections
 
 __all__: list[str] = ["sanction"]
 
@@ -45,6 +48,7 @@ _UNCOMMITTED_PREFIXES = ("~", "/tmp", "/var/tmp", "/dev/shm")
 
 def _playbook_rule(*, head: str, arguments: list[str]) -> str | None:
     """A playbook positively outside committed source is a hand deploy; `--check` reads."""
+    arguments = without_redirections(tokens=arguments)
     if "--check" in arguments:
         return None
     playbooks: list[str] = []
