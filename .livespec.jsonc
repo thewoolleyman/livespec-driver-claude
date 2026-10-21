@@ -265,11 +265,25 @@
         "mise": ["sh", "-c", "mise trust && env -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_API_TOKEN mise install --quiet"],
         "lefthook": ["uv", "run", "lefthook", "install"]
       },
+      // Factory table, registry-backed per SPECIFICATION/non-functional-requirements.md
+      // §"Factory routing": every entry committed here declares `"registry": true` and
+      // carries NO `server` and NO `docker_host`, so no committed entry names a machine.
+      // Which Fabro server answers to a factory name is bound ONLY in the fleet gitops
+      // inventory's factory registry, which each dispatching host renders as
+      // /etc/livespec/fabro-factories.json; a dispatch resolves `legacy` from that file
+      // by name. The former hostname-bearing entries (`hp` = hp-xubuntu :32276 and the
+      // retired `vps`) collapse into this single `legacy` entry, which the control
+      // node's registry maps to the same hp :32276 instance — routing does not change.
+      // A recorded item pin still naming `hp` or `vps` falls back to `default_factory`
+      // (the ratified recorded-pin fallback). Coordinator rulings R318/R320
+      // (2026-10-20, plan petri-factory-on-gmktec, epic bd-ib-fyozyd) keep assertion 6
+      // of that plan whole: a factory is bound to a machine only in the inventory.
+      // `petri` is deliberately NOT onboarded here — it needs this repository's own bin
+      // and secret-channel settings and is a separate decision.
       "factories": {
-        "hp": { "server": "https://hp-xubuntu.perch-rudd.ts.net:32276" },
-        "vps": { "server": "https://vps.perch-rudd.ts.net:32276" }
+        "legacy": { "registry": true }
       },
-      "default_factory": "hp"
+      "default_factory": "legacy"
     }
   }
 }
