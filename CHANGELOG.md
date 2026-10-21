@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.11.0...v0.11.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **hooks:** drop an fd-duplication redirect target before the playbook rule ([7d50061](https://github.com/thewoolleyman/livespec-driver-claude/commit/7d5006172dbd311b0b2ec723409b115af185dda7))
+* **hooks:** stop the fleet-host guard convicting an apply's log file ([c100cec](https://github.com/thewoolleyman/livespec-driver-claude/commit/c100cec390144f8ed2ca34bdddfd1f98aa4f0c71))
+* **hooks:** strip redirections before a token list is read as operands ([1f3a98c](https://github.com/thewoolleyman/livespec-driver-claude/commit/1f3a98c1f6e9bd0e8d708889dfb4a5dec3997436))
+
 ## [0.11.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.10.1...v0.11.0) (2026-10-21)
 
 
