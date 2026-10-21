@@ -18,7 +18,9 @@ questions about each head it meets, with that head's own argument run:
 The tables live in `_verb_tables`; this module applies them, in four shapes:
 
   - **Always mutating**: `install`, `dd`, `useradd`, `reboot`, … — the head IS
-    the verb.
+    the verb. A head FAMILY whose member is a suffix rather than a subcommand
+    is matched by prefix: `mkfs` is a dispatcher nobody invokes bare, so
+    `mkfs.ext4`, `mkfs.xfs` and every other `mkfs.*` convict as themselves.
   - **Path-scoped**: `cp`, `mv`, `rm`, `mkdir`, `touch`, `ln`, `tee`, `chmod`,
     `chown`, … write the host only when an operand lies under a protected
     tree (`/etc`, `/usr`, `/opt`, `/var/lib`, `/srv`, `/boot`) or under a
@@ -63,6 +65,7 @@ import re
 from _shell_lex import basename, operands
 from _verb_tables import (
     ALWAYS_MUTATING,
+    ALWAYS_MUTATING_PREFIXES,
     ANSIBLE_MUTATING_MODULES,
     CHECK_FLAGS,
     CLUSTERED_FLAG_HEADS,
@@ -263,7 +266,7 @@ def redirect_rule(*, tokens: list[str]) -> str | None:
 def mutation_of(*, head: str, arguments: list[str]) -> str | None:
     """The rule that convicts this head of a host mutation, else None."""
     name = basename(token=head).lower()
-    if name in ALWAYS_MUTATING:
+    if name in ALWAYS_MUTATING or name.startswith(ALWAYS_MUTATING_PREFIXES):
         return name
     if name in READ_ONLY_SUBCOMMANDS:
         return _subcommand_rule(head=name, arguments=arguments)

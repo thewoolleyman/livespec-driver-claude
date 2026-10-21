@@ -827,6 +827,13 @@ _DENY_CASES = (
         "RW5 sftp -b file to a variable fleet host",
         "H=poweredge-xubuntu; sftp -b batch.txt $H",
     ),
+    # --- Ratification-review widening of the always-mutating heads ---------------
+    # `mkfs` is never spelt bare in practice: the filesystem is the SUFFIX, and
+    # `ALWAYS_MUTATING` carried only the bare head, so every real invocation
+    # walked straight past it.
+    ("RW6 mkfs.ext4", "ssh poweredge-xubuntu 'mkfs.ext4 /dev/sdb'"),
+    ("RW7 sudo mkfs.xfs", "ssh gmktec-xubuntu 'sudo mkfs.xfs -f /dev/sdb1'"),
+    ("RW8 absolute mkfs.btrfs path", "ssh hp-xubuntu '/sbin/mkfs.btrfs /dev/sdc'"),
 )
 
 # Legitimate work the guard must NOT block. A false positive here pushes agents
@@ -1462,6 +1469,7 @@ def test_classifier_allows_reads_the_sanctioned_apply_and_quoted_mentions(
             "unresolvable-target",
         ),
         ("H=poweredge-xubuntu; sftp $H <<EOF\nput x /etc/y\nEOF", "unresolvable-target"),
+        ("ssh poweredge-xubuntu 'mkfs.ext4 /dev/sdb'", "ssh+mkfs.ext4"),
     ],
 )
 def test_the_rule_name_says_which_conjunction_convicted(command: str, rule: str) -> None:
