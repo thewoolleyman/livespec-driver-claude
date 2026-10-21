@@ -33,6 +33,12 @@ the false-positive traps live, so it is written ONCE here:
   - **Grouping punctuation.** `(tmux kill-server)` and `{ ssh host x; }` fuse
     a paren or brace onto the adjacent token; `ungrouped` strips them so the
     basename test sees the real command word.
+  - **A redirection is not an operand.** `just ansible-apply play.yml > $L
+    2>&1` deploys the committed `play.yml` and writes a log, so a classifier
+    that reads the token list as operands sees the LOG FILE as a second
+    operand and judges it. `without_redirections` drops every redirect
+    operator and its target first, whether the target stands as its own word
+    (`> $L`) or is fused onto the operator (`>$L`, `2>&1`).
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
@@ -62,6 +68,7 @@ __all__: list[str] = [
     "tokens_or_none",
     "ungrouped",
     "without_continuations",
+    "without_redirections",
 ]
 
 SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
@@ -79,6 +86,11 @@ _LINE_CONTINUATION = re.compile(r"\\\n")
 # `-c`, `-lc`, `-ic`, `-lic` — any clustered shell flag ending in `c`.
 _SHELL_COMMAND_FLAG = re.compile(r"^-[a-zA-Z]*c$")
 _TERMINATOR = re.compile(r"-?\s*['\"]?([\w-]+)['\"]?")
+# Every redirection spelling, at the START of a token: an optional file
+# descriptor or `&`, then `>`, `>>`, `>|`, `<`, `<<` (here-doc) or `<<<`
+# (here-string). A word only CONTAINING a digit or a path never matches,
+# because the operator itself is required.
+_REDIRECTION = re.compile(r"(?:\d+|&)?(?:>>?\|?|<<?<?)")
 
 
 def basename(*, token: str) -> str:
@@ -326,3 +338,27 @@ def first_command_index(*, tokens: list[str]) -> int | None:
 
 def operands(*, arguments: list[str]) -> list[str]:
     return [argument for argument in arguments if not argument.startswith("-")]
+
+
+def without_redirections(*, tokens: list[str]) -> list[str]:
+    """Drop every redirection operator and its target, so neither reads as an operand.
+
+    A target that stands as its own word (`> $L`) costs the following token
+    too; one fused onto the operator (`>$L`, `2>&1`, `<<EOF`) is wholly
+    contained in the operator's own token. The narrower siblings stay as they
+    are: `_shell_io.without_stdin_redirects` drops only the stdin forms,
+    because a re-scanned remote command must not re-open a here-doc while its
+    output redirections are still the outer command's business.
+    """
+    kept: list[str] = []
+    skip = False
+    for token in tokens:
+        if skip:
+            skip = False
+            continue
+        match = _REDIRECTION.match(token)
+        if match is None:
+            kept.append(token)
+            continue
+        skip = match.end() == len(token)
+    return kept

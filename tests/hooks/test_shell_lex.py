@@ -18,6 +18,7 @@ _HOOKS_DIR = Path(__file__).resolve().parent.parent.parent / ".claude-plugin" / 
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
+import _shell_lex  # noqa: E402 — path-dependent import after sys.path insert.
 from _shell_lex import (  # noqa: E402 — path-dependent import after sys.path insert.
     SHELL_KEYWORDS_DATA,
     SHELL_KEYWORDS_PASS,
@@ -215,6 +216,44 @@ def test_first_command_index_skips_leading_assignments() -> None:
 
 def test_operands_drop_flags() -> None:
     assert operands(arguments=["-n", "5", "--x=y", "cmd"]) == ["5", "cmd"]
+
+
+@pytest.mark.parametrize(
+    ("tokens", "kept"),
+    [
+        (["x", ">", "$L"], ["x"]),
+        (["x", ">$L"], ["x"]),
+        (["x", ">>", "$L"], ["x"]),
+        (["x", ">>$L"], ["x"]),
+        (["x", "2>", "$L"], ["x"]),
+        (["x", "2>&1"], ["x"]),
+        (["x", "&>", "$L"], ["x"]),
+        (["x", "&>$L"], ["x"]),
+        (["x", ">|", "$L"], ["x"]),
+        (["x", "<", "$F"], ["x"]),
+        (["x", "<$F"], ["x"]),
+        (["x", "<<EOF"], ["x"]),
+        (["x", "<<<", "word"], ["x"]),
+        (["x", ">", "$L", "2>&1"], ["x"]),
+        # A word that merely CONTAINS a digit or a path is not a redirection, and
+        # neither is a flag value: only operands are dropped, and only redirects.
+        (["timeout", "900", "just", "ansible-apply", "a/b.yml"], None),
+        (["ansible-playbook", "-e", "x=$(hostname)", "a/b.yml"], None),
+        ([], None),
+    ],
+)
+def test_without_redirections_drops_every_redirect_operator_and_its_target(
+    tokens: list[str], kept: list[str] | None
+) -> None:
+    """A redirect target is not an operand — a log file is not a playbook.
+
+    The `__all__` membership is asserted alongside the behaviour because the
+    PUBLIC surface is the contract here: `_sanctioned_apply` reaches this helper
+    across a module boundary, so a private name would not do. `kept is None`
+    means the token list passes through untouched.
+    """
+    assert "without_redirections" in _shell_lex.__all__
+    assert _shell_lex.without_redirections(tokens=tokens) == (tokens if kept is None else kept)
 
 
 @pytest.mark.parametrize(
