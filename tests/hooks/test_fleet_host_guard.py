@@ -454,6 +454,43 @@ def test_fail_closes_when_host_resolution_raises_with_hazard_hint(
     _assert_denied(result=_run_loaded(hook=hook, stdin=_bash_input(command=_MUTATION)))
 
 
+@pytest.mark.usefixtures("no_project")
+def test_the_fail_closed_hint_is_judged_over_the_command_not_the_description(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `description` naming a fleet host is PROSE; only the command would run.
+
+    Judging the hint over the whole payload let the agent's own narration deny
+    a `git status`, which teaches the agent to stop narrating rather than to
+    stop reaching for the host.
+    """
+    hook = _load_hook()
+
+    def broken_classify(*, command: str, hosts: frozenset[str]) -> str | None:
+        raise ValueError(f"{command} {sorted(hosts)}")
+
+    monkeypatch.setattr(hook, "classify", broken_classify)
+    payload = json.dumps(
+        {
+            "tool_name": "Bash",
+            "tool_input": {
+                "command": "git status",
+                "description": "check the tree before the ssh poweredge-xubuntu rollout",
+            },
+        }
+    )
+
+    _assert_silent(result=_run_loaded(hook=hook, stdin=payload))
+
+
+def test_fail_closes_on_an_unreadable_payload_that_still_names_the_hazard() -> None:
+    """A payload that will not parse leaves the raw text as all there is to judge."""
+    truncated = (
+        '{"tool_name": "Bash", "tool_input": {"command": "ssh poweredge-xubuntu sudo reboot"'
+    )
+    _assert_denied(result=_run(stdin=truncated))
+
+
 def test_main_fails_open_when_decision_raises_without_hazard_hint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
