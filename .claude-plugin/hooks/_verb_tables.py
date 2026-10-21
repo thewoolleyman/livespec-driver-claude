@@ -40,6 +40,7 @@ from __future__ import annotations
 
 __all__: list[str] = [
     "ALWAYS_MUTATING",
+    "ALWAYS_MUTATING_PREFIXES",
     "ANSIBLE_MUTATING_MODULES",
     "CHECK_FLAGS",
     "CLUSTERED_FLAG_HEADS",
@@ -76,6 +77,11 @@ ALWAYS_MUTATING = _words(
     "ip6tables-restore nft-restore swapoff swapon k3s-uninstall.sh k3s-agent-uninstall.sh "
     "k3s-killall.sh"
 )
+# Head FAMILIES that are always mutating, matched by prefix because the family
+# member is a suffix rather than a subcommand: `mkfs` is a dispatcher nobody
+# invokes bare — `mkfs.ext4`, `mkfs.xfs`, `mkfs.btrfs`, `mkfs.vfat` are the real
+# heads, and each formats a block device.
+ALWAYS_MUTATING_PREFIXES = ("mkfs.",)
 
 # Writes only when an operand lies under a protected tree.
 PATH_SCOPED = _words(text="cp mv rm rmdir mkdir touch ln truncate tee chmod chown chgrp")
