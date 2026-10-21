@@ -31,7 +31,11 @@ stays a policy, not a parser:
 
 A host operand that holds a `$…`, a backtick, or an xargs `{}` cannot be
 resolved by reading; the reach records that so the classifier can fail closed
-when the surrounding command looks like a fleet-host mutation.
+when the surrounding command looks like a fleet-host mutation. EVERY host
+operand is reported, not just an upload destination: an `scp`/`rsync` SOURCE
+reaches a host too (`--remove-source-files` deletes there), and so does an
+`sftp` target. A source is judged on its SHAPE — `$h:/opt/x` names a host,
+`./syslog-$(date +%F)` is a local path that merely carries a substitution.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
@@ -93,6 +97,7 @@ class TransferReach:
     dry_run: bool = False
     remove_source: bool = False
     unresolvable: bool = False
+    source_unresolvable: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -101,6 +106,7 @@ class SftpReach:
 
     host: str | None
     batch_from_stdin: bool
+    unresolvable: bool = False
 
 
 def _unresolvable(*, token: str) -> bool:
@@ -190,6 +196,20 @@ def _transfer_host(*, operand: str) -> str | None:
     return host_of_target(target=head)
 
 
+def _unresolvable_remote(*, operand: str) -> bool:
+    """A `host:path`/`scheme://host/path` operand whose HOST cannot be read.
+
+    Judged on the operand's SHAPE, not on `_unresolvable` alone: a local path
+    that merely carries a substitution (`./syslog-$(date +%F)`, which the lexer
+    splits in two) names no host and must not be read as a remote target, while
+    `$h:/opt/x`, `{}:/opt/x` and a bare `:/x` all do.
+    """
+    if operand.startswith(":"):
+        return True
+    host = _transfer_host(operand=operand)
+    return host is not None and _unresolvable(token=host)
+
+
 def _permuted(
     *, arguments: list[str], short_values: frozenset[str], long_values: frozenset[str]
 ) -> tuple[list[str], set[str], str]:
@@ -251,6 +271,7 @@ def parse_transfer(*, head: str, arguments: list[str]) -> TransferReach:
         dry_run=dry_run,
         remove_source=remove_source,
         unresolvable=_unresolvable(token=destination),
+        source_unresolvable=any(_unresolvable_remote(operand=o) for o in operands[:-1]),
     )
 
 
@@ -263,6 +284,7 @@ def parse_sftp(*, arguments: list[str]) -> SftpReach:
     return SftpReach(
         host=host_of_target(target=arguments[index]),
         batch_from_stdin=not batch_files,
+        unresolvable=_unresolvable(token=arguments[index]),
     )
 
 
