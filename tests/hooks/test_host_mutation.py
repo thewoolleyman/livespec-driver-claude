@@ -806,6 +806,27 @@ _DENY_CASES = (
         "HC10 mount --source --target",
         "ssh hp-xubuntu 'sudo mount --source /dev/sdb1 --target " "/mnt'",
     ),
+    # --- Ratification-review widening of the unreadable-target rule ---------------
+    # The fleet-host-mutation-guard clause (livespec v223) stated these as a LIMIT:
+    # only an scp/rsync DESTINATION was treated as possibly unreadable, and
+    # `parse_sftp` never flagged one at all. Closing the limit is the widening
+    # work-item livespec-driver-claude-hx3x3n.
+    (
+        "RW1 sftp to a variable host in a fleet for-loop",
+        "for h in poweredge-xubuntu gmktec-xubuntu; do sftp $h <<'EOF'\nput unit.service "
+        "/etc/systemd/system/\nEOF\ndone",
+    ),
+    (
+        "RW2 rsync --remove-source-files from a variable fleet source",
+        "for h in poweredge-xubuntu gmktec-xubuntu; do rsync -av --remove-source-files "
+        "$h:/opt/x ./; done",
+    ),
+    ("RW3 scp download from a variable fleet source", "H=poweredge-xubuntu; scp $H:/etc/x ./"),
+    ("RW4 sftp to a variable fleet host with no batch", "H=poweredge-xubuntu; sftp $H"),
+    (
+        "RW5 sftp -b file to a variable fleet host",
+        "H=poweredge-xubuntu; sftp -b batch.txt $H",
+    ),
 )
 
 # Legitimate work the guard must NOT block. A false positive here pushes agents
@@ -876,6 +897,26 @@ _ALLOW_CASES = (
     (
         "H9 rsync --remove-source-files elsewhere",
         "rsync -av --remove-source-files otherhost:/opt/x ./",
+    ),
+    # The RW* deny cases with no fleet host named: nothing hints, so an operand
+    # the guard cannot read is just an operand it has no reason to judge.
+    (
+        "H11 sftp to a variable host with no fleet host named",
+        "for h in web-a web-b; do sftp $h <<'EOF'\nput unit.service /etc/systemd/system/\nEOF"
+        "\ndone",
+    ),
+    (
+        "H12 rsync --remove-source-files from a variable source, no fleet host named",
+        "for h in web-a web-b; do rsync -av --remove-source-files $h:/opt/x ./; done",
+    ),
+    ("H13 scp download from a variable source, no fleet host named", "scp $H:/etc/x ./"),
+    (
+        "H14 sftp to a variable fleet host with a provably read-only batch",
+        "for h in poweredge-xubuntu; do sftp $h <<'EOF'\nls /opt\nget /opt/x ./x\nEOF\ndone",
+    ),
+    (
+        "H15 rsync --dry-run from a variable fleet source is a report",
+        "H=poweredge-xubuntu; rsync -avn $H:/opt/x ./",
     ),
     # --- Downloads are reads ------------------------------------------------------
     ("H10 unresolvable upload target with no fleet host named", "scp ./x $H:/etc/x"),
@@ -1416,6 +1457,11 @@ def test_classifier_allows_reads_the_sanctioned_apply_and_quoted_mentions(
         ("H=poweredge-xubuntu; ssh $H 'sudo x'", "unresolvable-target"),
         ("S=ssh; $S poweredge-xubuntu 'sudo x'", "unresolvable-command"),
         ("echo poweredge-xubuntu | xargs -I{} scp ./x {}:/etc/x", "unresolvable-target"),
+        (
+            "H=poweredge-xubuntu; rsync -av --remove-source-files $H:/opt/x ./",
+            "unresolvable-target",
+        ),
+        ("H=poweredge-xubuntu; sftp $H <<EOF\nput x /etc/y\nEOF", "unresolvable-target"),
     ],
 )
 def test_the_rule_name_says_which_conjunction_convicted(command: str, rule: str) -> None:
