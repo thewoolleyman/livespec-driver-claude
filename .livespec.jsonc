@@ -270,7 +270,7 @@
       // carries NO `server` and NO `docker_host`, so no committed entry names a machine.
       // Which Fabro server answers to a factory name is bound ONLY in the fleet gitops
       // inventory's factory registry, which each dispatching host renders as
-      // /etc/livespec/fabro-factories.json; a dispatch resolves `legacy` from that file
+      // /etc/livespec/fabro-factories.json; a dispatch resolves each entry from that file
       // by name. The former hostname-bearing entries (`hp` = hp-xubuntu :32276 and the
       // retired `vps`) collapse into this single `legacy` entry, which the control
       // node's registry maps to the same hp :32276 instance — routing does not change.
@@ -278,8 +278,9 @@
       // (the ratified recorded-pin fallback). Coordinator rulings R318/R320
       // (2026-10-20, plan petri-factory-on-gmktec, epic bd-ib-fyozyd) keep assertion 6
       // of that plan whole: a factory is bound to a machine only in the inventory.
-      // `petri` is deliberately NOT onboarded here — it needs this repository's own bin
-      // and secret-channel settings and is a separate decision.
+      // Coordinator rulings R668/R672 (work-item bd-ib-iud52v) then onboarded `petri`
+      // with this repository's own bin and secret-channel settings and made it the
+      // default; `legacy` stays declared.
       "factories": {
         // The current Fabro server, selected by default since the R668 cutover
         // (plan petri-factory-on-gmktec); resolved through the factory registry.

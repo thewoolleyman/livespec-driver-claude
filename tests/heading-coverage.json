@@ -203,7 +203,7 @@
     "spec_file": "non-functional-requirements.md",
     "heading": "## Factory routing",
     "test": "TODO",
-    "reason": "Owed: no test exercises this heading yet; the registry-switch work-item filed in this tenant under References: ## Factory routing carries the host-captured proof that a dispatch resolves legacy through the control node's factory registry.",
+    "reason": "Owed: no test exercises this heading yet; the registry-switch work-item filed in this tenant under References: ## Factory routing carries the host-captured proof that a dispatch resolves the default factory, petri, through the control node's factory registry.",
     "work_item": "livespec-driver-claude-axs"
   },
   {
