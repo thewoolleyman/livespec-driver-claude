@@ -271,16 +271,27 @@
       // Which Fabro server answers to a factory name is bound ONLY in the fleet gitops
       // inventory's factory registry, which each dispatching host renders as
       // /etc/livespec/fabro-factories.json; a dispatch resolves each entry from that file
-      // by name. The former hostname-bearing entries (`hp` = hp-xubuntu :32276 and the
-      // retired `vps`) collapse into this single `legacy` entry, which the control
-      // node's registry maps to the same hp :32276 instance — routing does not change.
-      // A recorded item pin still naming `hp` or `vps` falls back to `default_factory`
-      // (the ratified recorded-pin fallback). Coordinator rulings R318/R320
-      // (2026-10-20, plan petri-factory-on-gmktec, epic bd-ib-fyozyd) keep assertion 6
-      // of that plan whole: a factory is bound to a machine only in the inventory.
-      // Coordinator rulings R668/R672 (work-item bd-ib-iud52v) then onboarded `petri`
-      // with this repository's own bin and secret-channel settings and made it the
-      // default; `legacy` stays declared.
+      // by name. Every instance below is named ONLY by its registry name — `petri` or
+      // `legacy` — because that name is the whole of what this file may say about it.
+      //
+      // `petri` IS THE DEFAULT FACTORY, and has been since the R668 cutover (coordinator
+      // rulings R668/R672, work-item bd-ib-iud52v, plan `petri-factory-on-gmktec`,
+      // epic bd-ib-fyozyd), which onboarded `petri` with this repository's own bin and
+      // secret-channel settings and pointed `default_factory` at it. So an unpinned
+      // dispatch from this repository lands on `petri`. The earlier note here — that
+      // moving to registry-backed entries changed no routing — described the state
+      // BEFORE that cutover and no longer holds: the cutover is precisely a change to
+      // which factory an unpinned dispatch resolves.
+      //
+      // `legacy` IS KEPT DECLARED for one reason: an item whose RECORDED PIN names
+      // `legacy` must still resolve to `legacy`. A recorded pin naming an entry this
+      // table does not declare falls back to `default_factory` (the ratified
+      // recorded-pin fallback), so keeping `legacy` declared is what holds such a pin
+      // to the factory it names instead of silently rerouting it to the default.
+      //
+      // Coordinator rulings R318/R320 (2026-10-20, same plan) keep assertion 6 of that
+      // plan whole: a factory is bound to a machine only in the inventory — which is
+      // why neither an entry nor this comment names a host or a port.
       "factories": {
         // The current Fabro server, selected by default since the R668 cutover
         // (plan petri-factory-on-gmktec); resolved through the factory registry.
