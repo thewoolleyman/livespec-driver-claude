@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.11.1...v0.11.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* **config:** declare claude-sonnet-5-5 in the model catalog for the Codex-first fallbacks ([92c323d](https://github.com/thewoolleyman/livespec-driver-claude/commit/92c323d79baac5e746d584faad2b24d0dbb791b9))
+
 ## [0.11.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.11.0...v0.11.1) (2026-10-21)
 
 
