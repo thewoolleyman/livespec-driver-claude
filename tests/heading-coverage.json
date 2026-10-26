@@ -364,5 +364,13 @@
     "test": "tests.hooks.test_livespec_footgun_guard.test_denies_commit_no_verify",
     "reason": "Integration-tier (subprocess): the shipped footgun PreToolUse guard, driven over its protocol, denies a --no-verify commit — the Driver-side fast guard realizing the primary-checkout commit-refuse discipline.",
     "work_item": "livespec-driver-claude-axs"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict",
+    "test": "TODO",
+    "reason": "A real test at the integration tier or above is owed for this heading: a delegating host's pre-push runs the delegation client in place of just check and refuses on no verdict. This repository's delegation opt-in carrier (plan delegated-gate-fleet-rollout, livespec-dev-tooling-mvalxq) owns it.",
+    "work_item": "livespec-dev-tooling-mvalxq"
   }
 ]
