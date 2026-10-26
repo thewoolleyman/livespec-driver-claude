@@ -75,10 +75,12 @@
   // drops the entry, failing the citation as "not allowlisted".
   "external_references": {
     "livespec": [
-      "SPECIFICATION/contracts.md §\"Plugin distribution\""
+      "SPECIFICATION/contracts.md §\"Plugin distribution\"",
+      "§\"Enforcement-suite invocation\""
     ],
     "livespec-dev-tooling": [
-      "§\"Fabro factory registry\""
+      "§\"Fabro factory registry\"",
+      "§\"Delegated pre-push gate\""
     ]
   },
   // Planning/work-item-resolution registry. These targets are the repo slugs

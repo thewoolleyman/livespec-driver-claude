@@ -215,3 +215,17 @@ When a commit or push is attempted
 Then the commit-refuse hook exits 1
 And it directs the contributor to use a worktree
 ```
+
+## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict
+
+Given this repository's version-controlled configuration opts it in to delegating its pre-push gate
+
+And the pushing host holds the credential to submit to the remote executor
+
+When a git push of a new tree runs the pre-push gate
+
+Then the pre-push path MUST run the delegation client instead of running `just check` on the pushing host
+
+And the push MUST complete only on a passing verdict from the executor
+
+And the push MUST be refused when the executor returns no verdict
