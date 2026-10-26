@@ -156,10 +156,12 @@ check:
         check-global-writes
         check-handoff-dispatch-routing
         check-heading-coverage
+        check-heading-coverage-debt-register
         check-hook-trees-not-io-exempt
         check-keyword-only-args
         check-local-memory-drift-audit
         check-main-guard
+        check-marketplace-ref-release-only
         check-master-ci-green
         check-match-keyword-only
         check-newtype-domain-primitives
@@ -179,6 +181,7 @@ check:
         check-per-file-coverage
         check-plan-anchor-declared
         check-plan-epic-parity
+        check-plan-no-live-handoff-file
         check-plan-no-tombstone
         check-plan-record-conformance
         check-plugin-resolution
@@ -309,6 +312,9 @@ check-e2e-cli:
 check-heading-coverage:
     uv run python -m livespec_dev_tooling.checks.heading_coverage
 
+check-heading-coverage-debt-register:
+    uv run python -m livespec_dev_tooling.checks.heading_coverage_debt_register
+
 # livespec core's doctor STATIC phase (reference-discipline + out-of-band
 # invariants) against THIS repo's SPECIFICATION/ tree, wired fleet-wide per
 # livespec epic livespec-6jfq. core ships the checker: doctor_static.py is
@@ -365,6 +371,9 @@ check-keyword-only-args:
 
 check-main-guard:
     uv run python -m livespec_dev_tooling.checks.main_guard
+
+check-marketplace-ref-release-only:
+    uv run python -m livespec_dev_tooling.checks.marketplace_ref_release_only
 
 check-match-keyword-only:
     uv run python -m livespec_dev_tooling.checks.match_keyword_only
@@ -603,6 +612,9 @@ check-plan-anchor-declared:
 
 check-plan-epic-parity:
     uv run python -m livespec_dev_tooling.checks.plan_epic_parity
+
+check-plan-no-live-handoff-file:
+    uv run python -m livespec_dev_tooling.checks.plan_no_live_handoff_file
 
 check-plan-no-tombstone:
     uv run python -m livespec_dev_tooling.checks.plan_no_tombstone
