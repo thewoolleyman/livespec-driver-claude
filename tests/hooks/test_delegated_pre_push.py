@@ -99,3 +99,20 @@ def test_delegating_host_executes_client_without_local_check(tmp_path: Path) -> 
         "run python -m livespec_dev_tooling.gate_remote_delegate enabled",
         "run python -m livespec_dev_tooling.gate_remote_delegate run",
     ]
+
+
+def test_nondelegating_host_gates_locally(tmp_path: Path) -> None:
+    """A host without delegation credentials runs and reports the local gate."""
+    result, events = _run_pre_push(
+        tmp_path=tmp_path,
+        enabled_status=1,
+        run_status=23,
+    )
+
+    assert result.returncode == 0
+    assert ":: pre-push: delegation unavailable -- gating locally" in result.stdout
+    assert events == [
+        "run python -m livespec_dev_tooling.green_token check",
+        "run python -m livespec_dev_tooling.gate_remote_delegate enabled",
+        "just check",
+    ]

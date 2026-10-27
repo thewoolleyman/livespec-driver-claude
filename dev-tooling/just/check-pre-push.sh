@@ -18,4 +18,5 @@ if uv run python -m livespec_dev_tooling.gate_remote_delegate enabled; then
     exec uv run python -m livespec_dev_tooling.gate_remote_delegate run
 fi
 
+echo ":: pre-push: delegation unavailable -- gating locally"
 just check
