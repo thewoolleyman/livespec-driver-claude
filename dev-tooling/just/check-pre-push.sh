@@ -13,4 +13,9 @@ if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
     exit 0
 fi
 
+if uv run python -m livespec_dev_tooling.gate_remote_delegate enabled; then
+    echo ":: pre-push: delegated gate enabled -- submitting this push to the remote executor"
+    exec uv run python -m livespec_dev_tooling.gate_remote_delegate run
+fi
+
 just check
