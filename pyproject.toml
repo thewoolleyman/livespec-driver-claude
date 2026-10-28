@@ -172,6 +172,9 @@ markers = [
 # pinned at v0.40.0 above). Placed directly under the header, above the
 # other keys, per the fleet placement convention.
 file_lloc_hard_gate = true
+repo_local_ci_skips = [
+    { slug = "check-no-workflow-edits", reason = "Local and janitor authorship control; the canonical guard explicitly exits without evaluation under GITHUB_ACTIONS because CI has no local author to control." },
+]
 # Heading-coverage scenario tiers (read directly off the table by
 # `load_scenario_tiers`, not a Config role key). Includes `tests.e2e-cli`
 # because this repo's user-surface tier lives under `tests/e2e-cli/`.
