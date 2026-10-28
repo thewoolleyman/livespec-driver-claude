@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.11.2...v0.12.0) (2026-10-28)
+
+
+### Features
+
+* opt this repository in to the delegated pre-push gate (red: delegation tests) ([86e2264](https://github.com/thewoolleyman/livespec-driver-claude/commit/86e2264835cb2d4cecf20a83afd33309fa156ab7))
+
 ## [0.11.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.11.1...v0.11.2) (2026-10-25)
 
 
