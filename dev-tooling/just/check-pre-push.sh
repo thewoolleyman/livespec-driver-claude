@@ -13,4 +13,14 @@ if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
     exit 0
 fi
 
+# Delegated gate: `enabled` is true only when this repository opts in AND this
+# host can read the gates kubeconfig. `exec` is load-bearing -- a delegated run
+# that reaches no verdict must refuse the push, never fall through to the local
+# aggregate. A host that cannot delegate (a Fabro sandbox) gets a non-zero
+# `enabled`, which reports that it gates locally, and runs `just check` below.
+if uv run python -m livespec_dev_tooling.gate_remote_delegate enabled; then
+    echo ":: pre-push: delegating the gate to the remote executor"
+    exec uv run python -m livespec_dev_tooling.gate_remote_delegate run
+fi
+
 just check

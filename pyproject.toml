@@ -172,6 +172,10 @@ markers = [
 # pinned at v0.40.0 above). Placed directly under the header, above the
 # other keys, per the fleet placement convention.
 file_lloc_hard_gate = true
+# Opts this repository in to the delegated pre-push gate (livespec-dev-tooling
+# §"Delegated pre-push gate"); a host without the gates credential still gates
+# locally. Withdrawn only by changing this key, never per push or per host.
+delegated_gate = true
 repo_local_ci_skips = [
     { slug = "check-no-workflow-edits", reason = "Local and janitor authorship control; the canonical guard explicitly exits without evaluation under GITHUB_ACTIONS because CI has no local author to control." },
 ]
