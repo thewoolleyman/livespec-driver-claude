@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.12.0...v0.12.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **release:** release the delegated-revise wording fix as v0.12.1 ([31e24b2](https://github.com/thewoolleyman/livespec-driver-claude/commit/31e24b25a2bb4bc2a1ac91a9b1e442b3cc061ea7))
+
 ## [0.12.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.11.2...v0.12.0) (2026-10-28)
 
 
