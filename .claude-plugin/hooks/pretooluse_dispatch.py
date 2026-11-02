@@ -7,7 +7,9 @@ import contextlib
 import importlib
 import io
 import json
+import subprocess
 import sys
+from pathlib import Path
 from types import ModuleType
 
 __all__: list[str] = []
@@ -65,6 +67,33 @@ def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
         return 0, "", ""
 
 
+def _run_standalone(*, name: str, raw: str) -> tuple[int, str, str]:
+    """Run an unvisited guard through its standalone executable after dispatcher failure."""
+    completed = subprocess.run(
+        [sys.executable, str(Path(__file__).with_name(f"{name}.py"))],
+        input=raw,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.returncode, completed.stdout, completed.stderr
+
+
+def _fallback(
+    *, index: int, raw: str, refusal: tuple[int, str, str] | None
+) -> tuple[int, str, str] | None:
+    """Complete a failed dispatch with standalone results for every unvisited guard."""
+    combined = refusal
+    for name in GUARD_MODULE_NAMES[index:]:
+        try:
+            result = _run_standalone(name=name, raw=raw)
+        except OSError:
+            continue
+        if combined is None and _denies(result=result):
+            combined = result
+    return combined
+
+
 def _emit(*, result: tuple[int, str, str]) -> int:
     """Emit the first refusal exactly as its standalone guard did."""
     exit_code, stdout, stderr = result
@@ -79,8 +108,12 @@ def main() -> int:
     """Evaluate every Bash-matched guard and retain the first refusal in dispatch order."""
     raw = sys.stdin.read()
     refusal: tuple[int, str, str] | None = None
-    for name in GUARD_MODULE_NAMES:
-        result = _evaluate_guard(name=name, raw=raw)
+    for index, name in enumerate(GUARD_MODULE_NAMES):
+        try:
+            result = _evaluate_guard(name=name, raw=raw)
+        except Exception:  # noqa: BLE001 -- dispatcher boundary; preserve standalone guards.
+            fallback = _fallback(index=index, raw=raw, refusal=refusal)
+            return 0 if fallback is None else _emit(result=fallback)
         if refusal is None and _denies(result=result):
             refusal = result
     return 0 if refusal is None else _emit(result=refusal)
