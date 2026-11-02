@@ -178,3 +178,36 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     assert dispatcher.main() == 0
     assert capsys.readouterr().out == fallback_deny[1]
     assert fallback_runs == [failing_guard, *remaining_guards]
+
+
+def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
+    monkeypatch, capsys
+) -> None:
+    dispatcher = _load_dispatcher()
+    evaluated: list[str] = []
+    failure_decision = '{"fleet_host_guard": "fail-closed"}\n'
+
+    def allows(*, name: str) -> int:
+        evaluated.append(name)
+        return 0
+
+    def crashes() -> int:
+        evaluated.append("fleet_host_guard")
+        raise RuntimeError("the fail-closed guard crashed")
+
+    fleet_guard = ModuleType("fleet_host_guard")
+    fleet_guard.main = crashes
+    fleet_guard.fail_closed_decision = lambda: failure_decision
+    guards: dict[str, ModuleType] = {"fleet_host_guard": fleet_guard}
+    for name in dispatcher.GUARD_MODULE_NAMES:
+        if name == "fleet_host_guard":
+            continue
+        guard = ModuleType(name)
+        guard.main = lambda name=name: allows(name=name)
+        guards[name] = guard
+
+    monkeypatch.setattr(dispatcher, "_load_guard", lambda name: guards[name])
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command="git status")))
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == failure_decision
+    assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)

@@ -233,9 +233,17 @@ def test_hook_manifest_loads_guard_for_bash_pre_tool_use() -> None:
     bash_entries = [
         entry for entry in manifest["hooks"]["PreToolUse"] if entry.get("matcher") == "Bash"
     ]
-    assert len(bash_entries) == 1
-    commands = [hook["command"] for hook in bash_entries[0]["hooks"]]
-    assert 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/fleet_host_guard.py"' in commands
+    assert bash_entries == [
+        {
+            "matcher": "Bash",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"',
+                }
+            ],
+        }
+    ]
 
 
 # --- The deny reason routes to the project's GitOps topic ---------------------
