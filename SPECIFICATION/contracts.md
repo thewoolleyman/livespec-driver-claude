@@ -197,8 +197,27 @@ and emits one violation per offending invocation line.
 ## Hook bundle
 
 The Driver SHIPS a Claude Code hook bundle at `.claude-plugin/hooks/`:
-a `hooks.json` registration plus one fail-open script per hook. Every hook is a Python script invoked by the harness as
-`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"`; the cross-Driver
+a `hooks.json` registration plus one script per hook. Every hook is a Python module in the bundle. A guard is
+**Bash-matched** when any matcher it is registered on includes `Bash`. The harness MUST start every Bash-matched
+PreToolUse guard, for a `Bash` call, through ONE dispatcher entry point,
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"` registered on the `Bash` matcher, so one Bash tool call
+starts one Python process for the Driver's PreToolUse guards rather than one per guard. A Bash-matched guard that is
+also registered on other tools (for example `block_auto_memory.py` on `Write`, `Edit` and `MultiEdit`) keeps its own
+entry point on those other matchers and is removed from the `Bash` matcher. The dispatcher imports each Bash-matched
+guard module and evaluates every guard in-process, in its dispatch order, against the same PreToolUse payload. Each
+guard runs inside its OWN failure boundary, which discharges that guard's declared failure posture: when a guard raises
+or returns a malformed result, a fail-open guard is treated as an allow for that guard alone, and a guard the upstream
+contract declares fail-closed (among them `fleet_host_guard.py`) is treated as that guard's own deny, exactly as its
+standalone boundary would emit. Either way the failure MUST NOT suppress, reorder or alter any other guard's decision. The
+dispatcher refuses the call iff at least one guard refuses it, and its refusal reason is the reason of the first refusing
+guard in dispatch order, byte-identical to that guard's reason when run standalone. The dispatcher sets no per-guard
+time budget: a guard that hangs is bounded by the harness's hook timeout for the whole dispatcher process. When the
+dispatcher itself fails before it has evaluated every guard (it cannot read the payload, cannot import a guard module,
+or raises outside any guard's boundary), it MUST fall back to running each not-yet-evaluated Bash-matched guard as its
+own standalone process against the same payload and combine their decisions by the same refuse-iff-any rule, so every
+guard's declared failure posture, including a fail-closed guard's deny, holds exactly as in the standalone layout; the
+fallback MUST NOT deny a call that the standalone guards would allow. Each guard module MUST remain runnable standalone as
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<name>.py"` with unchanged behaviour. The cross-Driver
 no-shadow-ledger hook (`no_shadow_ledger.py`) is the declared neutral
 shared body and ships byte-identically in both Drivers' bundles (per
 `livespec/SPECIFICATION/contracts.md`, cross-Driver single-sourcing).
@@ -255,6 +274,9 @@ posture requires a propose-change cycle against the upstream
 Driver-shipped hooks contract; the mechanical detection internals
 (matcher predicates, artifact thresholds) are Driver implementation
 detail and MAY be tuned without a spec cycle, provided the postures hold.
+The dispatch order and the membership of the dispatcher, among the hooks the
+bundle already carries, are Driver implementation detail under that same rule,
+provided the one-process and per-guard failure-posture properties above hold.
 
 ## Versioning
 

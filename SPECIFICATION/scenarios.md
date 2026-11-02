@@ -186,6 +186,43 @@ When an agent runs a Bash command that only reads a memory directory, or removes
 Then the PreToolUse hook lets the command run
 ```
 
+## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards
+
+```gherkin
+Given the Driver plugin is installed and enabled in a Claude Code session
+When the agent makes one Bash tool call
+Then the Driver's hooks.json starts exactly one Python process for its Bash-matched PreToolUse guards
+And every Bash-matched guard the bundle carries is evaluated against that call's payload
+```
+
+## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call
+
+```gherkin
+Given one fail-open Bash-matched PreToolUse guard of the Driver raises an exception on a payload
+When the agent makes a Bash tool call with that payload
+Then every other Bash-matched guard is still evaluated against the call
+And a refusal from any other guard still refuses the call with that guard's own reason
+And when no other guard refuses, the call is allowed
+```
+
+## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards
+
+```gherkin
+Given the PreToolUse dispatcher fails before it has evaluated every Bash-matched guard
+When the agent makes a Bash tool call
+Then each not-yet-evaluated Bash-matched guard runs as its own standalone process against that call's payload
+And the call is refused exactly when one of the standalone guards refuses it, with that guard's own reason
+```
+
+## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still refuses the call
+
+```gherkin
+Given a Bash-matched PreToolUse guard that the upstream contract declares fail-closed raises an exception on a payload
+When the agent makes a Bash tool call with that payload
+Then the dispatcher refuses the call with that guard's own fail-closed refusal
+And every other Bash-matched guard is still evaluated against the call
+```
+
 ## Scenario: plan-artifact persistence warning on a bare assistant turn
 
 ```gherkin
