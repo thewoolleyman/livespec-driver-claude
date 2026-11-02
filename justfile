@@ -418,6 +418,9 @@ check-pre-commit:
 check-pre-commit-local:
     bash dev-tooling/just/check-pre-commit-local.sh
 
+check-pre-commit-gated-tree:
+    bash dev-tooling/just/check-pre-commit-gated-tree.sh
+
 check-pre-push:
     bash dev-tooling/just/check-pre-push.sh
 

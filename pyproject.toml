@@ -276,6 +276,7 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_fleet_host_guard.py",
     "tests/hooks/test_shipped_hooks_install_shape.py",
     "tests/hooks/test_livespec_footgun_guard.py",
+    "tests/hooks/test_delegated_pre_commit.py",
 ]
 # no_write_direct file-scope exemption. All four plugin-shipped hooks emit
 # their payload on stdout as their documented I/O boundary:
