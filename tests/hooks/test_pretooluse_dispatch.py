@@ -286,13 +286,10 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     assert fallback_inputs == [""] * len(fallback_runs)
 
 
-@pytest.mark.integration
-def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
-    monkeypatch, capsys
-) -> None:
-    dispatcher = _load_dispatcher()
+def _run_with_crashing_fleet_guard(
+    *, dispatcher, monkeypatch, command: str, hinted: bool, failure_decision: str
+) -> list[str]:
     evaluated: list[str] = []
-    failure_decision = '{"fleet_host_guard": "fail-closed"}\n'
 
     def allows(*, name: str) -> int:
         evaluated.append(name)
@@ -305,6 +302,7 @@ def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
     fleet_guard = ModuleType("fleet_host_guard")
     fleet_guard.main = crashes
     fleet_guard.fail_closed_decision = lambda: failure_decision
+    fleet_guard.has_hazard_hint = lambda *, raw: hinted and command in raw
     guards: dict[str, ModuleType] = {"fleet_host_guard": fleet_guard}
     for name in dispatcher.GUARD_MODULE_NAMES:
         if name == "fleet_host_guard":
@@ -314,7 +312,49 @@ def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
         guards[name] = guard
 
     monkeypatch.setattr(dispatcher, "_load_guard", lambda name: guards[name])
-    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command="git status")))
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command=command)))
+    return evaluated
+
+
+@pytest.mark.integration
+def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
+    monkeypatch, capsys
+) -> None:
+    dispatcher = _load_dispatcher()
+    failure_decision = '{"fleet_host_guard": "fail-closed"}\n'
+    evaluated = _run_with_crashing_fleet_guard(
+        dispatcher=dispatcher,
+        monkeypatch=monkeypatch,
+        command="ssh fleet-host uptime",
+        hinted=True,
+        failure_decision=failure_decision,
+    )
     assert dispatcher.main() == 0
     assert capsys.readouterr().out == failure_decision
     assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)
+
+
+@pytest.mark.integration
+def test_crashing_fail_closed_guard_allows_a_payload_without_a_hazard_hint(
+    monkeypatch, capsys
+) -> None:
+    dispatcher = _load_dispatcher()
+    evaluated = _run_with_crashing_fleet_guard(
+        dispatcher=dispatcher,
+        monkeypatch=monkeypatch,
+        command="git status",
+        hinted=False,
+        failure_decision='{"fleet_host_guard": "fail-closed"}\n',
+    )
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == ""
+    assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)
+
+
+def test_fleet_guard_exposes_its_standalone_hazard_hint_judgement() -> None:
+    """The dispatcher judges the fail-closed trigger with the guard's own hint rule."""
+    if str(_HOOKS_DIR) not in sys.path:
+        sys.path.insert(0, str(_HOOKS_DIR))
+    fleet_guard = importlib.import_module("fleet_host_guard")
+
+    assert not fleet_guard.has_hazard_hint(raw=_bash_payload(command="git status"))
