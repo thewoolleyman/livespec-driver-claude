@@ -7,6 +7,7 @@ import io
 import json
 import sys
 from pathlib import Path
+from types import ModuleType
 
 __all__: list[str] = []
 
@@ -28,6 +29,10 @@ def _load_dispatcher():
         sys.path.insert(0, str(_HOOKS_DIR))
     sys.modules.pop("pretooluse_dispatch", None)
     return importlib.import_module("pretooluse_dispatch")
+
+
+def _bash_payload(*, command: str) -> str:
+    return json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
 
 
 def test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guards(
@@ -65,3 +70,57 @@ def test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guar
             ],
         }
     ]
+
+
+def test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call(
+    monkeypatch, capsys
+) -> None:
+    dispatcher = _load_dispatcher()
+    evaluated: list[str] = []
+    deny = json.dumps(
+        {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": "the next guard's standalone reason",
+            }
+        }
+    )
+
+    def crashing_main() -> int:
+        evaluated.append("github_rate_limit_guard")
+        raise RuntimeError("fail open")
+
+    def denying_main() -> int:
+        evaluated.append("tmux_fleet_guard")
+        _ = sys.stdout.write(deny + "\n")
+        return 0
+
+    def allowing_main(*, name: str) -> int:
+        evaluated.append(name)
+        return 0
+
+    guards: dict[str, ModuleType] = {
+        "github_rate_limit_guard": ModuleType("github_rate_limit_guard"),
+        "tmux_fleet_guard": ModuleType("tmux_fleet_guard"),
+        "block_raw_bd_create": ModuleType("block_raw_bd_create"),
+        "fleet_host_guard": ModuleType("fleet_host_guard"),
+        "block_auto_memory": ModuleType("block_auto_memory"),
+    }
+    guards["github_rate_limit_guard"].main = crashing_main
+    guards["tmux_fleet_guard"].main = denying_main
+    for name in ("block_raw_bd_create", "fleet_host_guard", "block_auto_memory"):
+        guards[name].main = lambda name=name: allowing_main(name=name)
+
+    monkeypatch.setattr(dispatcher, "_load_guard", lambda name: guards[name], raising=False)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command="git status")))
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == deny + "\n"
+    assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)
+
+    evaluated.clear()
+    guards["tmux_fleet_guard"].main = lambda: allowing_main(name="tmux_fleet_guard")
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command="git status")))
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == ""
+    assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)
