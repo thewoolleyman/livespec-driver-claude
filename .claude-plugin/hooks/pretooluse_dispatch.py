@@ -71,11 +71,8 @@ def _runs_in_process(*, guard: ModuleType, raw: str) -> tuple[int, str, str]:
     return result, stdout.getvalue(), stderr.getvalue()
 
 
-def _denies(*, result: tuple[int, str, str]) -> bool:
-    """Whether a standalone-shaped result refuses the tool call."""
-    exit_code, stdout, _ = result
-    if exit_code == 2 or isinstance(result, _FailClosedResult):
-        return True
+def _is_deny_output(*, stdout: str) -> bool:
+    """Whether a guard's stdout is a protocol-shaped refusal decision."""
     try:
         payload = _as_object_dict(value=json.loads(stdout))
     except ValueError:
@@ -84,6 +81,12 @@ def _denies(*, result: tuple[int, str, str]) -> bool:
         return False
     specific = _as_object_dict(value=payload.get("hookSpecificOutput"))
     return specific is not None and specific.get("permissionDecision") == "deny"
+
+
+def _denies(*, result: tuple[int, str, str]) -> bool:
+    """Whether a standalone-shaped result refuses the tool call."""
+    exit_code, stdout, _ = result
+    return exit_code == 2 or isinstance(result, _FailClosedResult) or _is_deny_output(stdout=stdout)
 
 
 def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
