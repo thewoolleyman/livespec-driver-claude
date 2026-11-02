@@ -124,3 +124,57 @@ def test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call(
     assert dispatcher.main() == 0
     assert capsys.readouterr().out == ""
     assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)
+
+
+def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
+    monkeypatch, capsys
+) -> None:
+    dispatcher = _load_dispatcher()
+    prior_deny = (0, '{"prior": "deny"}\n', "")
+    fallback_deny = (0, '{"fallback": "deny"}\n', "")
+    first_guard, failing_guard, *remaining_guards = dispatcher.GUARD_MODULE_NAMES
+    fallback_runs: list[str] = []
+
+    def is_deny(*, result: tuple[int, str, str]) -> bool:
+        return result in (prior_deny, fallback_deny)
+
+    def fails_after_prior(*, name: str, raw: str) -> tuple[int, str, str]:
+        assert raw == _bash_payload(command="git status")
+        if name == first_guard:
+            return prior_deny
+        assert name == failing_guard
+        raise RuntimeError("dispatcher broke")
+
+    def fallback_allows(*, name: str, raw: str) -> tuple[int, str, str]:
+        assert raw == _bash_payload(command="git status")
+        fallback_runs.append(name)
+        return 0, "", ""
+
+    monkeypatch.setattr(dispatcher, "_denies", is_deny)
+    monkeypatch.setattr(dispatcher, "_evaluate_guard", fails_after_prior)
+    monkeypatch.setattr(dispatcher, "_run_standalone", fallback_allows, raising=False)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command="git status")))
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == prior_deny[1]
+    assert fallback_runs == [failing_guard, *remaining_guards]
+
+    fallback_runs.clear()
+
+    def allows_before_failure(*, name: str, raw: str) -> tuple[int, str, str]:
+        assert raw == _bash_payload(command="git status")
+        if name == first_guard:
+            return 0, "", ""
+        assert name == failing_guard
+        raise RuntimeError("dispatcher broke")
+
+    def fallback_refuses_once(*, name: str, raw: str) -> tuple[int, str, str]:
+        assert raw == _bash_payload(command="git status")
+        fallback_runs.append(name)
+        return fallback_deny if name == failing_guard else (0, "", "")
+
+    monkeypatch.setattr(dispatcher, "_evaluate_guard", allows_before_failure)
+    monkeypatch.setattr(dispatcher, "_run_standalone", fallback_refuses_once)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_bash_payload(command="git status")))
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == fallback_deny[1]
+    assert fallback_runs == [failing_guard, *remaining_guards]
