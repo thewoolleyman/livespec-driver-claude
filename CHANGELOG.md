@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.13.0...v0.14.0) (2026-11-02)
+
+
+### Features
+
+* delegate pre-commit aggregate ([be44ed6](https://github.com/thewoolleyman/livespec-driver-claude/commit/be44ed605b3b928e43cfe46b001424ec47eaab8d))
+* opt into delegated pre-commit checks ([1dfc40a](https://github.com/thewoolleyman/livespec-driver-claude/commit/1dfc40a4c957b283c56e90aab98f891a25d80706))
+
 ## [0.13.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.12.1...v0.13.0) (2026-11-02)
 
 
