@@ -407,10 +407,16 @@ check-commit-pairs-source-and-test:
 check-red-green-replay *args:
     uv run python -m livespec_dev_tooling.checks.red_green_replay "$@"
 
-# Fast pre-commit subset (no test run; pre-push runs the full
-# aggregate).
+# The delegate returns 75 only when this host must retain the local gate; a
+# delegated pass returns 0 and a delegated failure refuses the commit. The
+# staged-tree Job enters through check-pre-commit-gated-tree, which restores the
+# staged index and sets LIVESPEC_GATE_CONTEXT to prevent recursive delegation.
 check-pre-commit:
     bash dev-tooling/just/check-pre-commit.sh
+
+# Fast pre-commit subset (no test run; pre-push runs the full aggregate).
+check-pre-commit-local:
+    bash dev-tooling/just/check-pre-commit-local.sh
 
 check-pre-push:
     bash dev-tooling/just/check-pre-push.sh
