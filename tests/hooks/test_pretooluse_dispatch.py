@@ -134,6 +134,7 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     fallback_deny = (0, '{"fallback": "deny"}\n', "")
     first_guard, failing_guard, *remaining_guards = dispatcher.GUARD_MODULE_NAMES
     fallback_runs: list[str] = []
+    fallback_inputs: list[str] = []
 
     def is_deny(*, result: tuple[int, str, str]) -> bool:
         return result in (prior_deny, fallback_deny)
@@ -148,6 +149,7 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     def fallback_allows(*, name: str, raw: str) -> tuple[int, str, str]:
         assert raw == _bash_payload(command="git status")
         fallback_runs.append(name)
+        fallback_inputs.append(raw)
         return 0, "", ""
 
     monkeypatch.setattr(dispatcher, "_denies", is_deny)
@@ -157,8 +159,10 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     assert dispatcher.main() == 0
     assert capsys.readouterr().out == prior_deny[1]
     assert fallback_runs == [failing_guard, *remaining_guards]
+    assert fallback_inputs == [_bash_payload(command="git status")] * len(fallback_runs)
 
     fallback_runs.clear()
+    fallback_inputs.clear()
 
     def allows_before_failure(*, name: str, raw: str) -> tuple[int, str, str]:
         assert raw == _bash_payload(command="git status")
@@ -170,6 +174,7 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     def fallback_refuses_once(*, name: str, raw: str) -> tuple[int, str, str]:
         assert raw == _bash_payload(command="git status")
         fallback_runs.append(name)
+        fallback_inputs.append(raw)
         return fallback_deny if name == failing_guard else (0, "", "")
 
     monkeypatch.setattr(dispatcher, "_evaluate_guard", allows_before_failure)
@@ -178,6 +183,27 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     assert dispatcher.main() == 0
     assert capsys.readouterr().out == fallback_deny[1]
     assert fallback_runs == [failing_guard, *remaining_guards]
+    assert fallback_inputs == [_bash_payload(command="git status")] * len(fallback_runs)
+
+    class BrokenInput:
+        def read(self) -> str:
+            raise OSError("stdin is unreadable")
+
+    fallback_runs.clear()
+    fallback_inputs.clear()
+    monkeypatch.setattr(sys, "stdin", BrokenInput())
+
+    def fallback_after_read_failure(*, name: str, raw: str) -> tuple[int, str, str]:
+        assert raw == ""
+        fallback_runs.append(name)
+        fallback_inputs.append(raw)
+        return 0, "", ""
+
+    monkeypatch.setattr(dispatcher, "_run_standalone", fallback_after_read_failure)
+    assert dispatcher.main() == 0
+    assert capsys.readouterr().out == ""
+    assert fallback_runs == list(dispatcher.GUARD_MODULE_NAMES)
+    assert fallback_inputs == [""] * len(fallback_runs)
 
 
 def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
