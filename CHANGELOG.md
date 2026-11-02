@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.14.0...v0.15.0) (2026-11-02)
+
+
+### Features
+
+* delegate pre-commit aggregate ([f977468](https://github.com/thewoolleyman/livespec-driver-claude/commit/f977468ebbf55bddcb37f7362f9c97311e20e962))
+* gate the staged pre-commit tree ([235a90b](https://github.com/thewoolleyman/livespec-driver-claude/commit/235a90b82df02313c16c7eaae41d362ff1216ae3))
+* preserve gate bootstrap for pre-commit ([fb3fd58](https://github.com/thewoolleyman/livespec-driver-claude/commit/fb3fd58dff5d3ee2b01f66dd62b49487d2038167))
+* route pre-commit through gate delegate ([22c6bf9](https://github.com/thewoolleyman/livespec-driver-claude/commit/22c6bf90cccfe6e0727cd3000859d51d8d3771fc))
+
 ## [0.14.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.13.0...v0.14.0) (2026-11-02)
 
 
