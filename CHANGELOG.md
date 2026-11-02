@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.12.1...v0.13.0) (2026-11-02)
+
+
+### Features
+
+* dispatch Bash PreToolUse guards ([2735643](https://github.com/thewoolleyman/livespec-driver-claude/commit/273564301292e17ada5a2c6310db7df74b3b6807))
+* fail closed for fleet guard dispatch crashes ([8beba64](https://github.com/thewoolleyman/livespec-driver-claude/commit/8beba649725bf37b9bd206ef67af8cbedc5d6a39))
+* fall back when Bash guard dispatch fails ([2526312](https://github.com/thewoolleyman/livespec-driver-claude/commit/252631276dda05978624de5e757b8dc6ed2b6080))
+* preserve Bash guard failure postures ([a04e1ca](https://github.com/thewoolleyman/livespec-driver-claude/commit/a04e1ca1ee6e61b0267361fd912814216294b506))
+
+
+### Bug Fixes
+
+* allow benign Bash payloads when the fleet guard crashes under the dispatcher ([7b269c9](https://github.com/thewoolleyman/livespec-driver-claude/commit/7b269c9cc29f12ee0587e5e53b85ad8d2cbf5e8f))
+* fall back when Bash payload read fails ([a965039](https://github.com/thewoolleyman/livespec-driver-claude/commit/a9650396859338c5dd57c24011357f368d15d13d))
+
 ## [0.12.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.12.0...v0.12.1) (2026-10-30)
 
 
