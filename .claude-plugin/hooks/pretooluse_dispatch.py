@@ -103,10 +103,15 @@ def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
     return 0, "", ""
 
 
+def _standalone_command(*, name: str) -> list[str]:
+    """Build the unchanged standalone command for one unvisited guard."""
+    return [sys.executable, str(Path(__file__).with_name(f"{name}.py"))]
+
+
 def _run_standalone(*, name: str, raw: str) -> tuple[int, str, str]:
     """Run an unvisited guard through its standalone executable after dispatcher failure."""
     completed = subprocess.run(
-        [sys.executable, str(Path(__file__).with_name(f"{name}.py"))],
+        _standalone_command(name=name),
         input=raw,
         capture_output=True,
         text=True,
