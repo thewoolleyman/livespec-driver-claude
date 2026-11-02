@@ -115,8 +115,13 @@ def _emit(*, result: tuple[int, str, str]) -> int:
 
 def main() -> int:
     """Evaluate every Bash-matched guard and retain the first refusal in dispatch order."""
-    raw = sys.stdin.read()
+    raw = ""
     refusal: tuple[int, str, str] | None = None
+    try:
+        raw = sys.stdin.read()
+    except Exception:  # noqa: BLE001 -- dispatcher boundary; run every standalone guard.
+        fallback = _fallback(index=0, raw=raw, refusal=refusal)
+        return 0 if fallback is None else _emit(result=fallback)
     for index, name in enumerate(GUARD_MODULE_NAMES):
         try:
             result = _evaluate_guard(name=name, raw=raw)
