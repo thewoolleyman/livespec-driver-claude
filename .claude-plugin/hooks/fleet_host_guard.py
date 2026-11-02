@@ -191,6 +191,14 @@ def _has_hazard_hint(*, raw: str) -> bool:
     return hazard_hint(command=_hinted_text(raw=raw), hosts=FALLBACK_HOSTS)
 
 
+def fail_closed_decision() -> str:
+    """Build the fleet guard's standalone fail-closed refusal for a dispatcher boundary."""
+    topic = _GENERIC_TOPIC
+    with contextlib.suppress(OSError):
+        topic = _topic_reference(project_dir=_project_dir())
+    return _deny_decision(rule="classification-failure", topic=topic)
+
+
 def main() -> int:
     """Guard entry point: deny hinted hazards even when classification fails; exit 0."""
     raw = ""
@@ -210,14 +218,8 @@ def main() -> int:
             )
     except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
         if not settled and _has_hazard_hint(raw=raw):
-            topic = _GENERIC_TOPIC
-            # The project's own topic routes the denied agent here too — this is
-            # the path that denies when the guard understood the command LEAST.
-            # A failure reading it costs the ROUTE, never the denial.
             with contextlib.suppress(OSError):
-                topic = _topic_reference(project_dir=_project_dir())
-            with contextlib.suppress(OSError):
-                decision = _deny_decision(rule="classification-failure", topic=topic)
+                decision = fail_closed_decision()
                 _ = sys.stdout.write(decision + "\n")
     return 0
 

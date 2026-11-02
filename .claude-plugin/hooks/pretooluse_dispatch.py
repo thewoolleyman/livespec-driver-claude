@@ -23,6 +23,10 @@ GUARD_MODULE_NAMES = (
 )
 
 
+class _FailClosedOutput(str):
+    """A malformed fail-closed output must still refuse, unlike a malformed fail-open result."""
+
+
 def _load_guard(*, name: str) -> ModuleType:
     """Import one installed guard from the plugin bundle."""
     return importlib.import_module(name)
@@ -47,7 +51,7 @@ def _runs_in_process(*, guard: ModuleType, raw: str) -> tuple[int, str, str]:
 def _denies(*, result: tuple[int, str, str]) -> bool:
     """Whether a standalone-shaped result refuses the tool call."""
     exit_code, stdout, _ = result
-    if exit_code == 2:
+    if exit_code == 2 or isinstance(stdout, _FailClosedOutput):
         return True
     try:
         payload = json.loads(stdout)
@@ -61,9 +65,14 @@ def _denies(*, result: tuple[int, str, str]) -> bool:
 
 def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
     """Apply an individual guard's fail-open boundary without stopping later guards."""
+    guard = _load_guard(name=name)
     try:
-        return _runs_in_process(guard=_load_guard(name=name), raw=raw)
+        return _runs_in_process(guard=guard, raw=raw)
     except Exception:  # noqa: BLE001 -- per-guard fail-open boundary; fleet is added separately below.
+        if name == "fleet_host_guard":
+            decision = guard.fail_closed_decision()
+            output = decision if decision.endswith("\n") else decision + "\n"
+            return 0, _FailClosedOutput(output), ""
         return 0, "", ""
 
 
