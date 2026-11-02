@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import io
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -52,6 +53,63 @@ def test_denial_output_must_be_a_protocol_object() -> None:
         stdout='{"hookSpecificOutput": {"permissionDecision": "deny"}}'
     )
     assert not dispatcher._is_deny_output(stdout='{"permissionDecision": "deny"}')
+
+
+def test_standalone_command_uses_the_installed_guard_script() -> None:
+    """Fallback preserves the standalone executable shape for each unvisited guard."""
+    dispatcher = _load_dispatcher()
+
+    assert dispatcher._standalone_command(name="tmux_fleet_guard") == [
+        sys.executable,
+        str(_HOOKS_DIR / "tmux_fleet_guard.py"),
+    ]
+
+
+def test_malformed_and_non_object_guard_outputs_fail_open() -> None:
+    dispatcher = _load_dispatcher()
+
+    assert not dispatcher._is_deny_output(stdout="{")
+    assert not dispatcher._is_deny_output(stdout="[]")
+
+
+def test_non_integer_guard_result_is_not_a_valid_standalone_boundary() -> None:
+    dispatcher = _load_dispatcher()
+    guard = ModuleType("invalid_guard")
+    guard.main = lambda: True
+
+    with pytest.raises(TypeError):
+        dispatcher._runs_in_process(guard=guard, raw="")
+
+
+def test_standalone_and_emit_failure_boundaries_preserve_exit_two(monkeypatch, capsys) -> None:
+    dispatcher = _load_dispatcher()
+    expected = subprocess.CompletedProcess(args=[], returncode=2, stdout="", stderr="refusal\n")
+    monkeypatch.setattr(dispatcher.subprocess, "run", lambda *_args, **_kwargs: expected)
+
+    assert dispatcher._run_standalone(name="tmux_fleet_guard", raw="payload") == (
+        2,
+        "",
+        "refusal\n",
+    )
+    assert dispatcher._emit(result=(2, "", "refusal\n")) == 2
+    assert capsys.readouterr().err == "refusal\n"
+
+
+def test_fallback_continues_when_one_standalone_process_cannot_start(monkeypatch) -> None:
+    dispatcher = _load_dispatcher()
+    runs: list[str] = []
+
+    def unavailable_once(*, name: str, raw: str) -> tuple[int, str, str]:
+        _ = raw
+        runs.append(name)
+        if name == dispatcher.GUARD_MODULE_NAMES[0]:
+            raise OSError("not executable")
+        return 0, "", ""
+
+    monkeypatch.setattr(dispatcher, "_run_standalone", unavailable_once)
+
+    assert dispatcher._fallback(index=0, raw="payload", refusal=None) is None
+    assert runs == list(dispatcher.GUARD_MODULE_NAMES)
 
 
 @pytest.mark.integration
