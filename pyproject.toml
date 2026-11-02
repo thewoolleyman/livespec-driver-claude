@@ -296,6 +296,7 @@ supervisor_entry_files = [
     ".claude-plugin/hooks/block_auto_memory.py",
     ".claude-plugin/hooks/block_raw_bd_create.py",
     ".claude-plugin/hooks/github_rate_limit_guard.py",
+    ".claude-plugin/hooks/pretooluse_dispatch.py",
     ".claude-plugin/hooks/warn_plan_persistence.py",
     ".claude-plugin/hooks/no_shadow_ledger.py",
     ".claude-plugin/hooks/primary_checkout_playwright_guard.py",

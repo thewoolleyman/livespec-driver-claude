@@ -378,7 +378,7 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
     "test": "tests.hooks.test_pretooluse_dispatch.test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guards",
-    "reason": "The manifest test pins the single Bash dispatcher registration, every Bash-matched guard name, and the separate file-tool registration for block_auto_memory.py.",
+    "reason": "Integration-tier (subprocess boundary): the manifest-facing dispatcher test pins the single Bash registration, every Bash-matched guard name, and the separate file-tool registration for block_auto_memory.py.",
     "work_item": "livespec-driver-claude-7jcy3u"
   },
   {
@@ -386,7 +386,7 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call",
     "test": "tests.hooks.test_pretooluse_dispatch.test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call",
-    "reason": "The dispatcher test makes one fail-open guard raise, then proves every peer still runs and that both a peer refusal and an all-allow run preserve their standalone outcomes.",
+    "reason": "Integration-tier (hook boundary): the dispatcher test makes one fail-open guard raise, then proves every peer still runs and that both a peer refusal and an all-allow run preserve their standalone outcomes.",
     "work_item": "livespec-driver-claude-7jcy3u"
   },
   {
@@ -394,7 +394,7 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still refuses the call",
     "test": "tests.hooks.test_pretooluse_dispatch.test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs",
-    "reason": "The dispatcher test makes fleet_host_guard.py raise and proves its fail-closed decision is emitted while all peers still run.",
+    "reason": "Integration-tier (hook boundary): the dispatcher test makes fleet_host_guard.py raise and proves its fail-closed decision is emitted while all peers still run.",
     "work_item": "livespec-driver-claude-7jcy3u"
   },
   {
@@ -402,7 +402,7 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards",
     "test": "tests.hooks.test_pretooluse_dispatch.test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard",
-    "reason": "The dispatcher test proves every unvisited guard is run standalone after a dispatcher failure, retaining an earlier refusal and selecting a fallback refusal when no earlier guard denied.",
+    "reason": "Integration-tier (hook boundary): the dispatcher test proves every unvisited guard is run standalone after a dispatcher failure, retaining an earlier refusal and selecting a fallback refusal when no earlier guard denied.",
     "work_item": "livespec-driver-claude-7jcy3u"
   }
 ]

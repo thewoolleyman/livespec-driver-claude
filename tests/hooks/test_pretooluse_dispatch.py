@@ -35,6 +35,13 @@ def _bash_payload(*, command: str) -> str:
     return json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
 
 
+def test_non_object_guard_output_fails_open() -> None:
+    """A guard's malformed stdout cannot turn an otherwise-allowed call into a deny."""
+    dispatcher = _load_dispatcher()
+
+    assert dispatcher._as_object_dict(value=[]) is None
+
+
 def test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guards(
     monkeypatch, capsys
 ) -> None:
