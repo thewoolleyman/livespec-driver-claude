@@ -9,8 +9,11 @@ import io
 import json
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
+from typing import NamedTuple, cast
 
 __all__: list[str] = []
 
@@ -23,8 +26,28 @@ GUARD_MODULE_NAMES = (
 )
 
 
-class _FailClosedOutput(str):
-    """A malformed fail-closed output must still refuse, unlike a malformed fail-open result."""
+@dataclass
+class _DispatchState:
+    """The completed dispatch state retained if the dispatcher boundary fails."""
+
+    raw: str = ""
+    index: int = 0
+    refusal: tuple[int, str, str] | None = None
+
+
+class _FailClosedResult(NamedTuple):
+    """A fleet failure stays refused even when its refusal payload is malformed."""
+
+    exit_code: int
+    stdout: str
+    stderr: str
+
+
+def _as_object_dict(*, value: object) -> dict[str, object] | None:
+    """Narrow an arbitrary JSON value to a string-keyed object, else None."""
+    if isinstance(value, dict):
+        return cast("dict[str, object]", value)
+    return None
 
 
 def _load_guard(*, name: str) -> ModuleType:
@@ -51,29 +74,30 @@ def _runs_in_process(*, guard: ModuleType, raw: str) -> tuple[int, str, str]:
 def _denies(*, result: tuple[int, str, str]) -> bool:
     """Whether a standalone-shaped result refuses the tool call."""
     exit_code, stdout, _ = result
-    if exit_code == 2 or isinstance(stdout, _FailClosedOutput):
+    if exit_code == 2 or isinstance(result, _FailClosedResult):
         return True
     try:
-        payload = json.loads(stdout)
+        payload = _as_object_dict(value=json.loads(stdout))
     except ValueError:
         return False
-    if not isinstance(payload, dict):
+    if payload is None:
         return False
-    specific = payload.get("hookSpecificOutput")
-    return isinstance(specific, dict) and specific.get("permissionDecision") == "deny"
+    specific = _as_object_dict(value=payload.get("hookSpecificOutput"))
+    return specific is not None and specific.get("permissionDecision") == "deny"
 
 
 def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
     """Apply an individual guard's fail-open boundary without stopping later guards."""
     guard = _load_guard(name=name)
-    try:
-        return _runs_in_process(guard=guard, raw=raw)
-    except Exception:  # noqa: BLE001 -- per-guard fail-open boundary; fleet is added separately below.
-        if name == "fleet_host_guard":
-            decision = guard.fail_closed_decision()
-            output = decision if decision.endswith("\n") else decision + "\n"
-            return 0, _FailClosedOutput(output), ""
-        return 0, "", ""
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_runs_in_process, guard=guard, raw=raw)
+        if future.exception() is None:
+            return future.result()
+    if name == "fleet_host_guard":
+        decision = guard.fail_closed_decision()
+        output = decision if decision.endswith("\n") else decision + "\n"
+        return _FailClosedResult(exit_code=0, stdout=output, stderr="")
+    return 0, "", ""
 
 
 def _run_standalone(*, name: str, raw: str) -> tuple[int, str, str]:
@@ -113,24 +137,25 @@ def _emit(*, result: tuple[int, str, str]) -> int:
     return 0
 
 
-def main() -> int:
-    """Evaluate every Bash-matched guard and retain the first refusal in dispatch order."""
-    raw = ""
-    refusal: tuple[int, str, str] | None = None
-    try:
-        raw = sys.stdin.read()
-    except Exception:  # noqa: BLE001 -- dispatcher boundary; run every standalone guard.
-        fallback = _fallback(index=0, raw=raw, refusal=refusal)
-        return 0 if fallback is None else _emit(result=fallback)
+def _dispatch(*, state: _DispatchState) -> int:
+    """Evaluate guards in registration order, retaining the first refusal."""
+    state.raw = sys.stdin.read()
     for index, name in enumerate(GUARD_MODULE_NAMES):
-        try:
-            result = _evaluate_guard(name=name, raw=raw)
-        except Exception:  # noqa: BLE001 -- dispatcher boundary; preserve standalone guards.
-            fallback = _fallback(index=index, raw=raw, refusal=refusal)
-            return 0 if fallback is None else _emit(result=fallback)
-        if refusal is None and _denies(result=result):
-            refusal = result
-    return 0 if refusal is None else _emit(result=refusal)
+        state.index = index
+        result = _evaluate_guard(name=name, raw=state.raw)
+        if state.refusal is None and _denies(result=result):
+            state.refusal = result
+    return 0 if state.refusal is None else _emit(result=state.refusal)
+
+
+def main() -> int:
+    """Dispatch every guard, then complete any interrupted dispatch standalone."""
+    state = _DispatchState()
+    try:
+        return _dispatch(state=state)
+    except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
+        fallback = _fallback(index=state.index, raw=state.raw, refusal=state.refusal)
+        return 0 if fallback is None else _emit(result=fallback)
 
 
 if __name__ == "__main__":
