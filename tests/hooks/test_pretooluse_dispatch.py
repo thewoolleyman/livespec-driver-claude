@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -42,6 +44,17 @@ def test_non_object_guard_output_fails_open() -> None:
     assert dispatcher._as_object_dict(value=[]) is None
 
 
+def test_denial_output_must_be_a_protocol_object() -> None:
+    """Only a protocol-shaped denial JSON is a refusal."""
+    dispatcher = _load_dispatcher()
+
+    assert dispatcher._is_deny_output(
+        stdout='{"hookSpecificOutput": {"permissionDecision": "deny"}}'
+    )
+    assert not dispatcher._is_deny_output(stdout='{"permissionDecision": "deny"}')
+
+
+@pytest.mark.integration
 def test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guards(
     monkeypatch, capsys
 ) -> None:
@@ -79,6 +92,7 @@ def test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guar
     ]
 
 
+@pytest.mark.integration
 def test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call(
     monkeypatch, capsys
 ) -> None:
@@ -133,6 +147,7 @@ def test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call(
     assert evaluated == list(dispatcher.GUARD_MODULE_NAMES)
 
 
+@pytest.mark.integration
 def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     monkeypatch, capsys
 ) -> None:
@@ -213,6 +228,7 @@ def test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard(
     assert fallback_inputs == [""] * len(fallback_runs)
 
 
+@pytest.mark.integration
 def test_crashing_fail_closed_guard_refuses_while_every_other_guard_runs(
     monkeypatch, capsys
 ) -> None:
