@@ -176,6 +176,9 @@ file_lloc_hard_gate = true
 # §"Delegated pre-push gate"); a host without the gates credential still gates
 # locally. Withdrawn only by changing this key, never per push or per host.
 delegated_gate = true
+# The dev host delegates this commit-time aggregate when it can submit a gates
+# Job; sandbox and credentialless hosts retain the local pre-commit gate.
+delegated_pre_commit = true
 repo_local_ci_skips = [
     { slug = "check-no-workflow-edits", reason = "Local and janitor authorship control; the canonical guard explicitly exits without evaluation under GITHUB_ACTIONS because CI has no local author to control." },
 ]
