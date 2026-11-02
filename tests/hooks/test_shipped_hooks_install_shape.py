@@ -161,6 +161,7 @@ _ALLOW_COMMANDS = (
 # hook that cannot even START on a benign payload is broken for every payload,
 # so this is the cheapest possible detector for the packaging defect.
 _BENIGN_PAYLOADS = (
+    ("pretooluse_dispatch.py", {"tool_name": "Bash", "tool_input": {"command": "git status"}}),
     ("tmux_fleet_guard.py", {"tool_name": "Bash", "tool_input": {"command": "git status --short"}}),
     (
         "block_auto_memory.py",
