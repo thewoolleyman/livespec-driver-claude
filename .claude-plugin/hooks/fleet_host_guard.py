@@ -186,7 +186,7 @@ def _hinted_text(*, raw: str) -> str:
     return text
 
 
-def _has_hazard_hint(*, raw: str) -> bool:
+def has_hazard_hint(*, raw: str) -> bool:
     """The fail-closed trigger, judged against the fallback set — resolution may be what failed."""
     return hazard_hint(command=_hinted_text(raw=raw), hosts=FALLBACK_HOSTS)
 
@@ -217,7 +217,7 @@ def main() -> int:
                 attributes={"host_source": verdict.host_source},
             )
     except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
-        if not settled and _has_hazard_hint(raw=raw):
+        if not settled and has_hazard_hint(raw=raw):
             with contextlib.suppress(OSError):
                 decision = fail_closed_decision()
                 _ = sys.stdout.write(decision + "\n")

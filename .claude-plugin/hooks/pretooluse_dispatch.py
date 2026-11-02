@@ -96,7 +96,7 @@ def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
         future = executor.submit(_runs_in_process, guard=guard, raw=raw)
         if future.exception() is None:
             return future.result()
-    if name == "fleet_host_guard":
+    if name == "fleet_host_guard" and guard.has_hazard_hint(raw=raw):
         decision = guard.fail_closed_decision()
         output = decision if decision.endswith("\n") else decision + "\n"
         return _FailClosedResult(exit_code=0, stdout=output, stderr="")
