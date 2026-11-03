@@ -17,7 +17,7 @@ __all__: list[str] = []
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _HOOKS_DIR = _REPO_ROOT / ".claude-plugin" / "hooks"
 _DISPATCHER = _HOOKS_DIR / "pretooluse_dispatch.py"
-_DISPATCH_COMMAND = 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"'
+_DISPATCH_COMMAND = '/usr/bin/python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"'
 _BASH_GUARDS = (
     "tmux_fleet_guard",
     "github_rate_limit_guard",

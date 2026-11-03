@@ -177,7 +177,9 @@ def test_hook_manifest_loads_rate_limit_guard_for_bash_pre_tool_use() -> None:
             "hooks": [
                 {
                     "type": "command",
-                    "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"',
+                    "command": (
+                        '/usr/bin/python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"'
+                    ),
                 },
             ],
         }

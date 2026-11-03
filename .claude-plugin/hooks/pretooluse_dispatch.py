@@ -9,7 +9,6 @@ import io
 import json
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -92,10 +91,10 @@ def _denies(*, result: tuple[int, str, str]) -> bool:
 def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
     """Apply an individual guard's fail-open boundary without stopping later guards."""
     guard = _load_guard(name=name)
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_runs_in_process, guard=guard, raw=raw)
-        if future.exception() is None:
-            return future.result()
+    try:
+        return _runs_in_process(guard=guard, raw=raw)
+    except Exception:  # noqa: BLE001 — a guard's own failure boundary is fail-open by contract
+        pass
     if name == "fleet_host_guard" and guard.has_hazard_hint(raw=raw):
         decision = guard.fail_closed_decision()
         output = decision if decision.endswith("\n") else decision + "\n"
