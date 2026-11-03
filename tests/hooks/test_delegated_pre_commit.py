@@ -25,7 +25,8 @@ def test_gate_suite_preserves_the_bootstrap_before_the_pre_commit_gate() -> None
     """The delegate can replace only the final aggregate with the gated-tree recipe."""
     assert load_gate_check_suite(repo_root=_REPO_ROOT) == (
         "install-worktree-pack",
-        "check-pre-commit",
+        "install-commit-refuse-hooks",
+        "check-pre-push",
     )
 
 
