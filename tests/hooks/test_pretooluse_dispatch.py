@@ -81,6 +81,19 @@ def test_non_integer_guard_result_is_not_a_valid_standalone_boundary() -> None:
         dispatcher._runs_in_process(guard=guard, raw="")
 
 
+def test_guard_main_crash_is_captured_at_its_isolation_seam() -> None:
+    """A dynamically imported guard cannot escape its per-guard failure boundary."""
+    dispatcher = _load_dispatcher()
+    guard = ModuleType("crashing_guard")
+
+    def crash() -> int:
+        raise RuntimeError("guard crash")
+
+    guard.main = crash
+
+    assert isinstance(dispatcher._invoke_guard_main(guard=guard), dispatcher._GuardCrash)
+
+
 def test_standalone_and_emit_failure_boundaries_preserve_exit_two(monkeypatch, capsys) -> None:
     dispatcher = _load_dispatcher()
     expected = subprocess.CompletedProcess(args=[], returncode=2, stdout="", stderr="refusal\n")
