@@ -42,6 +42,12 @@ class _FailClosedResult(NamedTuple):
     stderr: str
 
 
+class _GuardCrash(NamedTuple):
+    """A guard-main failure captured for its declared failure posture."""
+
+    error: Exception
+
+
 def _as_object_dict(*, value: object) -> dict[str, object] | None:
     """Narrow an arbitrary JSON value to a string-keyed object, else None."""
     if isinstance(value, dict):
@@ -54,7 +60,15 @@ def _load_guard(*, name: str) -> ModuleType:
     return importlib.import_module(name)
 
 
-def _runs_in_process(*, guard: ModuleType, raw: str) -> tuple[int, str, str]:
+def _invoke_guard_main(*, guard: ModuleType) -> int | _GuardCrash:
+    """Call a dynamically imported guard without letting its bug escape the seam."""
+    try:
+        return guard.main()
+    except Exception as error:  # noqa: BLE001 — foreign-code isolation: guard main crash captured as Exception, reported
+        return _GuardCrash(error=error)
+
+
+def _runs_in_process(*, guard: ModuleType, raw: str) -> tuple[int, str, str] | _GuardCrash:
     """Run a guard through its standalone boundary while capturing its hook output."""
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -62,9 +76,11 @@ def _runs_in_process(*, guard: ModuleType, raw: str) -> tuple[int, str, str]:
     try:
         sys.stdin = io.StringIO(raw)
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            result = guard.main()
+            result = _invoke_guard_main(guard=guard)
     finally:
         sys.stdin = original_stdin
+    if isinstance(result, _GuardCrash):
+        return result
     if type(result) is not int:
         raise TypeError(f"{guard.__name__}.main() returned {type(result).__name__}, not int")
     return result, stdout.getvalue(), stderr.getvalue()
@@ -91,10 +107,9 @@ def _denies(*, result: tuple[int, str, str]) -> bool:
 def _evaluate_guard(*, name: str, raw: str) -> tuple[int, str, str]:
     """Apply an individual guard's fail-open boundary without stopping later guards."""
     guard = _load_guard(name=name)
-    try:
-        return _runs_in_process(guard=guard, raw=raw)
-    except Exception:  # noqa: BLE001 — a guard's own failure boundary is fail-open by contract
-        pass
+    result = _runs_in_process(guard=guard, raw=raw)
+    if not isinstance(result, _GuardCrash):
+        return result
     if name == "fleet_host_guard" and guard.has_hazard_hint(raw=raw):
         decision = guard.fail_closed_decision()
         output = decision if decision.endswith("\n") else decision + "\n"
