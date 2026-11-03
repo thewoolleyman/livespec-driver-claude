@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.15.0...v0.15.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* bypass the Python shim for Bash PreToolUse hooks ([707d792](https://github.com/thewoolleyman/livespec-driver-claude/commit/707d79268a12d63eb900a1865b952fc69032a88d))
+
 ## [0.15.0](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.14.0...v0.15.0) (2026-11-02)
 
 
