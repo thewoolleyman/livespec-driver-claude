@@ -404,5 +404,13 @@
     "test": "tests.hooks.test_pretooluse_dispatch.test_dispatcher_failure_falls_back_to_each_remaining_standalone_guard",
     "reason": "Integration-tier (hook boundary): the dispatcher test proves every unvisited guard is run standalone after a dispatcher failure, retaining an earlier refusal and selecting a fallback refusal when no earlier guard denied.",
     "work_item": "livespec-driver-claude-7jcy3u"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a hand commit's passing delegated pre-commit verdict stands in at the pre-push gate",
+    "test": "TODO",
+    "reason": "Integration-tier: a real test at the integration tier or above is owed for this heading, exercising this repository's check-pre-push recipe calling `python -m livespec_dev_tooling.green_token pre-push-reuse` with its check-set member names: exit 0 submits no gate Job and runs no local `just check`, exit 3 gates the push as before, any other status refuses it. livespec-driver-claude-4wx4om owns it.",
+    "work_item": "livespec-driver-claude-4wx4om"
   }
 ]

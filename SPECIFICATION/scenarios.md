@@ -259,6 +259,8 @@ Given this repository's version-controlled configuration opts it in to delegatin
 
 And the pushing host holds the credential to submit to the remote executor
 
+And no delegated pre-commit run qualifies for the pushed tree
+
 When a git push of a new tree runs the pre-push gate
 
 Then the pre-push path MUST run the delegation client instead of running `just check` on the pushing host
@@ -266,3 +268,16 @@ Then the pre-push path MUST run the delegation client instead of running `just c
 And the push MUST complete only on a passing verdict from the executor
 
 And the push MUST be refused when the executor returns no verdict
+
+## Scenario: a hand commit's passing delegated pre-commit verdict stands in at the pre-push gate
+
+```gherkin
+Given this repository sets delegated_gate = true and delegated_pre_commit = true
+And a hand commit's delegated pre-commit gate Job J passed the full aggregate of clean staged tree T and recorded pre-push evidence naming J, T and the members it ran and passed
+And the pushing worktree is clean and its HEAD tree is T
+When the pre-push gate runs for that push
+Then it MUST run python -m livespec_dev_tooling.green_token pre-push-reuse with its check-set member names before it submits a gate Job or runs its local aggregate
+And when that command exits 0 it MUST submit no gate Job and MUST NOT run the local aggregate
+And when that command exits 3 it MUST gate the push exactly as it does with no such evidence
+And when that command exits with any other status it MUST refuse the push
+```
