@@ -76,7 +76,8 @@
   "external_references": {
     "livespec": [
       "SPECIFICATION/contracts.md §\"Plugin distribution\"",
-      "§\"Enforcement-suite invocation\""
+      "§\"Enforcement-suite invocation\"",
+      "§\"Shared content sync — copier template\""
     ],
     "livespec-dev-tooling": [
       "§\"Fabro factory registry\"",
