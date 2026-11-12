@@ -225,9 +225,9 @@ check:
     )
     # A green token memoizes only members whose verdict the committed tree alone
     # decides. Refuse an undeclared member before dispatching anything: the
-    # resolver names every omission, and the inventory keeps repo-private
-    # declarations beside the aggregate's ordered membership list.
-    if ! uv run python -m livespec_dev_tooling.green_token undeclared "${targets[@]}"; then
+    # guard first verifies that the inventory and aggregate have identical
+    # ordered membership, then names every purity omission.
+    if ! bash dev-tooling/just/check-purity.sh "${targets[@]}"; then
         exit 1
     fi
     # `SKIP_TARGETS` is the fleet's recognised skip contract, the one livespec's
