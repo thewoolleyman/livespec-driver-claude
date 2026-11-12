@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.2](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.15.1...v0.15.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **check:** declare aggregate purity ([f7c9d24](https://github.com/thewoolleyman/livespec-driver-claude/commit/f7c9d24f7d298accdf942f11b86ce594fcf2147e))
+* **check:** enforce aggregate purity inventory ([1525aad](https://github.com/thewoolleyman/livespec-driver-claude/commit/1525aad02910537714549fe7728bb8a01f6b42f2))
+
 ## [0.15.1](https://github.com/thewoolleyman/livespec-driver-claude/compare/v0.15.0...v0.15.1) (2026-11-03)
 
 
