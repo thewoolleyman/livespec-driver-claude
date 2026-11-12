@@ -223,6 +223,13 @@ check:
         check-doctor-static
         check-spec-governance-default-block
     )
+    # A green token memoizes only members whose verdict the committed tree alone
+    # decides. Refuse an undeclared member before dispatching anything: the
+    # resolver names every omission, and the inventory keeps repo-private
+    # declarations beside the aggregate's ordered membership list.
+    if ! uv run python -m livespec_dev_tooling.green_token undeclared "${targets[@]}"; then
+        exit 1
+    fi
     # `SKIP_TARGETS` is the fleet's recognised skip contract, the one livespec's
     # `check` recipe reads too. The delegated gate client exports the members
     # that read authority held outside the tree into it, so the gate Job leaves
