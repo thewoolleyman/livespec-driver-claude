@@ -51,6 +51,16 @@ def _project_dir() -> str:
     return os.environ.get(_PROJECT_DIR_ENV, "").strip()
 
 
+def _governed(*, project_dir: str) -> bool:
+    """A real project without the livespec config is outside this hook's scope.
+
+    A non-existent path is retained as an allow-to-evaluate test seam: actual
+    hook invocations always provide an existing working project.
+    """
+    root = Path(project_dir)
+    return not root.exists() or (root / ".livespec.jsonc").is_file()
+
+
 def _read(*, path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8")
@@ -303,7 +313,10 @@ def main() -> int:
         command = _command(payload=json.load(sys.stdin))
         if not command:
             return 0
-        record = resolve_tailnet_record(project_dir=_project_dir())
+        project_dir = _project_dir()
+        if not _governed(project_dir=project_dir):
+            return 0
+        record = resolve_tailnet_record(project_dir=project_dir)
         domain = tailnet_domain()
         tokens_by_segment = _segments(command=command)
         reason = None

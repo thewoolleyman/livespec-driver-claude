@@ -92,3 +92,40 @@ def test_transfer_to_a_recorded_machine_under_the_wrong_account_is_denied(
 
     assert reason is not None
     assert "documented account `opsuser`" in reason
+
+
+def test_non_livespec_project_passes_through_even_when_a_record_is_available(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The bundle may be installed broadly, but this guard is scoped to governed projects."""
+    hook = _load_hook()
+    monkeypatch.setattr(hook, "_project_dir", lambda: str(tmp_path))
+
+    def route_record(*, project_dir: str) -> object:
+        _ = project_dir
+        return hook.TailnetRecord(
+            machines={
+                "examplehost": hook.MachineRoute(
+                    machine="examplehost",
+                    account="opsuser",
+                    openssh=True,
+                    tailscale_ssh=False,
+                )
+            },
+            answered=True,
+        )
+
+    monkeypatch.setattr(
+        hook,
+        "resolve_tailnet_record",
+        route_record,
+    )
+    monkeypatch.setattr(hook, "tailnet_domain", lambda: "example-tailnet.ts.net")
+    monkeypatch.setattr(
+        sys, "stdin", StringIO(_payload(command="tailscale ssh opsuser@examplehost"))
+    )
+    stdout = StringIO()
+    with redirect_stdout(stdout):
+        assert hook.main() == 0
+
+    assert stdout.getvalue() == ""
