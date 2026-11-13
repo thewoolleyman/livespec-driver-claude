@@ -16,6 +16,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _HOOKS_DIR = _REPO_ROOT / ".claude-plugin" / "hooks"
 _HOOK_PATH = _HOOKS_DIR / "fleet_route_guard.py"
 _RECORD_PATH = _HOOKS_DIR / "_tailnet_record.py"
+_OPTIONS_PATH = _HOOKS_DIR / "_ssh_options.py"
 
 
 def _load_hook() -> ModuleType:
@@ -44,6 +45,24 @@ def test_tailnet_record_reading_is_a_cohesive_sibling_module() -> None:
     )
     assert record.machines["example"].account == "ops"
     assert hasattr(record_reader, "parse_tailnet_table")
+
+
+def test_ssh_option_reading_is_a_cohesive_sibling_module() -> None:
+    """Route policy delegates each client grammar to one option-reading boundary."""
+    assert _OPTIONS_PATH.is_file()
+    if str(_HOOKS_DIR) not in sys.path:
+        sys.path.insert(0, str(_HOOKS_DIR))
+    options = importlib.import_module("_ssh_options")
+
+    assert options.target(arguments=["-p", "2222", "ops@examplehost"]) == (
+        "examplehost",
+        "ops",
+        ["-p", "2222"],
+    )
+    assert options.transfer_target(
+        head="rsync",
+        arguments=["-e", "ssh -o User=ops", "./source", "examplehost:/tmp/"],
+    ) == ("examplehost", None, ["-o", "User=ops"])
 
 
 def test_tailscale_ssh_without_a_tailscale_server_names_the_documented_openssh_route(
