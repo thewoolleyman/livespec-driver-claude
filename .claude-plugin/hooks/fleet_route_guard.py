@@ -64,17 +64,34 @@ def _head(*, tokens: list[str]) -> tuple[str, list[str]] | None:
     return Path(tokens[index]).name.lower(), tokens[index + 1 :]
 
 
+_VALUE_OPTIONS = frozenset("BbcDEeFIiJLlmOopQRSWw")
+_RESOLUTION_OPTIONS = frozenset("FiJlop")
+
+
 def _target(*, arguments: list[str]) -> tuple[str | None, str | None, list[str]]:
     """Return target host, explicit account, and ssh options relevant to ``ssh -G``."""
     index = 0
     options: list[str] = []
-    while index < len(arguments) and arguments[index].startswith("-"):
-        option = arguments[index]
-        if option in {"-l", "-o"} and index + 1 < len(arguments):
-            options.extend([option, arguments[index + 1]])
-            index += 2
-        else:
-            index += 1
+    while index < len(arguments) and arguments[index].startswith("-") and arguments[index] != "-":
+        cluster = arguments[index]
+        index += 1
+        if cluster == "--":
+            break
+        position = 1
+        while position < len(cluster):
+            flag = cluster[position]
+            position += 1
+            if flag not in _VALUE_OPTIONS:
+                continue
+            value = cluster[position:]
+            if not value:
+                if index >= len(arguments):
+                    return None, None, options
+                value = arguments[index]
+                index += 1
+            if flag in _RESOLUTION_OPTIONS:
+                options.extend([f"-{flag}", value])
+            break
     if index >= len(arguments):
         return None, None, options
     target = arguments[index]

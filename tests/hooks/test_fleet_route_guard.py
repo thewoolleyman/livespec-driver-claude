@@ -158,3 +158,41 @@ def test_non_object_hook_payload_is_an_advisory_allow(monkeypatch) -> None:
         assert hook.main() == 0
 
     assert stdout.getvalue() == ""
+
+
+def test_value_taking_ssh_options_do_not_hide_the_target_host(monkeypatch) -> None:
+    """`ssh -p 2222 user@host` still resolves the host, and -p/-i reach `ssh -G`."""
+    hook = _load_hook()
+    record = hook.TailnetRecord(
+        machines={
+            "examplehost": hook.MachineRoute(
+                machine="examplehost", account="opsuser", openssh=True, tailscale_ssh=False
+            )
+        },
+        answered=True,
+    )
+    seen: list[list[str]] = []
+
+    def resolved(*, host: str, options: list[str]) -> str:
+        _ = host
+        seen.append(options)
+        return "wronguser"
+
+    monkeypatch.setattr(hook, "_resolved_account", resolved)
+
+    for arguments in (
+        ["-p", "2222", "wronguser@examplehost.example-tailnet.ts.net", "true"],
+        ["-i", "/tmp/key", "-p", "2222", "examplehost", "true"],
+        ["-J", "jump", "-F", "/tmp/cfg", "examplehost"],
+        ["-4A", "-p2222", "examplehost"],
+        ["-vp", "2222", "examplehost"],
+    ):
+        reason = hook._decide_segment(
+            tokens=["ssh", *arguments], record=record, domain="example-tailnet.ts.net"
+        )
+        assert reason is not None, arguments
+        assert "documented account `opsuser`" in reason
+
+    assert ["-p", "2222"] in [options[-2:] for options in seen if "-i" not in options]
+    assert any("-i" in options and "/tmp/key" in options for options in seen)
+    assert any("-F" in options and "/tmp/cfg" in options for options in seen)
