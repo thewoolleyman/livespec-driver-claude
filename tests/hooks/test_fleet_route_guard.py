@@ -196,3 +196,42 @@ def test_value_taking_ssh_options_do_not_hide_the_target_host(monkeypatch) -> No
     assert ["-p", "2222"] in [options[-2:] for options in seen if "-i" not in options]
     assert any("-i" in options and "/tmp/key" in options for options in seen)
     assert any("-F" in options and "/tmp/cfg" in options for options in seen)
+
+
+def test_sftp_options_do_not_hide_the_target_host(monkeypatch) -> None:
+    """`sftp -P 2222 user@host` resolves the host; -P is a port, -l is no login user."""
+    hook = _load_hook()
+    record = hook.TailnetRecord(
+        machines={
+            "examplehost": hook.MachineRoute(
+                machine="examplehost", account="opsuser", openssh=True, tailscale_ssh=False
+            )
+        },
+        answered=True,
+    )
+    seen: list[list[str]] = []
+
+    def resolved(*, host: str, options: list[str]) -> str:
+        _ = host
+        seen.append(options)
+        return "wronguser"
+
+    monkeypatch.setattr(hook, "_resolved_account", resolved)
+
+    for arguments in (
+        ["-P", "2222", "wronguser@examplehost.example-tailnet.ts.net"],
+        ["-P2222", "examplehost"],
+        ["-vP", "2222", "examplehost"],
+        ["-l", "100", "-i", "/tmp/key", "examplehost"],
+        ["-b", "/tmp/batch", "-F", "/tmp/cfg", "examplehost"],
+    ):
+        reason = hook._decide_segment(
+            tokens=["sftp", *arguments], record=record, domain="example-tailnet.ts.net"
+        )
+        assert reason is not None, arguments
+        assert "documented account `opsuser`" in reason
+
+    assert any(options == ["-p", "2222"] for options in seen)
+    assert any("-i" in options and "/tmp/key" in options for options in seen)
+    assert any("-F" in options and "/tmp/cfg" in options for options in seen)
+    assert not any("-l" in options for options in seen)

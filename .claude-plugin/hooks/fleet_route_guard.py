@@ -64,11 +64,20 @@ def _head(*, tokens: list[str]) -> tuple[str, list[str]] | None:
     return Path(tokens[index]).name.lower(), tokens[index + 1 :]
 
 
-_VALUE_OPTIONS = frozenset("BbcDEeFIiJLlmOopQRSWw")
-_RESOLUTION_OPTIONS = frozenset("FiJlop")
+_SSH_VALUE_OPTIONS = frozenset("BbcDEeFIiJLlmOopQRSWw")
+_SFTP_VALUE_OPTIONS = frozenset("BbcDFiJloPRSs")
+# Option letters whose values change what ``ssh -G`` resolves, mapped to the ssh letter.
+# ssh's ``-l`` is the login user; sftp's ``-l`` is a bandwidth limit and never forwarded.
+_SSH_RESOLUTION_OPTIONS = {flag: flag for flag in "FiJlop"}
+_SFTP_RESOLUTION_OPTIONS = {"F": "F", "i": "i", "J": "J", "o": "o", "P": "p"}
 
 
-def _target(*, arguments: list[str]) -> tuple[str | None, str | None, list[str]]:
+def _target(
+    *,
+    arguments: list[str],
+    value_options: frozenset[str] = _SSH_VALUE_OPTIONS,
+    resolution_options: dict[str, str] = _SSH_RESOLUTION_OPTIONS,
+) -> tuple[str | None, str | None, list[str]]:
     """Return target host, explicit account, and ssh options relevant to ``ssh -G``."""
     index = 0
     options: list[str] = []
@@ -81,7 +90,7 @@ def _target(*, arguments: list[str]) -> tuple[str | None, str | None, list[str]]
         while position < len(cluster):
             flag = cluster[position]
             position += 1
-            if flag not in _VALUE_OPTIONS:
+            if flag not in value_options:
                 continue
             value = cluster[position:]
             if not value:
@@ -89,8 +98,8 @@ def _target(*, arguments: list[str]) -> tuple[str | None, str | None, list[str]]
                     return None, None, options
                 value = arguments[index]
                 index += 1
-            if flag in _RESOLUTION_OPTIONS:
-                options.extend([f"-{flag}", value])
+            if flag in resolution_options:
+                options.extend([f"-{resolution_options[flag]}", value])
             break
     if index >= len(arguments):
         return None, None, options
@@ -184,12 +193,18 @@ def _decide_segment(*, tokens: list[str], record: TailnetRecord, domain: str | N
     if head in {"scp", "rsync"}:
         host, explicit = _transfer_target(arguments=arguments)
         options: list[str] = []
+    elif head == "sftp":
+        host, explicit, options = _target(
+            arguments=arguments,
+            value_options=_SFTP_VALUE_OPTIONS,
+            resolution_options=_SFTP_RESOLUTION_OPTIONS,
+        )
     else:
         host, explicit, options = _target(arguments=arguments)
     route = _machine(target=host, record=record, domain=domain) if host else None
     if not route or not route.account or not host:
         return None
-    account = explicit or _resolved_account(host=host, options=options if head == "ssh" else [])
+    account = explicit or _resolved_account(host=host, options=options)
     return _account_reason(route=route) if account and account != route.account else None
 
 
