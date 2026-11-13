@@ -12,6 +12,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 __all__: list[str] = [
     "MachineRoute",
@@ -134,15 +135,15 @@ def tailnet_domain() -> str | None:
             check=False,
             timeout=2,
         )
-        payload = json.loads(result.stdout)
+        payload: object = json.loads(result.stdout)
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
     if not isinstance(payload, dict):
         return None
-    self_row = payload.get("Self")
+    self_row = cast(dict[str, object], payload).get("Self")
     if not isinstance(self_row, dict):
         return None
-    dns_name = self_row.get("DNSName")
+    dns_name = cast(dict[str, object], self_row).get("DNSName")
     if not isinstance(dns_name, str):
         return None
     parts = dns_name.rstrip(".").split(".", 1)
