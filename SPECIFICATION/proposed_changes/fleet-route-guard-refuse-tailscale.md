@@ -4,7 +4,7 @@ author: claude-fable-5-2:homelab-k8s-worker-nodes
 created_at: 2026-11-12T19:07:43Z
 ---
 
-## Proposal: Add an advisory fleet route guard that refuses a wrong SSH route to a tailnet machine and names the documented one
+## Proposal: Bind the fleet route guard into the Driver's hook bundle as a Bash-matched guard in the one dispatcher
 
 ### Target specification files
 
@@ -13,53 +13,51 @@ created_at: 2026-11-12T19:07:43Z
 
 ### Summary
 
-Add one Bash-matched PreToolUse guard to the Driver's hook bundle, the fleet route guard. It refuses a `tailscale ssh` to a machine the tailnet record documents with no Tailscale SSH server, and an `ssh`, `scp`, `rsync` or `sftp` to a recorded machine under an account other than the one the record documents. Each refusal names the documented command or account and the record. The guard is advisory and fail-open, has its own refusal text, and runs inside the one PreToolUse dispatcher process. The owning work item is livespec-driver-claude-bmacrp.
+Add the fleet route guard to the Driver's hook bundle as a fifth upstream-required hook. This proposal states only the Driver's binding: the guard is a Bash-matched PreToolUse guard, the one dispatcher evaluates it in-process, its module is `fleet_route_guard.py`, and its tests live under `tests/hooks/`. The guard's behaviour (what it refuses, what it allows, what each refusal names, its telemetry and its fail-open posture) is stated by livespec core in `livespec/SPECIFICATION/contracts.md` §"Driver-shipped hooks", paragraph "Fleet route guard (required)", which livespec#3191 (topic `driver-fleet-route-guard`) proposes. This proposal cites that paragraph and does not restate it.
 
 ### Motivation
 
-Maintainer direction, 2026-11-12, relayed through plan homelab-k8s-worker-nodes (livespec-dev-tooling epic livespec-dev-tooling-ko26ez): "update the hooks to catch this, do it now as part of your plan". Work item livespec-driver-claude-bmacrp carries the behaviour as six Definition-of-Done assertions. Its pre-dispatch screen held it at the spec-change tier, because §"Hook bundle" lists the hooks the bundle carries and no ratified clause states this guard. This proposal supplies that clause and states exactly the item's behaviour.
+Maintainer direction, 2026-11-12, relayed through plan homelab-k8s-worker-nodes (livespec-dev-tooling epic livespec-dev-tooling-ko26ez): "update the hooks to catch this, do it now as part of your plan". Work item livespec-driver-claude-bmacrp carries the implementation. Its pre-dispatch screen placed it at the spec-change tier, because §"Hook bundle" lists the hooks the bundle carries and no ratified clause names this guard.
 
-What happened. On 2026-11-12 a session on the VPS ran `ssh macbook-m4-max` and `tailscale ssh cwoolley@macbook-m4-max`. The first logs in under the VPS's own account name, which is not an account on that Mac. The second fails with "No ED25519 host key is known ... strict checking", because the macOS GUI Tailscale client cannot host a Tailscale SSH server. The session recorded "NO agent route to the macbook-m4-max host exists", a coordinator carried the ask to the maintainer, and a host-side plan step sat blocked for about eight hours. The working route, `ssh cwoolley@macbook-m4-max.perch-rudd.ts.net`, was in the `tailscale-admin` repository's machine table throughout. The maintainer rejected a managed `~/.ssh/config` as the fix ("We are not going to maintain manual ssh auth"), so the guard has to teach the right command at the moment the wrong one is typed. The companion agent guidance is `.ai/fleet-host-ssh-routes.md` in livespec-dev-tooling.
+What happened. On 2026-11-12 a session on one fleet host tried to reach another fleet machine with a bare `ssh <machine>` and with a `tailscale ssh <account>@<machine>`. The first logs in under the calling host's own account name, which is not an account on the target. The second fails, because the target cannot host a Tailscale SSH server. The session recorded that no agent route to the machine existed, and a host-side plan step sat blocked for about eight hours. The documented route was in the `tailscale-admin` repository's machine table throughout. The maintainer rejected a managed `~/.ssh/config` as the fix, so a guard has to teach the right command at the moment the wrong one is typed.
 
-Why a separate guard and not a rule of `fleet_host_guard.py`. livespec core's fleet-host mutation guard paragraph says that guard "acts only on a POSITIVE identification of one of the denials stated above" and that "A read-only reach MUST NOT be denied". A wrong-route `ssh host true` is a read-only reach, so that guard cannot refuse it without breaking its own upstream contract. The mutation guard is also a declared fail-closed guard whose reason names the GitOps deployment discipline. A wrong route is not a hand mutation, and this rule fails open. So it is a separate guard with its own refusal text and its own failure posture.
+Order of ratification. Core's §"Driver-shipped hooks" closes with: "Adding or removing a hook in the Driver bundle, renaming a hook surface, or changing a hook's posture (block vs. warn) requires a propose-change cycle against this section." This repository's §"Hook bundle" repeats that rule and says the hooks' behavioural disciplines and postures are owned upstream. So core ratifies livespec#3191 first, and this proposal's revise follows it. If the core paragraph changes at its revise, this proposal needs no change, because it cites the paragraph and copies none of it.
 
-A livespec core proposal is owed, and this proposal does not file it. Core's `contracts.md` §"Driver-shipped hooks" closes with: "Adding or removing a hook in the Driver bundle, renaming a hook surface, or changing a hook's posture (block vs. warn) requires a propose-change cycle against this section." This repository's §"Hook bundle" repeats that rule, and also says the hooks' behavioural disciplines and postures are owned upstream. This proposal adds a hook, so by both texts a core propose-change cycle against §"Driver-shipped hooks" is owed for the fleet route guard. The revise that decides this proposal has to weigh that: the text below states the guard's discipline in this repository and marks it as the one hook whose discipline this section states, so the Driver clause is complete on its own, and the core cycle then decides whether core takes the discipline over. Three guards the bundle already ships (`github_rate_limit_guard.py`, `tmux_fleet_guard.py`, `block_raw_bd_create.py`) appear in neither list; that existing drift is out of this proposal's scope.
+Ports. livespec#3191 makes the Codex and pi ports REQUIRED, each in its own Driver. They are separate work in the livespec-driver-codex and livespec-driver-pi repositories and are not part of this proposal.
 
-Codex and pi ports are not owed by core's current text. Core requires a port only where a paragraph says so, as "Codex fleet-host mutation guard (required)" and "pi fleet-host mutation guard (required)" do for the mutation guard, and it says runtime-specific hooks "share behavior where their contracts say so, not bytes". No core paragraph names a route guard, so no port is required today. The wrong route is typed the same way from any runtime, so the owed core proposal is where ports get decided; they become owed only if that cycle requires them.
+Why a separate guard and not a rule of `fleet_host_guard.py`. Core's fleet-host mutation guard paragraph says that guard "acts only on a POSITIVE identification of one of the denials stated above" and that "A read-only reach MUST NOT be denied". A wrong-route `ssh <machine> true` is a read-only reach, so that guard cannot refuse it. The mutation guard is also declared fail-closed; the route guard is fail-open. Inside the dispatcher the two therefore have different failure boundaries, which is a Driver wiring fact and is stated below.
 
-Project scope. Core's hook failure discipline says hooks "MUST NOT disturb non-livespec projects ... with the fleet-host mutation guard the one stated exception". This proposal claims no second exception, so the guard passes through outside a livespec-governed project. The item resolves the tailnet record as a sibling of the governed project, which fits.
+One process. The guard adds no HOOK process to a Bash tool call: the dispatcher evaluates it in-process. The guard itself runs `ssh -G <host>` as a child process when it has to read the SSH client's resolved configuration (core's rule 2), so "no process" would be wrong.
 
-The tailnet record is the `tailscale-admin` repository's `README.md` machine table (columns Machine, IP, OS, Tags, SSH account, SSH server, Role). The clause names no machine, account or tailnet; the guard reads them from the record. Machine names in the scenarios are examples.
+Three guards the bundle already ships (`github_rate_limit_guard.py`, `tmux_fleet_guard.py`, `block_raw_bd_create.py`) appear in neither this section's list nor core's; that existing drift is out of this proposal's scope.
 
 ### Proposed Changes
 
-All clause changes are in `SPECIFICATION/contracts.md` §"Hook bundle". The paragraph "The bundle carries four upstream-required hooks:" and its four list items are unchanged: the new guard is not upstream-required, so it is stated in its own paragraph after the list. The dispatcher sentences are unchanged: they already cover every Bash-matched guard and already give a fail-open guard's failure as an allow for that guard alone.
+All clause changes are in `SPECIFICATION/contracts.md` §"Hook bundle". The dispatcher sentences are unchanged: they already cover every Bash-matched guard and already give a fail-open guard's failure as an allow for that guard alone.
 
 **Change 1.** Replace the sentence
 
-> The bundle's *existence and wiring* are this repo's contract; the hooks' *behavioral disciplines and postures* (the fail-open requirement, block-vs-warn, the gating predicates) are owned upstream by `livespec/SPECIFICATION/contracts.md`, which this repo realizes.
+> The bundle carries four upstream-required hooks:
 
 with:
 
-> The bundle's *existence and wiring* are this repo's contract; the hooks' *behavioral disciplines and postures* (the fail-open requirement, block-vs-warn, the gating predicates) are owned upstream by `livespec/SPECIFICATION/contracts.md`, which this repo realizes. The one hook whose discipline this section states itself is the fleet route guard in the paragraph after the list below.
+> The bundle carries five upstream-required hooks:
 
-**Change 2.** Insert this paragraph after the list of four hooks and before the paragraph beginning "Adding or removing a hook":
+**Change 2.** Insert this list item after the primary-checkout Playwright guard item and before the plan-persistence item:
 
-> **Fleet route guard.** The bundle also carries a **PreToolUse** fleet route guard, a Bash-matched guard that refuses a wrong SSH route to a tailnet machine before the command runs and names the documented route. Work item livespec-driver-claude-bmacrp owns its implementation. The guard MUST be a Bash-matched guard with no other matcher, and the dispatcher MUST evaluate it in-process with the other Bash-matched guards, so it adds no process to a Bash tool call. It is a separate guard from the fleet-host mutation guard (`fleet_host_guard.py`): it has its own refusal reason, and that reason MUST NOT present a wrong route as a hand mutation or name the GitOps deployment discipline.
->
-> *The tailnet record.* The guard reads the machine table of the `tailscale-admin` repository's `README.md`, which gives each machine's name, its SSH account and its SSH server. It MUST resolve that repository as a sibling clone of the governed project, or of the primary checkout when the session runs in a linked worktree. The guard MUST NOT hardcode any machine name, account name, tailnet name or tailnet domain; it MUST read each from the record. A **recorded machine** is a command target that equals, in full or by its first DNS label compared case-insensitively, a machine name in the table, and whose row gives the documented SSH account and SSH server the rule in question needs.
->
-> *Rule 1, a `tailscale ssh` to a machine with no Tailscale SSH server.* The guard MUST deny a Bash `tailscale ssh` whose target is a recorded machine that the record documents with no Tailscale SSH server. The refusal reason MUST name the working command, `ssh <documented account>@<host>.<tailnet domain>`, filled in from the record.
->
-> *Rule 2, a wrong login account.* The guard MUST deny a Bash `ssh`, `scp`, `rsync` or `sftp` to a recorded machine whose effective login account differs from the SSH account the record documents for that machine. The refusal reason MUST name the documented account. The effective login account MUST be read from an explicit `user@` on the target, else from `-l <user>`, else from the SSH client's own resolved configuration for that host (the `user` that `ssh -G <host>` prints locally, without connecting). A host that the caller's SSH configuration already maps to the documented account MUST therefore be allowed.
->
-> *Allowed.* A command that reaches a recorded machine with its documented account and method MUST NOT be denied by this guard. A command whose target is not a recorded machine MUST NOT be denied by this guard.
->
-> *Every refusal names the record.* Every refusal reason of this guard MUST name the tailnet record as the place where each machine's SSH account and SSH server are documented.
->
-> *Posture: advisory and fail-open.* The guard acts only on a POSITIVE identification of rule 1 or rule 2. It MUST allow a command it cannot parse, a command whose effective login account it cannot determine, and a target whose record entry it cannot classify. When the tailnet record cannot be read (the sibling clone is absent, the file is unreadable, or no machine table can be read from it), the guard MUST deny nothing, and its verdict record for the command MUST state that no record answered. Any other failure of the guard is an allow under the default fail-open discipline, and inside the dispatcher it is an allow for this guard alone. Under upstream's rule that hooks do not disturb non-livespec projects, the guard MUST pass through when the project is not livespec-governed.
->
-> How the guard reads a command (segments, wrapper prefixes, option grammar), how it classifies the wording of an SSH server entry, and its place in the dispatch order are Driver detection internals, provided the denials, allowances and posture stated here hold.
+> - a **PreToolUse** fleet route guard (`fleet_route_guard.py`), a
+>   Bash-matched guard with no other matcher. Its behavioral discipline
+>   and posture (the wrong SSH routes it refuses, what each refusal
+>   names, its allowances, its telemetry record and its advisory
+>   fail-open posture) are owned by livespec core's Driver-shipped-hooks
+>   contract, paragraph "Fleet route guard (required)"; this Driver owns
+>   the Python module, its membership of the dispatcher, and its
+>   executable coverage under `tests/hooks/`. The dispatcher MUST
+>   evaluate it in-process with the other Bash-matched guards, so it adds
+>   no hook process to a Bash tool call, and inside the dispatcher its
+>   failure is an allow for this guard alone. It is a separate module
+>   from the fleet-host mutation guard (`fleet_host_guard.py`) and MUST
+>   NOT share that guard's refusal reason;
 
 **Change 3.** In the closing paragraph of §"Hook bundle", replace the sentence
 
@@ -69,53 +67,28 @@ with:
 
 > The dispatch order and the membership of the dispatcher, among the hooks the bundle already carries, are Driver implementation detail under that same rule, provided the one-process and per-guard failure-posture properties above hold. The fleet route guard is the stated exception on membership: the dispatcher MUST evaluate it.
 
-**Change 4.** In `SPECIFICATION/scenarios.md`, add these five scenarios after "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still refuses the call". The machine, account and domain in them are examples read from the record, not rules.
+**Change 4.** In `SPECIFICATION/scenarios.md`, add these two scenarios after "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still refuses the call". They state Driver wiring only; the behaviour scenarios are core's. The machine, account and domain are placeholders.
 
-## Scenario: a tailscale ssh to a machine with no Tailscale SSH server is refused with the working command
+## Scenario: the fleet route guard refuses a wrong route through the one PreToolUse dispatcher
 
 ```gherkin
-Given the tailnet record documents machine "macbook-m4-max" with SSH account "cwoolley" and an SSH server entry that lists no Tailscale SSH server
-When the agent makes a Bash tool call running "tailscale ssh cwoolley@macbook-m4-max true"
-Then the fleet route guard refuses the call before the command runs
-And the refusal names the working command "ssh cwoolley@macbook-m4-max.perch-rudd.ts.net"
-And the refusal names the tailnet record as the place where each machine's SSH account and SSH server are documented
+Given a livespec-governed project whose installed Driver bundle registers one PreToolUse entry point on the Bash matcher
+And a tailnet record that documents machine "examplehost" with SSH account "opsuser", an OpenSSH server and no Tailscale SSH server
+And a local Tailscale client that reports the tailnet domain "example-tailnet.ts.net"
+When the agent makes a Bash tool call running "tailscale ssh opsuser@examplehost true"
+Then the dispatcher refuses the call before the command runs
+And the refusal reason is byte-identical to the reason `fleet_route_guard.py` gives when run standalone against the same payload
+And no hook process other than the dispatcher was started for the call
 ```
 
-## Scenario: an ssh to a recorded machine under the wrong account is refused with the documented account
+## Scenario: a crashing fleet route guard inside the PreToolUse dispatcher does not refuse the call
 
 ```gherkin
-Given the tailnet record documents machine "macbook-m4-max" with SSH account "cwoolley"
-And the caller's SSH configuration resolves the login account for that host to "ubuntu"
-When the agent makes a Bash tool call running "ssh macbook-m4-max true"
-Then the fleet route guard refuses the call before the command runs
-And the refusal names the documented account "cwoolley"
-And the refusal names the tailnet record as the place where each machine's SSH account and SSH server are documented
-```
-
-## Scenario: an ssh to a recorded machine with its documented account is allowed
-
-```gherkin
-Given the tailnet record documents machine "macbook-m4-max" with SSH account "cwoolley" and an SSH server entry that lists no Tailscale SSH server
-When the agent makes a Bash tool call running "ssh cwoolley@macbook-m4-max.perch-rudd.ts.net true"
-Then the fleet route guard does not refuse the call
-```
-
-## Scenario: an ssh to a host the caller's SSH configuration maps to the documented account is allowed
-
-```gherkin
-Given the tailnet record documents machine "macbook-m4-max" with SSH account "cwoolley"
-And the caller's SSH configuration resolves the login account for that host to "cwoolley"
-When the agent makes a Bash tool call running "ssh macbook-m4-max true"
-Then the fleet route guard does not refuse the call
-```
-
-## Scenario: an unreadable tailnet record makes the fleet route guard allow the call and record that no record answered
-
-```gherkin
-Given the tailnet record cannot be read
-When the agent makes a Bash tool call running "tailscale ssh cwoolley@macbook-m4-max true"
-Then the fleet route guard does not refuse the call
-And the guard's verdict record for the call states that no record answered
+Given a livespec-governed project whose installed Driver bundle registers one PreToolUse entry point on the Bash matcher
+And the fleet route guard raises while it evaluates the call
+When the agent makes a Bash tool call that no other guard refuses
+Then the dispatcher allows the call
+And every other Bash-matched guard's decision is unchanged
 ```
 
 **Co-edit owed at revise.** The revise that accepts this proposal MUST add one `tests/heading-coverage.json` entry per new scenario heading in the same commit (`spec_file: "scenarios.md"`, `test: "TODO"`, `work_item: "livespec-driver-claude-bmacrp"`, and a `reason` that names the tier the owed test runs at and that work item, for example "A real test at the integration tier (hook boundary) is owed for this heading; livespec-driver-claude-bmacrp owns it."), and MUST regenerate `tests/heading-coverage-debt.json`.
