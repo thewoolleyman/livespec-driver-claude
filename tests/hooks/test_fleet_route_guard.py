@@ -147,3 +147,14 @@ def test_non_livespec_project_passes_through_even_when_a_record_is_available(
         assert hook.main() == 0
 
     assert stdout.getvalue() == ""
+
+
+def test_non_object_hook_payload_is_an_advisory_allow(monkeypatch) -> None:
+    """Malformed hook input must not turn a typed decoding boundary into a denial."""
+    hook = _load_hook()
+    monkeypatch.setattr(sys, "stdin", StringIO("[]"))
+    stdout = StringIO()
+    with redirect_stdout(stdout):
+        assert hook.main() == 0
+
+    assert stdout.getvalue() == ""

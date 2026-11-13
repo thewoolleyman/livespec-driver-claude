@@ -17,6 +17,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 from _guard_telemetry import emit_guard_verdict
 from _remote_target import host_of_target
@@ -178,17 +179,18 @@ def _decide_segment(*, tokens: list[str], record: TailnetRecord, domain: str | N
 def _command(*, payload: object) -> str | None:
     if not isinstance(payload, dict):
         return None
-    input_data = payload.get("tool_input")
+    input_data = cast(dict[str, object], payload).get("tool_input")
     if not isinstance(input_data, dict):
         return None
-    command = input_data.get("command")
+    command = cast(dict[str, object], input_data).get("command")
     return command if isinstance(command, str) else None
 
 
 def main() -> int:
     """Emit a refusal only for a route the record positively identifies as wrong."""
     try:
-        command = _command(payload=json.load(sys.stdin))
+        payload: object = json.load(sys.stdin)
+        command = _command(payload=payload)
         if not command:
             return 0
         project_dir = _project_dir()
