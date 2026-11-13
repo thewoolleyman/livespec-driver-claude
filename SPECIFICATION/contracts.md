@@ -229,7 +229,7 @@ upstream by `livespec/SPECIFICATION/contracts.md`, which this repo
 realizes. The script implementations and their
 unit tests live in THIS repo (`tests/hooks/`).
 
-The bundle carries four upstream-required hooks:
+The bundle carries five upstream-required hooks:
 
 - a **PreToolUse** auto-memory redirect (`block_auto_memory.py`)
   registered on `Write`, `Edit`, `MultiEdit` and `Bash` that, in a
@@ -253,6 +253,19 @@ The bundle carries four upstream-required hooks:
   posture are owned by livespec core's Driver-shipped-hooks contract;
   this Driver owns the Python entry point, its registration, and its
   executable coverage under `tests/hooks/`;
+- a **PreToolUse** fleet route guard (`fleet_route_guard.py`), a
+  Bash-matched guard with no other matcher. Its behavioral discipline
+  and posture (the wrong SSH routes it refuses, what each refusal
+  names, its allowances, its telemetry record and its advisory
+  fail-open posture) are owned by livespec core's Driver-shipped-hooks
+  contract, paragraph "Fleet route guard (required)"; this Driver owns
+  the Python module, its membership of the dispatcher, and its
+  executable coverage under `tests/hooks/`. The dispatcher MUST
+  evaluate it in-process with the other Bash-matched guards, so it adds
+  no hook process to a Bash tool call, and inside the dispatcher its
+  failure is an allow for this guard alone. It is a separate module
+  from the fleet-host mutation guard (`fleet_host_guard.py`) and MUST
+  NOT share that guard's refusal reason;
 - a **Stop** plan-persistence hook that warns when the last assistant
   turn carried substantial planning artifacts (headings / table rows /
   list items above thresholds) with no persisting tool call in the
@@ -277,6 +290,8 @@ detail and MAY be tuned without a spec cycle, provided the postures hold.
 The dispatch order and the membership of the dispatcher, among the hooks the
 bundle already carries, are Driver implementation detail under that same rule,
 provided the one-process and per-guard failure-posture properties above hold.
+The fleet route guard is the stated exception on membership: the dispatcher MUST
+evaluate it.
 
 ## Versioning
 

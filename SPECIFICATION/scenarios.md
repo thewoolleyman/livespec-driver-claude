@@ -223,6 +223,28 @@ Then the dispatcher refuses the call with that guard's own fail-closed refusal
 And every other Bash-matched guard is still evaluated against the call
 ```
 
+## Scenario: the fleet route guard refuses a wrong route through the one PreToolUse dispatcher
+
+```gherkin
+Given a livespec-governed project whose installed Driver bundle registers one PreToolUse entry point on the Bash matcher
+And a tailnet record that documents machine "examplehost" with SSH account "opsuser", an OpenSSH server and no Tailscale SSH server
+And a local Tailscale client that reports the tailnet domain "example-tailnet.ts.net"
+When the agent makes a Bash tool call running "tailscale ssh opsuser@examplehost true"
+Then the dispatcher refuses the call before the command runs
+And the refusal reason is byte-identical to the reason `fleet_route_guard.py` gives when run standalone against the same payload
+And no hook process other than the dispatcher was started for the call
+```
+
+## Scenario: a crashing fleet route guard inside the PreToolUse dispatcher does not refuse the call
+
+```gherkin
+Given a livespec-governed project whose installed Driver bundle registers one PreToolUse entry point on the Bash matcher
+And the fleet route guard raises while it evaluates the call
+When the agent makes a Bash tool call that no other guard refuses
+Then the dispatcher allows the call
+And every other Bash-matched guard's decision is unchanged
+```
+
 ## Scenario: plan-artifact persistence warning on a bare assistant turn
 
 ```gherkin
