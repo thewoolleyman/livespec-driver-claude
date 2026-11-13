@@ -23,6 +23,7 @@ _BASH_GUARDS = (
     "github_rate_limit_guard",
     "block_raw_bd_create",
     "fleet_host_guard",
+    "fleet_route_guard",
     "block_auto_memory",
 )
 
@@ -197,11 +198,17 @@ def test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call(
         "tmux_fleet_guard": ModuleType("tmux_fleet_guard"),
         "block_raw_bd_create": ModuleType("block_raw_bd_create"),
         "fleet_host_guard": ModuleType("fleet_host_guard"),
+        "fleet_route_guard": ModuleType("fleet_route_guard"),
         "block_auto_memory": ModuleType("block_auto_memory"),
     }
     guards["github_rate_limit_guard"].main = crashing_main
     guards["tmux_fleet_guard"].main = denying_main
-    for name in ("block_raw_bd_create", "fleet_host_guard", "block_auto_memory"):
+    for name in (
+        "block_raw_bd_create",
+        "fleet_host_guard",
+        "fleet_route_guard",
+        "block_auto_memory",
+    ):
         guards[name].main = lambda name=name: allowing_main(name=name)
 
     monkeypatch.setattr(dispatcher, "_load_guard", lambda name: guards[name], raising=False)
