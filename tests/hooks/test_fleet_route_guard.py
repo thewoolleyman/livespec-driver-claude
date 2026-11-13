@@ -43,6 +43,7 @@ def test_tailnet_record_reading_is_a_cohesive_sibling_module() -> None:
         )
     )
     assert record.machines["example"].account == "ops"
+    assert hasattr(record_reader, "parse_tailnet_table")
 
 
 def test_tailscale_ssh_without_a_tailscale_server_names_the_documented_openssh_route(
