@@ -21,6 +21,7 @@ GUARD_MODULE_NAMES = (
     "github_rate_limit_guard",
     "block_raw_bd_create",
     "fleet_host_guard",
+    "fleet_route_guard",
     "block_auto_memory",
 )
 
