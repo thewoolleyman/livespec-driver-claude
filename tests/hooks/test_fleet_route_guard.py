@@ -62,3 +62,33 @@ def test_tailscale_ssh_without_a_tailscale_server_names_the_documented_openssh_r
     assert decision["permissionDecision"] == "deny"
     assert "ssh opsuser@examplehost.example-tailnet.ts.net" in decision["permissionDecisionReason"]
     assert "tailscale-admin README machine table" in decision["permissionDecisionReason"]
+
+
+def test_transfer_to_a_recorded_machine_under_the_wrong_account_is_denied(
+    monkeypatch,
+) -> None:
+    """The destination account matters for scp, rsync and sftp as well as ssh."""
+    hook = _load_hook()
+    record = hook.TailnetRecord(
+        machines={
+            "examplehost": hook.MachineRoute(
+                machine="examplehost", account="opsuser", openssh=True, tailscale_ssh=False
+            )
+        },
+        answered=True,
+    )
+
+    def wrong_account(*, host: str, options: list[str]) -> str:
+        _ = (host, options)
+        return "wronguser"
+
+    monkeypatch.setattr(hook, "_resolved_account", wrong_account)
+
+    reason = hook._decide_segment(
+        tokens=["scp", "./report", "wronguser@examplehost:/tmp/report"],
+        record=record,
+        domain="example-tailnet.ts.net",
+    )
+
+    assert reason is not None
+    assert "documented account `opsuser`" in reason
