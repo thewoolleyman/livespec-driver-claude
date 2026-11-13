@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _guard_telemetry import emit_guard_verdict
+from _remote_target import host_of_target
 
 __all__: list[str] = []
 
@@ -194,6 +195,16 @@ def _target(*, arguments: list[str]) -> tuple[str | None, str | None, list[str]]
     return target, None, options
 
 
+def _transfer_target(*, arguments: list[str]) -> tuple[str | None, str | None]:
+    """The final transfer operand's host and explicit user, if it has either."""
+    if not arguments:
+        return None, None
+    target = arguments[-1]
+    authority = target.split(":", 1)[0].removeprefix("scp://").removeprefix("sftp://")
+    account = authority.rsplit("@", 1)[0] if "@" in authority else None
+    return host_of_target(target=target), account or None
+
+
 def _machine(*, target: str, record: TailnetRecord, domain: str | None) -> MachineRoute | None:
     lowered = target.lower().rstrip(".")
     direct = record.machines.get(lowered)
@@ -264,7 +275,11 @@ def _decide_segment(*, tokens: list[str], record: TailnetRecord, domain: str | N
         return None
     if head not in {"ssh", "scp", "rsync", "sftp"}:
         return None
-    host, explicit, options = _target(arguments=arguments)
+    if head in {"scp", "rsync"}:
+        host, explicit = _transfer_target(arguments=arguments)
+        options: list[str] = []
+    else:
+        host, explicit, options = _target(arguments=arguments)
     route = _machine(target=host, record=record, domain=domain) if host else None
     if not route or not route.account or not host:
         return None
