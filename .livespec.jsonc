@@ -70,7 +70,7 @@
   // because that clause owns the registry the committed factory table defers to.
   // That entry is deliberately the BARE heading form: a file-qualified entry is
   // validated against cross_repo_targets.livespec-dev-tooling.local_clone, the
-  // host-absolute /data/projects/livespec-dev-tooling, which CI does not expose
+  // host-local ~/workspace/livespec-dev-tooling, which CI does not expose
   // as a sibling clone, so the pinned core maps it to an empty heading set and
   // drops the entry, failing the citation as "not allowlisted".
   "external_references": {
@@ -90,12 +90,12 @@
   "cross_repo_targets": {
     "livespec": {
       "github_url": "https://github.com/thewoolleyman/livespec",
-      "local_clone": "/data/projects/livespec",
+      "local_clone": "~/workspace/livespec",
       "default_branch": "master"
     },
     "livespec-dev-tooling": {
       "github_url": "https://github.com/thewoolleyman/livespec-dev-tooling",
-      "local_clone": "/data/projects/livespec-dev-tooling",
+      "local_clone": "~/workspace/livespec-dev-tooling",
       "default_branch": "master"
     }
   },
