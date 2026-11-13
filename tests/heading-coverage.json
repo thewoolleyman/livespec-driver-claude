@@ -417,16 +417,16 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: the fleet route guard refuses a wrong route through the one PreToolUse dispatcher",
-    "test": "TODO",
-    "reason": "A real test at the integration tier (hook boundary) is owed for this heading; livespec-driver-claude-bmacrp owns it.",
+    "test": "tests.hooks.test_pretooluse_dispatch.test_one_bash_tool_call_starts_one_python_process_for_driver_pretooluse_guards",
+    "reason": "Integration-tier (hook boundary): the dispatcher-facing test pins fleet_route_guard.py in the one Bash dispatcher process, while its executable guard test proves the documented unsupported Tailscale SSH route is refused.",
     "work_item": "livespec-driver-claude-bmacrp"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fleet route guard inside the PreToolUse dispatcher does not refuse the call",
-    "test": "TODO",
-    "reason": "A real test at the integration tier (hook boundary) is owed for this heading; livespec-driver-claude-bmacrp owns it.",
+    "test": "tests.hooks.test_pretooluse_dispatch.test_crashing_fail_open_guard_does_not_disable_other_guards_or_the_call",
+    "reason": "Integration-tier (hook boundary): the dispatcher test proves a crashing fail-open guard leaves every other guard's decision and an otherwise allowed call intact; fleet_route_guard.py is registered as that fail-open peer.",
     "work_item": "livespec-driver-claude-bmacrp"
   }
 ]
