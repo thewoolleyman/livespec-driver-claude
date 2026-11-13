@@ -66,10 +66,98 @@ def _head(*, tokens: list[str]) -> tuple[str, list[str]] | None:
 
 _SSH_VALUE_OPTIONS = frozenset("BbcDEeFIiJLlmOopQRSWw")
 _SFTP_VALUE_OPTIONS = frozenset("BbcDFiJloPRSs")
+_SCP_VALUE_OPTIONS = frozenset("cDFiJloPS")
+_RSYNC_VALUE_OPTIONS = frozenset("eBfMT@")
 # Option letters whose values change what ``ssh -G`` resolves, mapped to the ssh letter.
-# ssh's ``-l`` is the login user; sftp's ``-l`` is a bandwidth limit and never forwarded.
+# ssh's ``-l`` is the login user; sftp's and scp's ``-l`` is a bandwidth limit, never forwarded.
 _SSH_RESOLUTION_OPTIONS = {flag: flag for flag in "FiJlop"}
 _SFTP_RESOLUTION_OPTIONS = {"F": "F", "i": "i", "J": "J", "o": "o", "P": "p"}
+_SCP_RESOLUTION_OPTIONS = _SFTP_RESOLUTION_OPTIONS
+# rsync's remote shell is chosen with ``-e``/``--rsh``; its argv is parsed as an ssh command line.
+_RSYNC_RESOLUTION_OPTIONS = {"e": "e"}
+
+
+def _short_options(
+    *,
+    cluster: str,
+    following: list[str],
+    value_options: frozenset[str],
+    resolution_options: dict[str, str],
+) -> tuple[list[str], int] | None:
+    """Relevant options of one short-option cluster and the following tokens it consumed."""
+    options: list[str] = []
+    position = 1
+    while position < len(cluster):
+        flag = cluster[position]
+        position += 1
+        if flag not in value_options:
+            continue
+        value = cluster[position:]
+        consumed = 0
+        if not value:
+            if not following:
+                return None
+            value = following[0]
+            consumed = 1
+        if flag in resolution_options:
+            options.extend([f"-{resolution_options[flag]}", value])
+        return options, consumed
+    return options, 0
+
+
+def _long_option(*, cluster: str, following: list[str]) -> tuple[list[str], int] | None:
+    """The rsync ``--rsh`` remote shell, as an ``-e`` option, and the tokens it consumed."""
+    name, equals, inline = cluster.partition("=")
+    if name != "--rsh":
+        return [], 0
+    if equals:
+        return ["-e", inline], 0
+    if not following:
+        return None
+    return ["-e", following[0]], 1
+
+
+def _scan(
+    *,
+    arguments: list[str],
+    value_options: frozenset[str],
+    resolution_options: dict[str, str],
+    permute: bool = False,
+) -> tuple[list[str], list[str]] | None:
+    """Return operands and the options relevant to ``ssh -G``; None when an option lacks a value.
+
+    ssh and sftp stop option parsing at the first operand; scp and rsync accept options after it.
+    """
+    index = 0
+    options: list[str] = []
+    operands: list[str] = []
+    while index < len(arguments):
+        cluster = arguments[index]
+        index += 1
+        if cluster == "--":
+            operands.extend(arguments[index:])
+            break
+        if not cluster.startswith("-") or cluster == "-":
+            operands.append(cluster)
+            if permute:
+                continue
+            operands.extend(arguments[index:])
+            break
+        following = arguments[index:]
+        if cluster.startswith("--"):
+            found = _long_option(cluster=cluster, following=following)
+        else:
+            found = _short_options(
+                cluster=cluster,
+                following=following,
+                value_options=value_options,
+                resolution_options=resolution_options,
+            )
+        if found is None:
+            return None
+        options.extend(found[0])
+        index += found[1]
+    return operands, options
 
 
 def _target(
@@ -79,45 +167,56 @@ def _target(
     resolution_options: dict[str, str] = _SSH_RESOLUTION_OPTIONS,
 ) -> tuple[str | None, str | None, list[str]]:
     """Return target host, explicit account, and ssh options relevant to ``ssh -G``."""
-    index = 0
-    options: list[str] = []
-    while index < len(arguments) and arguments[index].startswith("-") and arguments[index] != "-":
-        cluster = arguments[index]
-        index += 1
-        if cluster == "--":
-            break
-        position = 1
-        while position < len(cluster):
-            flag = cluster[position]
-            position += 1
-            if flag not in value_options:
-                continue
-            value = cluster[position:]
-            if not value:
-                if index >= len(arguments):
-                    return None, None, options
-                value = arguments[index]
-                index += 1
-            if flag in resolution_options:
-                options.extend([f"-{resolution_options[flag]}", value])
-            break
-    if index >= len(arguments):
-        return None, None, options
-    target = arguments[index]
+    scanned = _scan(
+        arguments=arguments, value_options=value_options, resolution_options=resolution_options
+    )
+    if scanned is None or not scanned[0]:
+        return None, None, [] if scanned is None else scanned[1]
+    operands, options = scanned
+    target = operands[0]
     if "@" in target:
         account, host = target.rsplit("@", 1)
         return host, account or None, options
     return target, None, options
 
 
-def _transfer_target(*, arguments: list[str]) -> tuple[str | None, str | None]:
-    """The final transfer operand's host and explicit user, if it has either."""
-    if not arguments:
-        return None, None
-    target = arguments[-1]
+def _rsh_options(*, command: str) -> list[str]:
+    """The ssh options an rsync ``-e`` command carries; other remote shells forward nothing."""
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return []
+    if not tokens or Path(tokens[0]).name.lower() != "ssh":
+        return []
+    scanned = _scan(
+        arguments=tokens[1:],
+        value_options=_SSH_VALUE_OPTIONS,
+        resolution_options=_SSH_RESOLUTION_OPTIONS,
+    )
+    return [] if scanned is None else scanned[1]
+
+
+def _transfer_target(
+    *, head: str, arguments: list[str]
+) -> tuple[str | None, str | None, list[str]]:
+    """The final transfer operand's host and explicit user, plus the ssh options it runs under."""
+    rsync = head == "rsync"
+    scanned = _scan(
+        arguments=arguments,
+        value_options=_RSYNC_VALUE_OPTIONS if rsync else _SCP_VALUE_OPTIONS,
+        resolution_options=_RSYNC_RESOLUTION_OPTIONS if rsync else _SCP_RESOLUTION_OPTIONS,
+        permute=True,
+    )
+    if scanned is None or not scanned[0]:
+        return None, None, []
+    operands, options = scanned
+    if rsync:
+        remote_shells = options[1::2]
+        options = _rsh_options(command=remote_shells[-1]) if remote_shells else []
+    target = operands[-1]
     authority = target.split(":", 1)[0].removeprefix("scp://").removeprefix("sftp://")
     account = authority.rsplit("@", 1)[0] if "@" in authority else None
-    return host_of_target(target=target), account or None
+    return host_of_target(target=target), account or None, options
 
 
 def _machine(*, target: str, record: TailnetRecord, domain: str | None) -> MachineRoute | None:
@@ -191,8 +290,7 @@ def _decide_segment(*, tokens: list[str], record: TailnetRecord, domain: str | N
     if head not in {"ssh", "scp", "rsync", "sftp"}:
         return None
     if head in {"scp", "rsync"}:
-        host, explicit = _transfer_target(arguments=arguments)
-        options: list[str] = []
+        host, explicit, options = _transfer_target(head=head, arguments=arguments)
     elif head == "sftp":
         host, explicit, options = _target(
             arguments=arguments,

@@ -235,3 +235,79 @@ def test_sftp_options_do_not_hide_the_target_host(monkeypatch) -> None:
     assert any("-i" in options and "/tmp/key" in options for options in seen)
     assert any("-F" in options and "/tmp/cfg" in options for options in seen)
     assert not any("-l" in options for options in seen)
+
+
+def _config_default_user_resolver(seen: list[list[str]]):
+    """A stand-in for `ssh -G` whose configuration maps the host to the documented account."""
+
+    def resolved(*, host: str, options: list[str]) -> str:
+        _ = host
+        seen.append(options)
+        for index, option in enumerate(options[:-1]):
+            if option == "-o" and options[index + 1].lower().startswith("user="):
+                return options[index + 1].split("=", 1)[1]
+            if option == "-l":
+                return options[index + 1]
+        return "opsuser"
+
+    return resolved
+
+
+def test_scp_and_rsync_forward_their_ssh_options_to_the_resolver(monkeypatch) -> None:
+    """`scp -o User=x` and `rsync -e 'ssh -o User=x'` change the login, not just the config."""
+    hook = _load_hook()
+    record = hook.TailnetRecord(
+        machines={
+            "examplehost": hook.MachineRoute(
+                machine="examplehost", account="opsuser", openssh=True, tailscale_ssh=False
+            )
+        },
+        answered=True,
+    )
+    seen: list[list[str]] = []
+    monkeypatch.setattr(hook, "_resolved_account", _config_default_user_resolver(seen))
+
+    for tokens in (
+        ["scp", "-o", "User=wronguser", "f.txt", "examplehost:/tmp/"],
+        ["scp", "-oUser=wronguser", "f.txt", "examplehost:/tmp/"],
+        ["scp", "-P", "2222", "-o", "User=wronguser", "f.txt", "examplehost:/tmp/"],
+        ["scp", "-i", "/tmp/key", "-l", "100", "-o", "User=wronguser", "f.txt", "examplehost:/"],
+        ["rsync", "-av", "-e", "ssh -o User=wronguser", "./x", "examplehost:/tmp/x"],
+        ["rsync", "-ave", "ssh -l wronguser -p 2222", "./x", "examplehost:/tmp/x"],
+        ["rsync", "--rsh=ssh -o User=wronguser", "./x", "examplehost:/tmp/x"],
+        ["rsync", "--rsh", "ssh -o User=wronguser", "./x", "examplehost:/tmp/x"],
+        ["rsync", "./x", "examplehost:/tmp/x", "-e", "ssh -o User=wronguser"],
+    ):
+        reason = hook._decide_segment(tokens=tokens, record=record, domain="example-tailnet.ts.net")
+        assert reason is not None, tokens
+        assert "documented account `opsuser`" in reason
+
+    assert any(options[:2] == ["-p", "2222"] for options in seen)
+    assert any("-i" in options and "/tmp/key" in options for options in seen)
+    assert not any("100" in options for options in seen)
+
+
+def test_scp_and_rsync_with_the_configured_account_stay_allowed(monkeypatch) -> None:
+    """A transfer whose resolved login is the documented account is not denied."""
+    hook = _load_hook()
+    record = hook.TailnetRecord(
+        machines={
+            "examplehost": hook.MachineRoute(
+                machine="examplehost", account="opsuser", openssh=True, tailscale_ssh=False
+            )
+        },
+        answered=True,
+    )
+    monkeypatch.setattr(hook, "_resolved_account", _config_default_user_resolver([]))
+
+    for tokens in (
+        ["scp", "-P", "2222", "f.txt", "examplehost:/tmp/"],
+        ["scp", "-o", "User=opsuser", "f.txt", "examplehost:/tmp/"],
+        ["rsync", "-av", "-e", "ssh -p 2222", "./x", "examplehost:/tmp/x"],
+        ["rsync", "-av", "-e", "ssh -o User=opsuser", "./x", "examplehost:/tmp/x"],
+        ["rsync", "-av", "-e", "custom-rsh", "./x", "examplehost:/tmp/x"],
+    ):
+        assert (
+            hook._decide_segment(tokens=tokens, record=record, domain="example-tailnet.ts.net")
+            is None
+        ), tokens
