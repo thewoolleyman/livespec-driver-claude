@@ -412,5 +412,21 @@
     "test": "TODO",
     "reason": "Integration-tier: a real test at the integration tier or above is owed for this heading, exercising this repository's check-pre-push recipe calling `python -m livespec_dev_tooling.green_token pre-push-reuse` with its check-set member names: exit 0 submits no gate Job and runs no local `just check`, exit 3 gates the push as before, any other status refuses it. livespec-driver-claude-4wx4om owns it.",
     "work_item": "livespec-driver-claude-4wx4om"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: the fleet route guard refuses a wrong route through the one PreToolUse dispatcher",
+    "test": "TODO",
+    "reason": "A real test at the integration tier (hook boundary) is owed for this heading; livespec-driver-claude-bmacrp owns it.",
+    "work_item": "livespec-driver-claude-bmacrp"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a crashing fleet route guard inside the PreToolUse dispatcher does not refuse the call",
+    "test": "TODO",
+    "reason": "A real test at the integration tier (hook boundary) is owed for this heading; livespec-driver-claude-bmacrp owns it.",
+    "work_item": "livespec-driver-claude-bmacrp"
   }
 ]
