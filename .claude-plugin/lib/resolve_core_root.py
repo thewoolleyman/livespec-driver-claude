@@ -285,7 +285,7 @@ def _rule_2_outcome(*, checkout: Path) -> CoreRootOutcome | None:
     """Three-way: IS core, INCOMPLETE core (an error), or not core (decline).
 
     The middle branch is not fussiness. A bare all-present boolean falls THROUGH
-    to rule 3 on a core checkout that is mid-rename, and `/data/projects/livespec`
+    to rule 3 on a core checkout that is mid-rename, and `~/workspace/livespec`
     holds an install record -- so resolution would land on the installed cache and
     serve released prose to someone editing its replacement. Silent-and-rare is a
     worse trade than loud-and-common in a resolver whose whole defect was silence.

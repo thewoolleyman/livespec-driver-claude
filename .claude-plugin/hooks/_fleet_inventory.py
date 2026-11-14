@@ -11,7 +11,7 @@ any host action. So the host set is READ, in this order:
    provisioning tree is its own authority);
 2. a sibling `livespec-dev-tooling` clone's inventory, resolved as a PEER of
    the governed project — the fleet keeps its first-class clones side by side
-   under one parent (`/data/projects/<repo>`), so the provisioning repository
+   under one parent (`~/workspace/<repo>`), so the provisioning repository
    sits next to whichever governed repository the session is in. A session in
    a linked worktree (`~/.worktrees/<repo>/<branch>`) has no such peer, so its
    PRIMARY checkout is read off the worktree's `.git` file (`gitdir:
