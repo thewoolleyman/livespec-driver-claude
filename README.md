@@ -1,5 +1,7 @@
 # livespec-driver-claude
 
+Built with [livespec](https://livespec-ai.org/)
+
 The **Claude Code Driver** for [livespec](https://github.com/thewoolleyman/livespec)
 — the first reference Driver under livespec's contract + reference
 implementations architecture (per livespec `SPECIFICATION/spec.md`
