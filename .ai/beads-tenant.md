@@ -9,7 +9,7 @@ repo-declared credential wrapper from `.livespec.jsonc` when reading or
 writing live tenant state:
 
 ```bash
-/usr/local/bin/with-livespec-env.sh -- bd -C /data/projects/livespec-driver-claude list --status all
+/usr/local/bin/with-livespec-env.sh -- bd -C "$HOME/workspace/livespec-driver-claude" list --status all
 ```
 
 Never print `BEADS_DOLT_PASSWORD`; use probe-only checks such as a byte
